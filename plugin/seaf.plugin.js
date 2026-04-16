@@ -545,10 +545,18 @@ Draw.loadPlugin(function(ui)
 		var updateCfg = state.config.update || {};
 		return {
 			enabled: updateCfg.enabled !== false,
+			mode: updateCfg.mode || 'github_release',
 			repo: updateCfg.repo || updateCfg.githubRepo || '',
 			assetName: updateCfg.assetName || updateCfg.releaseAsset || 'seaf-plugin-runtime.tar.gz',
 			tag: updateCfg.tag || null,
-			apiBaseUrl: updateCfg.apiBaseUrl || 'https://api.github.com'
+			apiBaseUrl: updateCfg.apiBaseUrl || 'https://api.github.com',
+			gitRepoSsh: updateCfg.gitRepoSsh || '',
+			gitRef: updateCfg.gitRef || 'master',
+			assetPath: updateCfg.assetPath || 'release/out/seaf-plugin-runtime.tar.gz',
+			ssh: {
+				privateKeyPath: updateCfg.ssh && updateCfg.ssh.privateKeyPath ? updateCfg.ssh.privateKeyPath : '',
+				publicKeyPath: updateCfg.ssh && updateCfg.ssh.publicKeyPath ? updateCfg.ssh.publicKeyPath : ''
+			}
 		};
 	}
 
@@ -576,13 +584,19 @@ Draw.loadPlugin(function(ui)
 
 			try
 			{
-				showInfo('SEAF runtime update started');
+				showInfo('Запуск обновления версии плагина');
 				var result = await requestAsync({
 					action: 'updateSeafPluginRuntime',
+					configPath: state.configPath,
+					mode: cfg.mode,
 					repo: cfg.repo,
 					assetName: cfg.assetName,
 					tag: cfg.tag,
-					apiBaseUrl: cfg.apiBaseUrl
+					apiBaseUrl: cfg.apiBaseUrl,
+					gitRepoSsh: cfg.gitRepoSsh,
+					gitRef: cfg.gitRef,
+					assetPath: cfg.assetPath,
+					ssh: cfg.ssh
 				});
 
 				// Refresh config and runtime version immediately after update, so the menu
@@ -600,15 +614,29 @@ Draw.loadPlugin(function(ui)
 
 				state.runtimeVersion = await detectRuntimeVersion();
 				await writeLog('info', 'SEAF runtime version refreshed after update', {
+					status: result && result.status ? result.status : null,
 					tag: result && result.tag ? result.tag : null,
 					runtimeVersion: state.runtimeVersion
 				});
 
-				showInfo('SEAF runtime updated to v' + (state.runtimeVersion || 'unknown') + '.');
+				if (result && result.status === 'already_up_to_date')
+				{
+					showInfo('Установлена актуальная версия ' + (result.version || state.runtimeVersion || 'unknown'));
+					return;
+				}
+
+				if (result && result.status === 'updated')
+				{
+					showInfo('Версия плагина обновлена до версии ' + (result.version || state.runtimeVersion || 'unknown'));
+					window.location.reload();
+					return;
+				}
+
+				showInfo('Версия плагина обновлена до версии ' + (state.runtimeVersion || 'unknown'));
 			}
 			catch (e)
 			{
-				showError('SEAF runtime update failed: ' + e.message);
+				showError('Ошибка обновления плагина: ' + e.message);
 			}
 		});
 	}

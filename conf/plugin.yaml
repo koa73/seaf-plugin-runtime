@@ -15,7 +15,14 @@ logging:
   filePath: ../logs/seaf-plugin.log
 update:
   enabled: true
+  mode: ssh_git
   repo: ""
+  gitRepoSsh: git@github.com:koa73/seaf-plugin-runtime.git
+  gitRef: master
+  assetPath: release/out/seaf-plugin-runtime.tar.gz
+  ssh:
+    privateKeyPath: ../keys/seaf-plugin-runtime
+    publicKeyPath: ../keys/seaf-plugin-runtime.pub
   assetName: seaf-plugin-runtime.tar.gz
   tag: ""
   apiBaseUrl: https://api.github.com
