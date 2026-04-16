@@ -1,0 +1,121 @@
+version: 1
+plugin:
+  id: seaf_plugin
+  name: SEAF Plugin
+  description: Dynamic menu integration with Python scripts
+python:
+  executable: python3
+  scriptsDir: ../python/scripts
+logging:
+  level: info
+  extendedDebug: true
+  includePayload: true
+  output: both
+  filePath: ../logs/seaf-plugin.log
+update:
+  enabled: true
+  repo: ""
+  assetName: seaf-plugin-runtime.tar.gz
+  tag: ""
+  apiBaseUrl: https://api.github.com
+commands:
+  - id: seafReloadDocument
+    title: SEAF Reload Document
+    menu:
+      main:
+        enabled: true
+        section: seaf
+        sectionTitle: SEAF
+      context:
+        enabled: true
+        target: selection_non_empty
+    script: success_reload.py
+    execution:
+      mode: sync
+      timeoutSec: 20
+    input:
+      includeDiagramXml: false
+      includeCurrentPage: true
+      arguments:
+        operation: reload
+    output:
+      expectedStatus: success
+    postActions:
+      - name: showMessage
+        args:
+          level: info
+          text: Reload command completed
+      - name: reloadDocument
+  - id: seafValidateSelection
+    title: SEAF Validate Selection
+    menu:
+      main:
+        enabled: true
+        section: extras
+      context:
+        enabled: true
+        target: selection_non_empty
+    script: validate_selection.py
+    execution:
+      mode: sync
+      timeoutSec: 20
+    input:
+      includeDiagramXml: true
+    output:
+      expectedStatus: success
+  - id: seafAsyncBackground
+    title: SEAF Async Background Task
+    menu:
+      main:
+        enabled: true
+        section: seaf
+      context:
+        enabled: true
+        target: any
+    script: async_background.py
+    execution:
+      mode: async
+      timeoutSec: 40
+      pollIntervalMs: 1000
+      maxPollAttempts: 120
+    input:
+      includeDiagramXml: false
+      arguments:
+        simulateDurationSec: 3
+    output:
+      expectedStatus: success
+  - id: seafFailureDemo
+    title: SEAF Failure Demo
+    menu:
+      main:
+        enabled: true
+        section: seaf
+      context:
+        enabled: true
+        target: any
+    script: failure_demo.py
+    execution:
+      mode: sync
+      timeoutSec: 20
+    input:
+      includeDiagramXml: false
+    output:
+      expectedStatus: error
+  - id: seafTimeoutDemo
+    title: SEAF Timeout Demo
+    menu:
+      main:
+        enabled: true
+        section: seaf
+      context:
+        enabled: false
+    script: timeout_demo.py
+    execution:
+      mode: sync
+      timeoutSec: 1
+    input:
+      includeDiagramXml: false
+      arguments:
+        sleepSec: 5
+    output:
+      expectedStatus: error
