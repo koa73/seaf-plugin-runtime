@@ -1,5 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
+ * Runtime script version: 0.1.0
  * Uses main-process IPC for config, command execution, logs and runtime updates.
  */
 Draw.loadPlugin(function(ui)
@@ -8,6 +9,7 @@ Draw.loadPlugin(function(ui)
 		configPath: null,
 		config: null,
 		commandsById: {},
+		runtimeVersion: 'unknown',
 		logging: {
 			level: 'info',
 			extendedDebug: false,
@@ -100,6 +102,59 @@ Draw.loadPlugin(function(ui)
 	function showError(message)
 	{
 		mxUtils.alert(message);
+	}
+
+	function formatCommandError(commandId, message)
+	{
+		var id = commandId || 'unknownCommand';
+		var msg = (message != null && String(message).trim().length > 0) ? String(message) : 'unknown error';
+		return id + ': ' + msg;
+	}
+
+	async function detectRuntimeVersion()
+	{
+		var fallback = 'unknown';
+		try
+		{
+			if (state.config && state.config.plugin && typeof state.config.plugin.runtimeVersion === 'string' &&
+				state.config.plugin.runtimeVersion.trim().length > 0)
+			{
+				fallback = state.config.plugin.runtimeVersion.trim();
+			}
+
+			if (!state.configPath || typeof state.configPath !== 'string')
+			{
+				return fallback;
+			}
+
+			var runtimeVersionPath = state.configPath.replace(/[\\\/]conf[\\\/]plugin\.yaml$/i, '/runtime/version.json');
+			if (runtimeVersionPath === state.configPath)
+			{
+				return fallback;
+			}
+
+			var raw = await requestAsync({
+				action: 'readFile',
+				filename: runtimeVersionPath,
+				encoding: 'utf8'
+			});
+			var parsed = JSON.parse(raw);
+			if (parsed && typeof parsed.version === 'string' && parsed.version.trim().length > 0)
+			{
+				return parsed.version.trim();
+			}
+		}
+		catch (e)
+		{
+			// ignore metadata read errors and keep fallback
+		}
+
+		return fallback;
+	}
+
+	function getRuntimeVersionLabel()
+	{
+		return 'SEAF Runtime v' + (state.runtimeVersion || 'unknown');
 	}
 
 	function persistDesktopPluginReference()
@@ -272,7 +327,7 @@ Draw.loadPlugin(function(ui)
 			}
 			else if (status.status === 'failed')
 			{
-				showError('Command "' + command.title + '" failed: ' + (status.error || 'unknown error'));
+				showError(formatCommandError(command.id, status.error || 'unknown error'));
 				return;
 			}
 
@@ -282,7 +337,7 @@ Draw.loadPlugin(function(ui)
 			});
 		}
 
-		showError('Async command timeout for "' + command.title + '"');
+		showError(formatCommandError(command.id, 'async timeout'));
 	}
 
 	async function executeCommand(command, source)
@@ -317,7 +372,7 @@ Draw.loadPlugin(function(ui)
 
 			if (result.status === 'error')
 			{
-				showError(result.message || ('Command "' + command.title + '" returned error'));
+				showError(formatCommandError(command.id, result.message));
 			}
 			else
 			{
@@ -331,7 +386,7 @@ Draw.loadPlugin(function(ui)
 				source: source,
 				error: e.message
 			});
-			showError('Command "' + command.title + '" failed: ' + e.message);
+			showError(formatCommandError(command.id, e.message));
 		}
 	}
 
@@ -539,6 +594,8 @@ Draw.loadPlugin(function(ui)
 		{
 			oldFunct.apply(this, arguments);
 			ui.menus.addMenuItems(menuObj, ['-', 'seafUpdateRuntime'], parent);
+			menuObj.addSeparator(parent);
+			menuObj.addItem(getRuntimeVersionLabel(), null, null, parent, null, false);
 		};
 	}
 
@@ -577,6 +634,7 @@ Draw.loadPlugin(function(ui)
 			state.configPath = loaded.configPath;
 			state.config = loaded.config;
 			state.logging = state.config.logging || state.logging;
+			state.runtimeVersion = await detectRuntimeVersion();
 
 			persistDesktopPluginReference();
 			await writeLog('info', 'Plugin initialization started', {

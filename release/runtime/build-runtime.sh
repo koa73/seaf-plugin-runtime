@@ -12,6 +12,7 @@ mkdir -p "${STAGE_DIR}/seaf_plugin" "${OUT_DIR}"
 cp "${ROOT_DIR}/plugin/seaf.plugin.js" "${STAGE_DIR}/seaf.plugin.js"
 cp -r "${ROOT_DIR}/conf" "${STAGE_DIR}/seaf_plugin/conf"
 cp -r "${ROOT_DIR}/python" "${STAGE_DIR}/seaf_plugin/python"
+cp -r "${ROOT_DIR}/runtime" "${STAGE_DIR}/seaf_plugin/runtime"
 
 tar -C "${STAGE_DIR}" -czf "${OUT_DIR}/${ASSET_NAME}" .
 sha256sum "${OUT_DIR}/${ASSET_NAME}" > "${OUT_DIR}/checksums.txt"
