@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.1
+## 0.1.2
 
 - Removed default SEAF command popups in UI flow.
 - Show command messages only when explicitly returned by script response.

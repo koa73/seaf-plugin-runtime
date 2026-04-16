@@ -1,7 +1,7 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.1.1
- * Uses main-process IPC for config, command execution, logs and runtime updates.
+ * Runtime script version: 0.1.2
+ * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
 {
@@ -540,116 +540,7 @@ Draw.loadPlugin(function(ui)
 		};
 	}
 
-	function buildUpdateConfig()
-	{
-		var updateCfg = state.config.update || {};
-		return {
-			enabled: updateCfg.enabled !== false,
-			mode: updateCfg.mode || 'github_release',
-			repo: updateCfg.repo || updateCfg.githubRepo || '',
-			assetName: updateCfg.assetName || updateCfg.releaseAsset || 'seaf-plugin-runtime.tar.gz',
-			tag: updateCfg.tag || null,
-			apiBaseUrl: updateCfg.apiBaseUrl || 'https://api.github.com',
-			gitRepoSsh: updateCfg.gitRepoSsh || '',
-			gitRef: updateCfg.gitRef || 'master',
-			assetPath: updateCfg.assetPath || 'release/out/seaf-plugin-runtime.tar.gz',
-			ssh: {
-				privateKeyPath: updateCfg.ssh && updateCfg.ssh.privateKeyPath ? updateCfg.ssh.privateKeyPath : '',
-				publicKeyPath: updateCfg.ssh && updateCfg.ssh.publicKeyPath ? updateCfg.ssh.publicKeyPath : ''
-			}
-		};
-	}
-
-	function registerUpdateAction()
-	{
-		if (ui.actions.get('seafUpdateRuntime') != null)
-		{
-			return;
-		}
-
-		ui.actions.addAction('seafUpdateRuntime', async function()
-		{
-			var cfg = buildUpdateConfig();
-			if (!cfg.enabled)
-			{
-				showError('SEAF runtime update is disabled in plugin.yaml (update.enabled=false)');
-				return;
-			}
-
-			if (cfg.mode === 'ssh_git')
-			{
-				if (!cfg.gitRepoSsh)
-				{
-					showError('SEAF update ssh repo is not configured in plugin.yaml (update.gitRepoSsh)');
-					return;
-				}
-			}
-			else if (!cfg.repo)
-			{
-				showError('SEAF update repo is not configured in plugin.yaml (update.repo)');
-				return;
-			}
-
-			try
-			{
-				showInfo('Запуск обновления версии плагина');
-				var result = await requestAsync({
-					action: 'updateSeafPluginRuntime',
-					configPath: state.configPath,
-					mode: cfg.mode,
-					repo: cfg.repo,
-					assetName: cfg.assetName,
-					tag: cfg.tag,
-					apiBaseUrl: cfg.apiBaseUrl,
-					gitRepoSsh: cfg.gitRepoSsh,
-					gitRef: cfg.gitRef,
-					assetPath: cfg.assetPath,
-					ssh: cfg.ssh
-				});
-
-				// Refresh config and runtime version immediately after update, so the menu
-				// shows the currently installed runtime version without restarting draw.io.
-				var loaded = await requestAsync({
-					action: 'getSeafPluginConfig',
-					configPath: state.configPath || ''
-				});
-				if (loaded != null && typeof loaded === 'object' && loaded.config != null && typeof loaded.config === 'object')
-				{
-					state.configPath = loaded.configPath || state.configPath;
-					state.config = loaded.config;
-					state.logging = state.config.logging || state.logging;
-				}
-
-				state.runtimeVersion = await detectRuntimeVersion();
-				await writeLog('info', 'SEAF runtime version refreshed after update', {
-					status: result && result.status ? result.status : null,
-					tag: result && result.tag ? result.tag : null,
-					runtimeVersion: state.runtimeVersion
-				});
-
-				if (result && result.status === 'already_up_to_date')
-				{
-					showInfo('Установлена актуальная версия ' + (result.version || state.runtimeVersion || 'unknown'));
-					return;
-				}
-
-				if (result && result.status === 'updated')
-				{
-					showInfo('Версия плагина обновлена до версии ' + (result.version || state.runtimeVersion || 'unknown'));
-					window.location.reload();
-					return;
-				}
-
-				showInfo('Версия плагина обновлена до версии ' + (state.runtimeVersion || 'unknown'));
-			}
-			catch (e)
-			{
-				showError('Ошибка обновления плагина: ' + e.message);
-			}
-		});
-	}
-
-	function registerUpdateMenu()
+function registerRuntimeVersionMenu()
 	{
 		var targetMenuId = (ui.menus.get('seaf') != null) ? 'seaf' : 'extras';
 		var targetMenu = ui.menus.get(targetMenuId);
@@ -662,7 +553,6 @@ Draw.loadPlugin(function(ui)
 		targetMenu.funct = function(menuObj, parent)
 		{
 			oldFunct.apply(this, arguments);
-			ui.menus.addMenuItems(menuObj, ['-', 'seafUpdateRuntime'], parent);
 			menuObj.addSeparator(parent);
 			menuObj.addItem(getRuntimeVersionLabel(), null, null, parent, null, false);
 		};
@@ -676,14 +566,13 @@ Draw.loadPlugin(function(ui)
 			(function(command)
 			{
 				state.commandsById[command.id] = command;
+			mxResources.parse(command.id + '=' + (command.title || command.id));
 				ui.actions.addAction(command.id, function()
 				{
 					executeCommand(command, 'menu');
 				});
 			})(commands[i]);
 		}
-
-		registerUpdateAction();
 	}
 
 	async function init()
@@ -714,7 +603,7 @@ Draw.loadPlugin(function(ui)
 			registerActions();
 			registerMainMenu();
 			registerContextMenu();
-			registerUpdateMenu();
+			registerRuntimeVersionMenu();
 
 			await writeLog('info', 'Plugin initialization finished', {ok: true});
 		}

@@ -14,6 +14,7 @@ cp -r "${ROOT_DIR}/conf" "${STAGE_DIR}/seaf_plugin/conf"
 cp -r "${ROOT_DIR}/python" "${STAGE_DIR}/seaf_plugin/python"
 cp -r "${ROOT_DIR}/runtime" "${STAGE_DIR}/seaf_plugin/runtime"
 cp -r "${ROOT_DIR}/keys" "${STAGE_DIR}/seaf_plugin/keys"
+chmod +x "${STAGE_DIR}/seaf_plugin/python/scripts/"*.py
 
 tar -C "${STAGE_DIR}" -czf "${OUT_DIR}/${ASSET_NAME}" .
 sha256sum "${OUT_DIR}/${ASSET_NAME}" > "${OUT_DIR}/checksums.txt"
