@@ -576,7 +576,15 @@ Draw.loadPlugin(function(ui)
 				return;
 			}
 
-			if (!cfg.repo)
+			if (cfg.mode === 'ssh_git')
+			{
+				if (!cfg.gitRepoSsh)
+				{
+					showError('SEAF update ssh repo is not configured in plugin.yaml (update.gitRepoSsh)');
+					return;
+				}
+			}
+			else if (!cfg.repo)
 			{
 				showError('SEAF update repo is not configured in plugin.yaml (update.repo)');
 				return;
