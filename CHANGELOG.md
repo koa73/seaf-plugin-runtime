@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1
+
+- Removed default SEAF command popups in UI flow.
+- Show command messages only when explicitly returned by script response.
+
 ## 0.1.0
 
 - Initial split into standalone SEAF plugin runtime repository.

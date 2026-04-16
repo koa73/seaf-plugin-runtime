@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.1.0
+ * Runtime script version: 0.1.1
  * Uses main-process IPC for config, command execution, logs and runtime updates.
  */
 Draw.loadPlugin(function(ui)
@@ -279,13 +279,17 @@ Draw.loadPlugin(function(ui)
 			}
 			break;
 		case 'showMessage':
+			if (args.text == null || String(args.text).trim().length === 0)
+			{
+				break;
+			}
 			if (args.level === 'error')
 			{
-				showError(args.text || 'SEAF command failed');
+				showError(args.text);
 			}
 			else
 			{
-				showInfo(args.text || 'SEAF command executed');
+				showInfo(args.text);
 			}
 			break;
 		default:
@@ -322,7 +326,11 @@ Draw.loadPlugin(function(ui)
 			if (status.status === 'completed')
 			{
 				executeInteractiveCommands(status.result || {});
-				showInfo((status.result && status.result.message) || ('Command "' + command.title + '" completed'));
+				if (status.result && typeof status.result.message === 'string' &&
+					status.result.message.trim().length > 0)
+				{
+					showInfo(status.result.message);
+				}
 				return;
 			}
 			else if (status.status === 'failed')
@@ -362,7 +370,6 @@ Draw.loadPlugin(function(ui)
 
 			if (response.mode === 'async' && response.jobId)
 			{
-				showInfo('Command "' + command.title + '" started in background');
 				pollAsyncJob(response.jobId, command);
 				return;
 			}
@@ -372,11 +379,17 @@ Draw.loadPlugin(function(ui)
 
 			if (result.status === 'error')
 			{
-				showError(formatCommandError(command.id, result.message));
+				if (typeof result.message === 'string' && result.message.trim().length > 0)
+				{
+					showError(formatCommandError(command.id, result.message));
+				}
 			}
 			else
 			{
-				showInfo(result.message || ('Command "' + command.title + '" completed'));
+				if (typeof result.message === 'string' && result.message.trim().length > 0)
+				{
+					showInfo(result.message);
+				}
 			}
 		}
 		catch (e)
@@ -571,7 +584,27 @@ Draw.loadPlugin(function(ui)
 					tag: cfg.tag,
 					apiBaseUrl: cfg.apiBaseUrl
 				});
-				showInfo('SEAF runtime updated to ' + (result.tag || 'latest') + '. Restart draw.io to apply changes.');
+
+				// Refresh config and runtime version immediately after update, so the menu
+				// shows the currently installed runtime version without restarting draw.io.
+				var loaded = await requestAsync({
+					action: 'getSeafPluginConfig',
+					configPath: state.configPath || ''
+				});
+				if (loaded != null && typeof loaded === 'object' && loaded.config != null && typeof loaded.config === 'object')
+				{
+					state.configPath = loaded.configPath || state.configPath;
+					state.config = loaded.config;
+					state.logging = state.config.logging || state.logging;
+				}
+
+				state.runtimeVersion = await detectRuntimeVersion();
+				await writeLog('info', 'SEAF runtime version refreshed after update', {
+					tag: result && result.tag ? result.tag : null,
+					runtimeVersion: state.runtimeVersion
+				});
+
+				showInfo('SEAF runtime updated to v' + (state.runtimeVersion || 'unknown') + '.');
 			}
 			catch (e)
 			{
