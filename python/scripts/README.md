@@ -147,3 +147,63 @@ return 1
   - `status="error"` → `return 1`
 - Если скрипт падает исключением, старайтесь перехватывать его и возвращать `status="error"` + понятный `message` и `errors`.
 
+## 5) События прогресса для `percent` индикатора
+
+Если команда в `conf/plugin.yaml` использует `indicator.type: percent`, скрипт может передавать прогресс в реальном времени через `stderr`.
+
+Формат строки:
+
+```text
+SEAF_PROGRESS {"progress": 40, "phase": "step 2 of 5", "message": "Processing data"}
+```
+
+Требования:
+- префикс должен быть строго `SEAF_PROGRESS `;
+- JSON должен быть валидным;
+- `progress` — число `0..100` (опционально, но желательно для `percent`);
+- `phase` и `message` — опциональные строки.
+
+Пример:
+
+```python
+for step in range(total):
+    progress = int(((step + 1) * 100) / total)
+    sys.stderr.write(
+        "SEAF_PROGRESS " + json.dumps({"progress": progress, "phase": f"step {step + 1} of {total}"}) + "\n"
+    )
+    sys.stderr.flush()
+```
+
+## 6) Ручное управление индикатором через SEAF plugin API
+
+Когда в команде нет блока `indicator`, индикатор можно запускать/закрывать из JS-кода плагина:
+
+- `window.SEAF_PLUGIN_API.startIndicator(params)`
+- `window.SEAF_PLUGIN_API.stopIndicator(indicatorId, reason)`
+
+`startIndicator(params)` принимает:
+- `type`: `spinner | percent`
+- `title`: заголовок виджета
+- `message`: стартовый текст
+- `timeoutMs`: таймаут
+- `allowStop`: показывать кнопку `Остановить`
+- `onStop`: callback при остановке пользователем
+- `onTimeout`: callback при локальном таймауте
+
+Пример использования:
+
+```javascript
+const handle = await window.SEAF_PLUGIN_API.startIndicator({
+  type: 'spinner',
+  title: 'Manual SEAF operation',
+  message: 'Preparing...',
+  allowStop: true
+});
+
+try {
+  // long operation
+} finally {
+  await window.SEAF_PLUGIN_API.stopIndicator(handle.indicatorId, 'completed');
+}
+```
+

@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.1.2
+ * Runtime script version: 0.1.3
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -10,6 +10,8 @@ Draw.loadPlugin(function(ui)
 		config: null,
 		commandsById: {},
 		runtimeVersion: 'unknown',
+		manualIndicators: {},
+		autoIndicatorsByJob: {},
 		logging: {
 			level: 'info',
 			extendedDebug: false,
@@ -109,6 +111,112 @@ Draw.loadPlugin(function(ui)
 		var id = commandId || 'unknownCommand';
 		var msg = (message != null && String(message).trim().length > 0) ? String(message) : 'unknown error';
 		return id + ': ' + msg;
+	}
+
+	function getIndicatorConfig(command)
+	{
+		var indicator = (command && typeof command.indicator === 'object') ? command.indicator : {};
+		return {
+			enabled: indicator.enabled === true,
+			type: indicator.type === 'percent' ? 'percent' : 'spinner',
+			timeoutMs: Number.isFinite(indicator.timeoutMs) && indicator.timeoutMs > 0 ? Math.round(indicator.timeoutMs) : null,
+			allowStop: indicator.allowStop === true
+		};
+	}
+
+	function createIndicatorUi(params)
+	{
+		var overlay = document.createElement('div');
+		overlay.style.position = 'fixed';
+		overlay.style.left = '16px';
+		overlay.style.bottom = '16px';
+		overlay.style.minWidth = '280px';
+		overlay.style.maxWidth = '420px';
+		overlay.style.padding = '10px 12px';
+		overlay.style.background = '#ffffff';
+		overlay.style.border = '1px solid #d0d0d0';
+		overlay.style.borderRadius = '6px';
+		overlay.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+		overlay.style.zIndex = '99999';
+		overlay.style.fontFamily = 'Arial, sans-serif';
+		overlay.style.fontSize = '12px';
+
+		var title = document.createElement('div');
+		title.style.fontWeight = 'bold';
+		title.style.marginBottom = '6px';
+		title.textContent = params.title || 'SEAF task in progress';
+		overlay.appendChild(title);
+
+		var statusLine = document.createElement('div');
+		statusLine.textContent = params.message || 'Running...';
+		statusLine.style.marginBottom = '8px';
+		overlay.appendChild(statusLine);
+
+		var progressWrap = document.createElement('div');
+		progressWrap.style.height = '6px';
+		progressWrap.style.background = '#efefef';
+		progressWrap.style.borderRadius = '3px';
+		progressWrap.style.overflow = 'hidden';
+		progressWrap.style.display = params.type === 'percent' ? 'block' : 'none';
+
+		var progressFill = document.createElement('div');
+		progressFill.style.height = '100%';
+		progressFill.style.width = '0%';
+		progressFill.style.background = '#4c8bf5';
+		progressWrap.appendChild(progressFill);
+		overlay.appendChild(progressWrap);
+
+		var controls = document.createElement('div');
+		controls.style.marginTop = '8px';
+		controls.style.textAlign = 'right';
+		if (params.allowStop === true && typeof params.onStop === 'function')
+		{
+			var stopBtn = document.createElement('button');
+			stopBtn.textContent = 'Остановить';
+			stopBtn.onclick = params.onStop;
+			controls.appendChild(stopBtn);
+		}
+		overlay.appendChild(controls);
+		document.body.appendChild(overlay);
+
+		var timeoutId = null;
+		if (Number.isFinite(params.timeoutMs) && params.timeoutMs > 0 && typeof params.onTimeout === 'function')
+		{
+			timeoutId = window.setTimeout(params.onTimeout, params.timeoutMs);
+		}
+
+		return {
+			update: function(next)
+			{
+				var nextMessage = next && next.message != null ? String(next.message) : '';
+				if (nextMessage.length > 0)
+				{
+					statusLine.textContent = nextMessage;
+				}
+
+				var nextProgress = next && Number.isFinite(next.progress) ? Math.max(0, Math.min(100, Math.round(next.progress))) : null;
+				if (nextProgress != null)
+				{
+					progressWrap.style.display = 'block';
+					progressFill.style.width = nextProgress + '%';
+				}
+				else if (params.type === 'spinner')
+				{
+					progressWrap.style.display = 'none';
+				}
+			},
+			stop: function()
+			{
+				if (timeoutId != null)
+				{
+					window.clearTimeout(timeoutId);
+				}
+				if (overlay.parentNode != null)
+				{
+					overlay.parentNode.removeChild(overlay);
+				}
+			}
+		};
 	}
 
 	async function detectRuntimeVersion()
@@ -311,10 +419,82 @@ Draw.loadPlugin(function(ui)
 		}
 	}
 
-	async function pollAsyncJob(jobId, command)
+	async function startManualIndicator(params)
 	{
-		var maxAttempts = Math.max(1, (command.execution && command.execution.maxPollAttempts) || 120);
-		var intervalMs = Math.max(200, (command.execution && command.execution.pollIntervalMs) || 1000);
+		var request = params || {};
+		var remoteIndicator = await requestAsync({
+			action: 'startSeafManualIndicator',
+			type: request.type === 'percent' ? 'percent' : 'spinner',
+			label: request.label || 'SEAF manual operation',
+			timeoutMs: Number.isFinite(request.timeoutMs) ? request.timeoutMs : null,
+			allowStop: request.allowStop === true
+		});
+		var id = remoteIndicator && remoteIndicator.indicatorId ? remoteIndicator.indicatorId : String(Date.now());
+		var uiIndicator = createIndicatorUi({
+			type: request.type === 'percent' ? 'percent' : 'spinner',
+			title: request.title || 'SEAF manual operation',
+			message: request.message || 'Running...',
+			timeoutMs: Number.isFinite(request.timeoutMs) ? request.timeoutMs : null,
+			allowStop: request.allowStop === true,
+			onStop: (typeof request.onStop === 'function') ? request.onStop : null,
+			onTimeout: (typeof request.onTimeout === 'function') ? request.onTimeout : null
+		});
+		state.manualIndicators[id] = uiIndicator;
+		return {indicatorId: id};
+	}
+
+	async function stopManualIndicator(indicatorId, reason)
+	{
+		if (indicatorId == null)
+		{
+			return;
+		}
+
+		try
+		{
+			await requestAsync({
+				action: 'finishSeafManualIndicator',
+				indicatorId: indicatorId,
+				reason: reason || 'completed'
+			});
+		}
+		catch (e)
+		{
+			// ignore remote finish errors for local cleanup
+		}
+
+		var uiIndicator = state.manualIndicators[indicatorId];
+		if (uiIndicator != null)
+		{
+			uiIndicator.stop();
+			delete state.manualIndicators[indicatorId];
+		}
+	}
+
+	async function pollAsyncJob(jobId, command, indicatorCfg, executionCfg)
+	{
+		var maxAttempts = Math.max(1, (executionCfg && executionCfg.maxPollAttempts) || (command.execution && command.execution.maxPollAttempts) || 120);
+		var intervalMs = Math.max(200, (executionCfg && executionCfg.pollIntervalMs) || (command.execution && command.execution.pollIntervalMs) || 1000);
+		var indicator = null;
+		if (indicatorCfg && indicatorCfg.enabled)
+		{
+			indicator = createIndicatorUi({
+				type: indicatorCfg.type,
+				title: command.title || command.id,
+				message: 'Запуск задачи...',
+				timeoutMs: indicatorCfg.timeoutMs,
+				allowStop: indicatorCfg.allowStop && !Number.isFinite(indicatorCfg.timeoutMs),
+				onStop: async function()
+				{
+					await requestAsync({action: 'cancelSeafPluginJob', jobId: jobId});
+				},
+				onTimeout: async function()
+				{
+					await requestAsync({action: 'cancelSeafPluginJob', jobId: jobId});
+				}
+			});
+			state.autoIndicatorsByJob[jobId] = indicator;
+		}
 
 		for (var i = 0; i < maxAttempts; i++)
 		{
@@ -322,6 +502,14 @@ Draw.loadPlugin(function(ui)
 				action: 'pollSeafPluginJob',
 				jobId: jobId
 			});
+
+			if (indicator != null)
+			{
+				indicator.update({
+					message: status.message || status.phase || 'Выполняется...',
+					progress: Number.isFinite(status.progress) ? status.progress : null
+				});
+			}
 
 			if (status.status === 'completed')
 			{
@@ -331,11 +519,22 @@ Draw.loadPlugin(function(ui)
 				{
 					showInfo(status.result.message);
 				}
+				if (indicator != null)
+				{
+					indicator.stop();
+					delete state.autoIndicatorsByJob[jobId];
+				}
 				return;
 			}
-			else if (status.status === 'failed')
+			else if (status.status === 'failed' || status.status === 'timed_out' || status.status === 'cancelled')
 			{
-				showError(formatCommandError(command.id, status.error || 'unknown error'));
+				var msg = status.status === 'cancelled' ? 'Операция остановлена' : (status.error || 'unknown error');
+				showError(formatCommandError(command.id, msg));
+				if (indicator != null)
+				{
+					indicator.stop();
+					delete state.autoIndicatorsByJob[jobId];
+				}
 				return;
 			}
 
@@ -345,6 +544,11 @@ Draw.loadPlugin(function(ui)
 			});
 		}
 
+		if (indicator != null)
+		{
+			indicator.stop();
+			delete state.autoIndicatorsByJob[jobId];
+		}
 		showError(formatCommandError(command.id, 'async timeout'));
 	}
 
@@ -352,6 +556,7 @@ Draw.loadPlugin(function(ui)
 	{
 		var payload = buildPayload(command);
 		payload.source = source;
+		var indicatorCfg = getIndicatorConfig(command);
 
 		await writeLog('info', 'Command invocation started', {
 			commandId: command.id,
@@ -370,7 +575,7 @@ Draw.loadPlugin(function(ui)
 
 			if (response.mode === 'async' && response.jobId)
 			{
-				pollAsyncJob(response.jobId, command);
+				pollAsyncJob(response.jobId, command, indicatorCfg, response.execution || null);
 				return;
 			}
 
@@ -604,6 +809,10 @@ function registerRuntimeVersionMenu()
 			registerMainMenu();
 			registerContextMenu();
 			registerRuntimeVersionMenu();
+			window.SEAF_PLUGIN_API = {
+				startIndicator: startManualIndicator,
+				stopIndicator: stopManualIndicator
+			};
 
 			await writeLog('info', 'Plugin initialization finished', {ok: true});
 		}

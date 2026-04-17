@@ -122,6 +122,39 @@ UI‑плагин формирует `REQUEST.payload` и может добав�
 | `commands[].postActions[].name` | `string` | Имя UI‑команды (например, `showMessage`, `reloadDocument`). |
 | `commands[].postActions[].args` | `object` | Аргументы UI‑команды. Структура зависит от `name`. |
 
+### `commands[].indicator.*` — индикатор выполнения команды
+
+Индикатор задается прямо в описании команды и управляет отображением прогресса в UI при `execution.mode: async`.
+
+| Имя поля | Формат | Назначение |
+|---|---:|---|
+| `commands[].indicator.enabled` | `boolean` | Включает/выключает индикатор выполнения для команды. |
+| `commands[].indicator.type` | `string` (`spinner|percent`) | Тип индикатора. `percent` показывает прогресс, если скрипт отправляет события прогресса; иначе UI делает fallback на текст. |
+| `commands[].indicator.timeoutMs` | `number \| null` | Таймаут команды в миллисекундах для режима индикатора. При срабатывании задача завершается со статусом `timed_out`. |
+| `commands[].indicator.allowStop` | `boolean` | Разрешает принудительную остановку задачи кнопкой `Остановить` (актуально, когда `timeoutMs` не задан). |
+
 ## Практические примеры (из текущего `plugin.yaml`)
 
-- `execution.mode: async` + `pollIntervalMs/maxPollAttempts` используется для фоновых задач (пример: `seafAsyncBackground`).\n+- `menu.context.target: selection_non_empty` используется для команд, которые должны появляться только при выделении объектов.\n+- `input.arguments` используется для передачи параметров в скрипт (например, `simulateDurationSec`, `sleepSec`).\n+
+- `execution.mode: async` + `pollIntervalMs/maxPollAttempts` используется для фоновых задач (пример: `seafAsyncBackground`).
+- `menu.context.target: selection_non_empty` используется для команд, которые должны появляться только при выделении объектов.
+- `input.arguments` используется для передачи параметров в скрипт (например, `simulateDurationSec`, `sleepSec`).
+
+## Пример команды с индикатором (`seafAsyncBackground`)
+
+```yaml
+- id: seafAsyncBackground
+  title: SEAF Async Background Task
+  script: async_background.py
+  execution:
+    mode: async
+    pollIntervalMs: 1000
+    maxPollAttempts: 120
+  indicator:
+    enabled: true
+    type: percent
+    timeoutMs: 40000
+    allowStop: true
+  input:
+    arguments:
+      simulateDurationSec: 3
+```
