@@ -55,8 +55,18 @@
    - `release/runtime/build-runtime.sh`
 2. Опубликовать артефакт `seaf-plugin-runtime.tar.gz` в репозитории обновления.
 3. В draw.io вызвать системный пункт меню `SEAF -> Обновить плагин`.
-4. Main-process выполняет native update (`ssh_git`), распаковывает архив и атомарно заменяет runtime.
-5. После успеха выполняется `reloadDocument`, и загружается обновленный runtime.
+4. Main-process выполняет native update (`ssh_git`) как async-job с `pollSeafPluginJob` и фазами прогресса.
+5. В UI показывается процентный индикатор выполнения update.
+6. После успеха показывается финальное сообщение с требованием полного перезапуска приложения draw.io; автоматический `reload` отключен.
+7. Для `seaf.plugin.js` используется cache-busting загрузка (`?v=<mtime>`), чтобы после перезапуска гарантированно подхватывался новый plugin entry.
+8. В update-конфиге поддерживается `update.expectedMinVersion`; если скачанный asset старее минимума, обновление завершается ошибкой.
+
+## Menu order contract
+
+Для секции `SEAF` порядок элементов должен оставаться стабильным (в runtime asset):
+- кастомные команды runtime (если есть),
+- `Обновить плагин` (всегда второй с конца),
+- `SEAF Runtime v...` (всегда последний).
 
 ## Versioning notes
 

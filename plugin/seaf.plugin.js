@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.1.4
+ * Runtime script version: 0.1.8
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -12,6 +12,10 @@ Draw.loadPlugin(function(ui)
 		runtimeVersion: 'unknown',
 		manualIndicators: {},
 		autoIndicatorsByJob: {},
+		systemUpdateInProgress: false,
+		actionsRegistered: false,
+		mainMenuRegistered: false,
+		contextMenuRegistered: false,
 		logging: {
 			level: 'info',
 			extendedDebug: false,
@@ -104,6 +108,17 @@ Draw.loadPlugin(function(ui)
 	function showError(message)
 	{
 		mxUtils.alert(message);
+	}
+
+	function buildRestartRequiredMessage(result)
+	{
+		var version = null;
+		if (result && result.payload && typeof result.payload.version === 'string' && result.payload.version.trim().length > 0)
+		{
+			version = result.payload.version.trim();
+		}
+		var line1 = version ? ('Плагин обновлен до версии ' + version) : 'Плагин успешно обновлен';
+		return line1 + '\nИзменения вступят в силу после перезапуска приложения draw.io';
 	}
 
 	function formatCommandError(commandId, message)
@@ -263,42 +278,6 @@ Draw.loadPlugin(function(ui)
 	function getRuntimeVersionLabel()
 	{
 		return 'SEAF Runtime v' + (state.runtimeVersion || 'unknown');
-	}
-
-	function persistDesktopPluginReference()
-	{
-		try
-		{
-			if (typeof mxSettings === 'undefined' || mxSettings == null ||
-				typeof mxSettings.getPlugins !== 'function' ||
-				typeof mxSettings.setPlugins !== 'function' ||
-				typeof mxSettings.save !== 'function')
-			{
-				return;
-			}
-
-			var plugins = mxSettings.getPlugins();
-			if (!Array.isArray(plugins))
-			{
-				plugins = [];
-			}
-			else
-			{
-				plugins = plugins.slice();
-			}
-
-			if (mxUtils.indexOf(plugins, 'seaf.plugin.js') < 0)
-			{
-				plugins.push('seaf.plugin.js');
-			}
-
-			mxSettings.setPlugins(plugins);
-			mxSettings.save();
-		}
-		catch (e)
-		{
-			// never break plugin startup
-		}
 	}
 
 	function getSelectionPayload()
@@ -513,16 +492,29 @@ Draw.loadPlugin(function(ui)
 
 			if (status.status === 'completed')
 			{
-				executeInteractiveCommands(status.result || {});
-				if (status.result && typeof status.result.message === 'string' &&
-					status.result.message.trim().length > 0)
-				{
-					showInfo(status.result.message);
-				}
+				var completedResult = status.result || {};
 				if (indicator != null)
 				{
+					indicator.update({
+						message: 'Обновление завершено',
+						progress: 100
+					});
+					await new Promise(function(resolve)
+					{
+						window.setTimeout(resolve, 300);
+					});
 					indicator.stop();
 					delete state.autoIndicatorsByJob[jobId];
+				}
+				executeInteractiveCommands(completedResult);
+				if (command && command.id === 'seafSystemUpdatePlugin')
+				{
+					showInfo(buildRestartRequiredMessage(completedResult));
+				}
+				else if (completedResult && typeof completedResult.message === 'string' &&
+					completedResult.message.trim().length > 0)
+				{
+					showInfo(completedResult.message);
 				}
 				return;
 			}
@@ -610,6 +602,13 @@ Draw.loadPlugin(function(ui)
 
 	async function executeSystemUpdate(source)
 	{
+		if (state.systemUpdateInProgress)
+		{
+			showInfo('Обновление уже выполняется. Подождите завершения.');
+			return;
+		}
+
+		state.systemUpdateInProgress = true;
 		var pseudoCommand = {
 			id: 'seafSystemUpdatePlugin',
 			title: 'Обновить плагин',
@@ -634,19 +633,38 @@ Draw.loadPlugin(function(ui)
 				commandId: 'seafUpdatePlugin',
 				payload: payload
 			});
+			if (response && response.mode === 'async' && response.jobId)
+			{
+				var updateCommand = {
+					id: pseudoCommand.id,
+					title: pseudoCommand.title,
+					execution: response.execution || {
+						pollIntervalMs: 1000,
+						maxPollAttempts: 180
+					}
+				};
+				var updateIndicator = response.indicator || {
+					enabled: true,
+					type: 'percent',
+					timeoutMs: 120000,
+					allowStop: false
+				};
+				await pollAsyncJob(response.jobId, updateCommand, updateIndicator, response.execution || null);
+				return;
+			}
+
 			var result = response.result || {};
 			executeInteractiveCommands(result);
-
-			if (typeof result.message === 'string' && result.message.trim().length > 0)
+			if (result.status === 'error')
 			{
-				if (result.status === 'error')
+				if (typeof result.message === 'string' && result.message.trim().length > 0)
 				{
 					showError('seafUpdatePlugin: ' + result.message);
 				}
-				else
-				{
-					showInfo(result.message);
-				}
+			}
+			else
+			{
+				showInfo(buildRestartRequiredMessage(result));
 			}
 		}
 		catch (e)
@@ -657,6 +675,10 @@ Draw.loadPlugin(function(ui)
 				error: e.message
 			});
 			showError('seafUpdatePlugin: ' + e.message);
+		}
+		finally
+		{
+			state.systemUpdateInProgress = false;
 		}
 	}
 
@@ -723,10 +745,13 @@ Draw.loadPlugin(function(ui)
 
 	function registerMainMenu()
 	{
-		var grouped = {};
+		if (state.mainMenuRegistered)
+		{
+			return;
+		}
 		var commands = state.config.commands || [];
 		ensureTopLevelMenu('seaf', 'SEAF');
-
+		var customSeafItems = [];
 		for (var i = 0; i < commands.length; i++)
 		{
 			var cmd = commands[i];
@@ -739,55 +764,30 @@ Draw.loadPlugin(function(ui)
 			{
 				continue;
 			}
-
-			var section = mainCfg.section || 'extras';
-			var sectionTitle = mainCfg.sectionTitle || section;
-			ensureTopLevelMenu(section, sectionTitle);
-
-			if (grouped[section] == null)
+			if (mxUtils.indexOf(customSeafItems, cmd.id) < 0)
 			{
-				grouped[section] = [];
+				customSeafItems.push(cmd.id);
 			}
-			grouped[section].push(cmd.id);
 		}
-
-		for (var sectionId in grouped)
+		var seafMenu = ui.menus.get('seaf');
+		if (seafMenu != null)
 		{
-			if (!Object.prototype.hasOwnProperty.call(grouped, sectionId))
+			var oldFunct = seafMenu.funct;
+			seafMenu.funct = function(menuObj, parent)
 			{
-				continue;
-			}
-
-			(function(section, ids)
-			{
-				var menu = ui.menus.get(section);
-				if (menu == null)
+				oldFunct.apply(this, arguments);
+				if (customSeafItems.length > 0)
 				{
-					return;
+					ui.menus.addMenuItems(menuObj, ['-'].concat(customSeafItems), parent);
+					menuObj.addSeparator(parent);
 				}
-
-				var menuItems = ids.slice();
-				if (section === 'seaf')
-				{
-					var systemUpdateId = 'seafSystemUpdatePlugin';
-					var updateIdx = mxUtils.indexOf(menuItems, systemUpdateId);
-					if (updateIdx >= 0)
-					{
-						menuItems.splice(updateIdx, 1);
-					}
-					menuItems = menuItems.length > 0 ?
-						[systemUpdateId, '-'].concat(menuItems) :
-						[systemUpdateId];
-				}
-
-				var oldFunct = menu.funct;
-				menu.funct = function(menuObj, parent)
-				{
-					oldFunct.apply(this, arguments);
-					ui.menus.addMenuItems(menuObj, ['-'].concat(menuItems), parent);
-				};
-			})(sectionId, grouped[sectionId]);
+				ui.menus.addMenuItems(menuObj, ['seafSystemUpdatePlugin'], parent);
+				menuObj.addSeparator(parent);
+				menuObj.addItem(getRuntimeVersionLabel(), null, null, parent, null, false);
+			};
 		}
+
+		state.mainMenuRegistered = true;
 	}
 
 	function registerContextMenu()
@@ -816,31 +816,20 @@ Draw.loadPlugin(function(ui)
 		};
 	}
 
-function registerRuntimeVersionMenu()
+	function registerActions()
 	{
-		var targetMenuId = (ui.menus.get('seaf') != null) ? 'seaf' : 'extras';
-		var targetMenu = ui.menus.get(targetMenuId);
-		if (targetMenu == null)
+		if (state.actionsRegistered)
 		{
 			return;
 		}
-
-		var oldFunct = targetMenu.funct;
-		targetMenu.funct = function(menuObj, parent)
-		{
-			oldFunct.apply(this, arguments);
-			menuObj.addSeparator(parent);
-			menuObj.addItem(getRuntimeVersionLabel(), null, null, parent, null, false);
-		};
-	}
-
-	function registerActions()
-	{
 		mxResources.parse('seafSystemUpdatePlugin=Обновить плагин');
-		ui.actions.addAction('seafSystemUpdatePlugin', function()
+		if (ui.actions.get('seafSystemUpdatePlugin') == null)
 		{
-			executeSystemUpdate('menu');
-		});
+			ui.actions.addAction('seafSystemUpdatePlugin', function()
+			{
+				executeSystemUpdate('menu');
+			});
+		}
 
 		var commands = state.config.commands || [];
 		for (var i = 0; i < commands.length; i++)
@@ -853,12 +842,16 @@ function registerRuntimeVersionMenu()
 				}
 				state.commandsById[command.id] = command;
 			mxResources.parse(command.id + '=' + (command.title || command.id));
-				ui.actions.addAction(command.id, function()
+				if (ui.actions.get(command.id) == null)
 				{
-					executeCommand(command, 'menu');
-				});
+					ui.actions.addAction(command.id, function()
+					{
+						executeCommand(command, 'menu');
+					});
+				}
 			})(commands[i]);
 		}
+		state.actionsRegistered = true;
 	}
 
 	async function init()
@@ -880,7 +873,6 @@ function registerRuntimeVersionMenu()
 			state.logging = state.config.logging || state.logging;
 			state.runtimeVersion = await detectRuntimeVersion();
 
-			persistDesktopPluginReference();
 			await writeLog('info', 'Plugin initialization started', {
 				configPath: state.configPath,
 				commandsCount: Array.isArray(state.config.commands) ? state.config.commands.length : 0
@@ -889,7 +881,6 @@ function registerRuntimeVersionMenu()
 			registerActions();
 			registerMainMenu();
 			registerContextMenu();
-			registerRuntimeVersionMenu();
 			window.SEAF_PLUGIN_API = {
 				startIndicator: startManualIndicator,
 				stopIndicator: stopManualIndicator

@@ -54,6 +54,7 @@
 | `update.assetName` | `string` | Имя asset в Release (по умолчанию `seaf-plugin-runtime.tar.gz`). |
 | `update.tag` | `string` или пусто | Тег релиза. Если пусто — используется «latest» (по логике обновлятора). |
 | `update.apiBaseUrl` | `string` URL | База GitHub API (обычно `https://api.github.com`). Полезно для GitHub Enterprise/прокси. |
+| `update.expectedMinVersion` | `string` semver | Минимально допустимая версия runtime в скачанном asset. Если архив содержит более старую версию, update завершается с ошибкой «получен устаревший runtime asset». |
 
 ## `commands[]` — описание команд меню
 
