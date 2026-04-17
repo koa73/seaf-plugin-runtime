@@ -130,8 +130,8 @@ UI‑плагин формирует `REQUEST.payload` и может добав�
 |---|---:|---|
 | `commands[].indicator.enabled` | `boolean` | Включает/выключает индикатор выполнения для команды. |
 | `commands[].indicator.type` | `string` (`spinner|percent`) | Тип индикатора. `percent` показывает прогресс, если скрипт отправляет события прогресса; иначе UI делает fallback на текст. |
-| `commands[].indicator.timeoutMs` | `number \| null` | Таймаут команды в миллисекундах для режима индикатора. При срабатывании задача завершается со статусом `timed_out`. |
-| `commands[].indicator.allowStop` | `boolean` | Разрешает принудительную остановку задачи кнопкой `Остановить` (актуально, когда `timeoutMs` не задан). |
+| `commands[].indicator.timeoutMs` | `number \| null` | Локальный таймаут индикатора в миллисекундах. При срабатывании UI отправляет запрос на отмену фоновой job; итоговый статус обычно `timed_out` или `cancelled` (зависит от состояния job в момент отмены). |
+| `commands[].indicator.allowStop` | `boolean` | Показывает кнопку `Остановить` только если `timeoutMs` **не задан** (`null`). Если `timeoutMs` задан, ручная кнопка в авто-индикаторе не показывается. |
 
 ## Практические примеры (из текущего `plugin.yaml`)
 
@@ -140,6 +140,9 @@ UI‑плагин формирует `REQUEST.payload` и может добав�
 - `input.arguments` используется для передачи параметров в скрипт (например, `simulateDurationSec`, `sleepSec`).
 
 ## Пример команды с индикатором (`seafAsyncBackground`)
+
+> Важно: в этом примере таймаут `40000` мс не срабатывает, потому что `simulateDurationSec: 3` завершается раньше.  
+> Для проверки таймаута увеличьте `simulateDurationSec` (например, до `60`) или уменьшите `timeoutMs`.
 
 ```yaml
 - id: seafAsyncBackground
@@ -156,5 +159,5 @@ UI‑плагин формирует `REQUEST.payload` и может добав�
     allowStop: true
   input:
     arguments:
-      simulateDurationSec: 3
+      simulateDurationSec: 60
 ```

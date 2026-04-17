@@ -3,7 +3,7 @@ plugin:
   id: seaf_plugin
   name: SEAF Plugin
   description: Dynamic menu integration with Python scripts
-  runtimeVersion: 0.1.3
+  runtimeVersion: 0.1.4
 python:
   executable: python3
   scriptsDir: ../python/scripts
@@ -132,21 +132,3 @@ commands:
         sleepSec: 5
     output:
       expectedStatus: error
-  - id: seafUpdatePlugin
-    title: Обновить плагин
-    menu:
-      main:
-        enabled: true
-        section: seaf
-        sectionTitle: SEAF
-      context:
-        enabled: false
-    script: update_plugin.py
-    execution:
-      mode: sync
-      timeoutSec: 180
-    input:
-      includeDiagramXml: false
-      includeCurrentPage: false
-    output:
-      expectedStatus: success
