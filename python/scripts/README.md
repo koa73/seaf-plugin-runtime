@@ -44,6 +44,7 @@ args = payload.get("arguments") or {}
 | `diagramXml` | `string` (XML) | Опционально. Полная диаграмма в виде XML. Попадает сюда, если в `plugin.yaml` у команды стоит `input.includeDiagramXml: true`. |
 | `currentPage` | `object` | Опционально. Текущая страница `{id, name}`. Попадает сюда, если `input.includeCurrentPage: true`. |
 | `arguments` | `object` | Опционально. Аргументы команды из `plugin.yaml` (`commands[].input.arguments`). Используется для параметризации (например, тайминги, режимы). |
+| `env` | `object` | Значения из `conf/env.yaml`, инжектятся runtime перед запуском скрипта. |
 
 ### `REQUEST.payload.selection[]` (элемент массива)
 
@@ -57,6 +58,21 @@ args = payload.get("arguments") or {}
 | `label` | `string` | Отображаемая подпись. |
 | `style` | `object` | Стиль объекта (ключи/значения). |
 | `geometry` | `object` | Геометрия (координаты/размеры). |
+
+### Config values from `env.yaml`
+
+Runtime передает значения редактируемой конфигурации в двух местах:
+- `REQUEST.payload.env`
+- `REQUEST.payload.arguments` (merge поверх `input.arguments`)
+
+Это сделано для обратной совместимости скриптов.
+
+Поддерживаемые методы редактирования в UI (`inputMethod`) для этих значений:
+- `text`
+- `list`
+- `filePicker`
+- `checkbox`
+- `radio`
 
 ## 2) Структура `Response` (stdout)
 

@@ -21,6 +21,7 @@
 
 - `plugin/seaf.plugin.js` - полный renderer plugin (меню, IPC, async, системный update).
 - `conf/plugin.yaml` - конфигурация full runtime (команды, logging, update).
+- `conf/env.yaml` - редактируемые переменные runtime (пути и режимы для Python-части).
 - `conf/README.md` - документация формата `plugin.yaml`.
 - `python/scripts/*.py` - Python-скрипты команд full runtime.
 - `python/scripts/README.md` - документация контракта скриптов и прогресса.
@@ -68,6 +69,14 @@
 - кастомные команды runtime (если есть),
 - `Обновить плагин` (всегда второй с конца),
 - `SEAF Runtime v...` (всегда последний).
+
+## Edit Config menu
+
+- В full runtime добавлена UI-команда `Edit Config` в меню `SEAF`.
+- Поля формы задаются декларативно в `conf/plugin.yaml` (`configEditor.fields[]`).
+- Каждое поле явно связывается с `envKey` из `conf/env.yaml`.
+- Поддерживаемые типы полей: `text`, `list`, `filePicker`, `checkbox`, `radio`.
+- `Input file` реализован как `filePicker`: открывает системный навигатор и сохраняет выбранный путь в переменную `env.yaml`.
 
 ## Minimal/full parity contract
 

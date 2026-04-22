@@ -73,6 +73,7 @@
 | `commands[].id` | `string` | Уникальный id команды. Используется как id `action` в draw.io и как `commandId` в `REQUEST`. |
 | `commands[].title` | `string` | Заголовок команды (как отображается пользователю). |
 | `commands[].script` | `string` (filename) | Имя Python‑скрипта (например, `validate_selection.py`). Скрипт ищется в каталоге `python.scriptsDir`. |
+| `commands[].clientAction` | `string` | UI-действие без запуска Python (например, `editConfig` для открытия формы редактирования `env.yaml`). |
 
 ### `commands[].menu.main.*` — добавление в главное меню
 
@@ -133,6 +134,42 @@ UI‑плагин формирует `REQUEST.payload` и может добав�
 | `commands[].indicator.type` | `string` (`spinner|percent`) | Тип индикатора. `percent` показывает прогресс, если скрипт отправляет события прогресса; иначе UI делает fallback на текст. |
 | `commands[].indicator.timeoutMs` | `number \| null` | Локальный таймаут индикатора в миллисекундах. При срабатывании UI отправляет запрос на отмену фоновой job; итоговый статус обычно `timed_out` или `cancelled` (зависит от состояния job в момент отмены). |
 | `commands[].indicator.allowStop` | `boolean` | Показывает кнопку `Остановить` только если `timeoutMs` **не задан** (`null`). Если `timeoutMs` задан, ручная кнопка в авто-индикаторе не показывается. |
+
+## `configEditor` (schema-driven форма Edit Config)
+
+Команда с `clientAction: editConfig` может содержать блок `configEditor`, который описывает поля формы и связывает их с переменными `conf/env.yaml`.
+
+| Поле | Формат | Назначение |
+|---|---:|---|
+| `commands[].configEditor.title` | `string` | Заголовок формы редактирования |
+| `commands[].configEditor.fields[]` | `array<object>` | Описание полей формы |
+| `fields[].label` | `string` | Текст подписи в UI |
+| `fields[].envKey` | `string` | Ключ переменной в `env.yaml` |
+| `fields[].inputMethod` | `string` | Метод редактирования: `text`, `list`, `filePicker`, `checkbox`, `radio` |
+| `fields[].options` | `array<string>` | Набор значений для `list` и `radio` |
+| `fields[].fileDialog` | `object` | Параметры системного file dialog для `filePicker` |
+
+### Поддерживаемые inputMethod
+
+- `text`: обычное текстовое поле.
+- `list`: выпадающий список из `options`.
+- `filePicker`: текстовое поле + кнопка выбора файла через системный навигатор.
+- `checkbox`: булево значение `true/false`.
+- `radio`: выбор одного значения из `options`.
+
+## `env.yaml`
+
+Файл `conf/env.yaml` хранит редактируемые значения, используемые командами и Python-скриптами.
+
+Пример:
+
+```yaml
+inputFile: ""
+outputFile: ""
+processingMode: fast
+overwriteExisting: false
+outputFormat: json
+```
 
 ## Практические примеры (из текущего `plugin.yaml`)
 

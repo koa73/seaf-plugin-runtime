@@ -3,7 +3,7 @@ plugin:
   id: seaf_plugin
   name: SEAF Plugin
   description: Dynamic menu integration with Python scripts
-  runtimeVersion: 0.1.9
+  runtimeVersion: 0.2.0
 python:
   executable: python3
   scriptsDir: ../python/scripts
@@ -20,7 +20,7 @@ update:
   gitRepoSsh: git@github.com:koa73/seaf-plugin-runtime.git
   gitRef: master
   assetPath: release/out/seaf-plugin-runtime.tar.gz
-  expectedMinVersion: 0.1.9
+  expectedMinVersion: 0.2.0
   ssh:
     privateKeyPath: ../keys/seaf-plugin-runtime
     publicKeyPath: ../keys/seaf-plugin-runtime.pub
@@ -28,6 +28,45 @@ update:
   tag: ""
   apiBaseUrl: https://api.github.com
 commands:
+  - id: seafEditConfig
+    title: Edit Config
+    clientAction: editConfig
+    menu:
+      main:
+        enabled: true
+        section: seaf
+        sectionTitle: SEAF
+      context:
+        enabled: false
+        target: any
+    configEditor:
+      title: Edit Config
+      fields:
+        - label: Input file
+          envKey: inputFile
+          inputMethod: filePicker
+          fileDialog:
+            title: Select Input File
+            properties:
+              - openFile
+        - label: Output file
+          envKey: outputFile
+          inputMethod: text
+        - label: Processing mode
+          envKey: processingMode
+          inputMethod: list
+          options:
+            - fast
+            - safe
+        - label: Overwrite existing
+          envKey: overwriteExisting
+          inputMethod: checkbox
+        - label: Output format
+          envKey: outputFormat
+          inputMethod: radio
+          options:
+            - json
+            - xml
   - id: seafReloadDocument
     title: SEAF Reload Document
     menu:

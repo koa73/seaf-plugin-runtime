@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.1.9
+ * Runtime script version: 0.2.0
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -8,6 +8,7 @@ Draw.loadPlugin(function(ui)
 	var state = {
 		configPath: null,
 		config: null,
+		envConfig: null,
 		commandsById: {},
 		runtimeVersion: 'unknown',
 		manualIndicators: {},
@@ -355,12 +356,252 @@ Draw.loadPlugin(function(ui)
 			};
 		}
 
-		if (inputCfg.arguments != null)
+		payload.arguments = inputCfg.arguments != null ? mxUtils.clone(inputCfg.arguments) : {};
+
+		if (state.envConfig != null && typeof state.envConfig.env === 'object')
 		{
-			payload.arguments = inputCfg.arguments;
+			payload.env = mxUtils.clone(state.envConfig.env);
+			for (var envKey in state.envConfig.env)
+			{
+				if (Object.prototype.hasOwnProperty.call(state.envConfig.env, envKey))
+				{
+					payload.arguments[envKey] = state.envConfig.env[envKey];
+				}
+			}
 		}
 
 		return payload;
+	}
+
+	function getEditConfigCommand()
+	{
+		if (!state.config || !Array.isArray(state.config.commands))
+		{
+			return null;
+		}
+
+		for (var i = 0; i < state.config.commands.length; i++)
+		{
+			var cmd = state.config.commands[i];
+			if (cmd != null && cmd.clientAction === 'editConfig')
+			{
+				return cmd;
+			}
+		}
+
+		return null;
+	}
+
+	function normalizeFieldValue(field, value)
+	{
+		var method = field && field.inputMethod ? field.inputMethod : 'text';
+		if (method === 'checkbox')
+		{
+			return value === true;
+		}
+
+		if (value == null)
+		{
+			var options = Array.isArray(field && field.options) ? field.options : [];
+			if ((method === 'list' || method === 'radio') && options.length > 0)
+			{
+				return String(options[0]);
+			}
+			return '';
+		}
+
+		return String(value);
+	}
+
+	async function openEditConfigDialog(command)
+	{
+		var editorCfg = command && command.configEditor ? command.configEditor : {};
+		var fields = Array.isArray(editorCfg.fields) ? editorCfg.fields : [];
+		var loadedEnv = await requestAsync({
+			action: 'getSeafEnvConfig',
+			configPath: state.configPath
+		});
+		var env = loadedEnv && loadedEnv.env ? loadedEnv.env : {};
+		var container = document.createElement('div');
+		container.style.maxHeight = '420px';
+		container.style.width = '520px';
+		container.style.overflowY = 'auto';
+		container.style.padding = '8px';
+
+		var fieldControls = {};
+		var createRow = function(labelText)
+		{
+			var row = document.createElement('div');
+			row.style.marginBottom = '10px';
+			var label = document.createElement('div');
+			label.style.fontWeight = 'bold';
+			label.style.marginBottom = '4px';
+			label.textContent = labelText;
+			row.appendChild(label);
+			container.appendChild(row);
+			return row;
+		};
+
+		for (var i = 0; i < fields.length; i++)
+		{
+			var field = fields[i];
+			if (!field || typeof field.envKey !== 'string')
+			{
+				continue;
+			}
+
+			var row = createRow(field.label || field.envKey);
+			var method = field.inputMethod || 'text';
+			var currentValue = normalizeFieldValue(field, env[field.envKey]);
+			var input = null;
+
+			if (method === 'checkbox')
+			{
+				input = document.createElement('input');
+				input.type = 'checkbox';
+				input.checked = currentValue === true;
+				row.appendChild(input);
+			}
+			else if (method === 'list')
+			{
+				input = document.createElement('select');
+				input.style.width = '100%';
+				var options = Array.isArray(field.options) ? field.options : [];
+				for (var j = 0; j < options.length; j++)
+				{
+					var opt = document.createElement('option');
+					opt.value = String(options[j]);
+					opt.textContent = String(options[j]);
+					input.appendChild(opt);
+				}
+				input.value = currentValue;
+				row.appendChild(input);
+			}
+			else if (method === 'radio')
+			{
+				input = [];
+				var radioWrap = document.createElement('div');
+				var radioOptions = Array.isArray(field.options) ? field.options : [];
+				for (var k = 0; k < radioOptions.length; k++)
+				{
+					var radioLabel = document.createElement('label');
+					radioLabel.style.display = 'block';
+					var radio = document.createElement('input');
+					radio.type = 'radio';
+					radio.name = 'seaf-radio-' + field.envKey;
+					radio.value = String(radioOptions[k]);
+					radio.checked = String(radioOptions[k]) === currentValue;
+					radioLabel.appendChild(radio);
+					radioLabel.appendChild(document.createTextNode(' ' + String(radioOptions[k])));
+					radioWrap.appendChild(radioLabel);
+					input.push(radio);
+				}
+				row.appendChild(radioWrap);
+			}
+			else
+			{
+				var inputWrap = document.createElement('div');
+				inputWrap.style.display = 'flex';
+				inputWrap.style.gap = '6px';
+				input = document.createElement('input');
+				input.type = 'text';
+				input.style.flex = '1';
+				input.value = currentValue;
+				inputWrap.appendChild(input);
+				if (method === 'filePicker')
+				{
+					var browseBtn = document.createElement('button');
+					browseBtn.textContent = 'Browse...';
+					browseBtn.onclick = (function(targetInput, targetField)
+					{
+						return async function()
+						{
+							var fileDialog = targetField.fileDialog || {};
+							var picked = await requestAsync({
+								action: 'selectSeafEnvFile',
+								defaultPath: targetInput.value || null,
+								filters: Array.isArray(fileDialog.filters) ? fileDialog.filters : [],
+								properties: Array.isArray(fileDialog.properties) && fileDialog.properties.length > 0 ?
+									fileDialog.properties : ['openFile']
+							});
+							if (picked != null && String(picked).length > 0)
+							{
+								targetInput.value = String(picked);
+							}
+						};
+					})(input, field);
+					inputWrap.appendChild(browseBtn);
+				}
+				row.appendChild(inputWrap);
+			}
+
+			fieldControls[field.envKey] = {
+				method: method,
+				control: input
+			};
+		}
+
+		var footer = document.createElement('div');
+		footer.style.textAlign = 'right';
+		footer.style.marginTop = '8px';
+		var cancelBtn = mxUtils.button(mxResources.get('cancel'), function()
+		{
+			ui.hideDialog();
+		});
+		var saveBtn = mxUtils.button(mxResources.get('apply'), async function()
+		{
+			var nextEnv = {};
+			for (var key in fieldControls)
+			{
+				if (!Object.prototype.hasOwnProperty.call(fieldControls, key))
+				{
+					continue;
+				}
+				var entry = fieldControls[key];
+				if (entry.method === 'checkbox')
+				{
+					nextEnv[key] = entry.control.checked === true;
+				}
+				else if (entry.method === 'radio')
+				{
+					var selected = '';
+					for (var r = 0; r < entry.control.length; r++)
+					{
+						if (entry.control[r].checked)
+						{
+							selected = entry.control[r].value;
+							break;
+						}
+					}
+					nextEnv[key] = selected;
+				}
+				else
+				{
+					nextEnv[key] = entry.control.value != null ? String(entry.control.value) : '';
+				}
+			}
+
+			try
+			{
+				var saved = await requestAsync({
+					action: 'saveSeafEnvConfig',
+					configPath: state.configPath,
+					env: nextEnv
+				});
+				state.envConfig = saved;
+				ui.hideDialog();
+				showInfo('Configuration saved');
+			}
+			catch (e)
+			{
+				showError('Failed to save config: ' + e.message);
+			}
+		});
+		footer.appendChild(cancelBtn);
+		footer.appendChild(saveBtn);
+		container.appendChild(footer);
+
+		ui.showDialog(container, 560, 440, true, true);
 	}
 
 	function runUiCommand(cmd)
@@ -584,6 +825,12 @@ Draw.loadPlugin(function(ui)
 
 	async function executeCommand(command, source)
 	{
+		if (command && command.clientAction === 'editConfig')
+		{
+			await openEditConfigDialog(command);
+			return;
+		}
+
 		var payload = buildPayload(command);
 		payload.source = source;
 		var indicatorCfg = getIndicatorConfig(command);
@@ -918,6 +1165,17 @@ Draw.loadPlugin(function(ui)
 			state.config = loaded.config;
 			state.logging = state.config.logging || state.logging;
 			state.runtimeVersion = await detectRuntimeVersion();
+			try
+			{
+				state.envConfig = await requestAsync({
+					action: 'getSeafEnvConfig',
+					configPath: state.configPath
+				});
+			}
+			catch (envErr)
+			{
+				state.envConfig = {env: {}};
+			}
 
 			await writeLog('info', 'Plugin initialization started', {
 				configPath: state.configPath,
