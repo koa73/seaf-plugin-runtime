@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.1.8
+ * Runtime script version: 0.1.9
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -119,6 +119,36 @@ Draw.loadPlugin(function(ui)
 		}
 		var line1 = version ? ('Плагин обновлен до версии ' + version) : 'Плагин успешно обновлен';
 		return line1 + '\nИзменения вступят в силу после перезапуска приложения draw.io';
+	}
+
+	function getUpdateUiOutcome(result)
+	{
+		var payload = (result && typeof result.payload === 'object' && result.payload != null) ? result.payload : {};
+		var status = (typeof payload.status === 'string' && payload.status.trim().length > 0) ?
+			payload.status.trim() : (typeof result.status === 'string' ? result.status.trim() : '');
+		if (status === 'updated')
+		{
+			return {
+				level: 'info',
+				message: buildRestartRequiredMessage(result)
+			};
+		}
+		if (status === 'already_up_to_date')
+		{
+			var latestMessage = (typeof result.message === 'string' && result.message.trim().length > 0) ?
+				result.message.trim() :
+				('Установлена актуальная версия ' + ((payload && payload.version) ? payload.version : 'плагина'));
+			return {
+				level: 'info',
+				message: latestMessage
+			};
+		}
+
+		// Backward compatibility: unknown success payload keeps restart-required behavior.
+		return {
+			level: 'info',
+			message: buildRestartRequiredMessage(result)
+		};
 	}
 
 	function formatCommandError(commandId, message)
@@ -509,7 +539,15 @@ Draw.loadPlugin(function(ui)
 				executeInteractiveCommands(completedResult);
 				if (command && command.id === 'seafSystemUpdatePlugin')
 				{
-					showInfo(buildRestartRequiredMessage(completedResult));
+					var updateOutcome = getUpdateUiOutcome(completedResult);
+					if (updateOutcome.level === 'error')
+					{
+						showError(updateOutcome.message);
+					}
+					else
+					{
+						showInfo(updateOutcome.message);
+					}
 				}
 				else if (completedResult && typeof completedResult.message === 'string' &&
 					completedResult.message.trim().length > 0)
@@ -664,7 +702,15 @@ Draw.loadPlugin(function(ui)
 			}
 			else
 			{
-				showInfo(buildRestartRequiredMessage(result));
+				var updateOutcome = getUpdateUiOutcome(result);
+				if (updateOutcome.level === 'error')
+				{
+					showError(updateOutcome.message);
+				}
+				else
+				{
+					showInfo(updateOutcome.message);
+				}
 			}
 		}
 		catch (e)

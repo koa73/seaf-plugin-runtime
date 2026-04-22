@@ -1,12 +1,12 @@
 /**
  * SEAF minimal plugin for draw.io desktop bootstrap.
- * Runtime script version: 0.0.6
+ * Runtime script version: 0.0.7
  */
 Draw.loadPlugin(function(ui)
 {
 	var state = {
 		configPath: null,
-		runtimeVersion: '0.0.6',
+		runtimeVersion: '0.0.7',
 		updateInProgress: false,
 		actionRegistered: false,
 		menuRegistered: false
@@ -180,6 +180,26 @@ Draw.loadPlugin(function(ui)
 		return line1 + '\nИзменения вступят в силу после перезапуска приложения draw.io';
 	}
 
+	function getUpdateUiMessage(result)
+	{
+		var payload = (result && typeof result.payload === 'object' && result.payload != null) ? result.payload : {};
+		var status = (typeof payload.status === 'string' && payload.status.trim().length > 0) ?
+			payload.status.trim() : (typeof result.status === 'string' ? result.status.trim() : '');
+		if (status === 'already_up_to_date')
+		{
+			if (typeof result.message === 'string' && result.message.trim().length > 0)
+			{
+				return result.message.trim();
+			}
+			if (typeof payload.version === 'string' && payload.version.trim().length > 0)
+			{
+				return 'Установлена актуальная версия ' + payload.version.trim();
+			}
+			return 'Установлена актуальная версия плагина';
+		}
+		return buildRestartRequiredMessage(result);
+	}
+
 	async function pollUpdateJob(jobId, executionCfg)
 	{
 		var maxAttempts = Math.max(1, (executionCfg && executionCfg.maxPollAttempts) || 180);
@@ -205,7 +225,7 @@ Draw.loadPlugin(function(ui)
 						window.setTimeout(resolve, 300);
 					});
 					indicator.stop();
-					mxUtils.alert(buildRestartRequiredMessage(result));
+					mxUtils.alert(getUpdateUiMessage(result));
 					return;
 				}
 				if (status.status === 'failed' || status.status === 'timed_out' || status.status === 'cancelled')
@@ -259,7 +279,7 @@ Draw.loadPlugin(function(ui)
 			var result = response && response.result ? response.result : {};
 			if (result && result.status !== 'error')
 			{
-				mxUtils.alert(buildRestartRequiredMessage(result));
+				mxUtils.alert(getUpdateUiMessage(result));
 			}
 			else if (result && typeof result.message === 'string' && result.message.trim().length > 0)
 			{
