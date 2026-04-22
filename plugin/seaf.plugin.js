@@ -424,9 +424,13 @@ Draw.loadPlugin(function(ui)
 		var env = loadedEnv && loadedEnv.env ? loadedEnv.env : {};
 		var container = document.createElement('div');
 		container.style.maxHeight = '420px';
-		container.style.width = '520px';
+		container.style.minWidth = '420px';
+		container.style.maxWidth = '760px';
 		container.style.overflowY = 'auto';
 		container.style.padding = '8px';
+		container.style.boxSizing = 'border-box';
+		var estimatedRows = 0;
+		var hasChoiceControls = false;
 
 		var fieldControls = {};
 		var createRow = function(labelText)
@@ -454,6 +458,7 @@ Draw.loadPlugin(function(ui)
 			var method = field.inputMethod || 'text';
 			var currentValue = normalizeFieldValue(field, env[field.envKey]);
 			var input = null;
+			estimatedRows += 1;
 
 			if (method === 'checkbox')
 			{
@@ -464,6 +469,8 @@ Draw.loadPlugin(function(ui)
 			}
 			else if (method === 'list')
 			{
+				hasChoiceControls = true;
+				estimatedRows += 0.5;
 				input = document.createElement('select');
 				input.style.width = '100%';
 				var options = Array.isArray(field.options) ? field.options : [];
@@ -479,9 +486,11 @@ Draw.loadPlugin(function(ui)
 			}
 			else if (method === 'radio')
 			{
+				hasChoiceControls = true;
 				input = [];
 				var radioWrap = document.createElement('div');
 				var radioOptions = Array.isArray(field.options) ? field.options : [];
+				estimatedRows += Math.min(4, radioOptions.length);
 				for (var k = 0; k < radioOptions.length; k++)
 				{
 					var radioLabel = document.createElement('label');
@@ -517,16 +526,33 @@ Draw.loadPlugin(function(ui)
 						return async function()
 						{
 							var fileDialog = targetField.fileDialog || {};
-							var picked = await requestAsync({
+							var currentPath = (targetInput.value != null) ? String(targetInput.value).trim() : '';
+							var requestPayload = {
 								action: 'selectSeafEnvFile',
-								defaultPath: targetInput.value || null,
 								filters: Array.isArray(fileDialog.filters) ? fileDialog.filters : [],
 								properties: Array.isArray(fileDialog.properties) && fileDialog.properties.length > 0 ?
 									fileDialog.properties : ['openFile']
-							});
-							if (picked != null && String(picked).length > 0)
+							};
+							if (currentPath.length > 0)
 							{
-								targetInput.value = String(picked);
+								requestPayload.defaultPath = currentPath;
+							}
+
+							try
+							{
+								var picked = await requestAsync(requestPayload);
+								if (picked != null && String(picked).length > 0)
+								{
+									targetInput.value = String(picked);
+								}
+							}
+							catch (e)
+							{
+								await writeLog('error', 'Browse file selection failed', {
+									envKey: targetField.envKey,
+									error: e.message
+								});
+								showError('Не удалось открыть выбор файла: ' + e.message);
 							}
 						};
 					})(input, field);
@@ -548,6 +574,7 @@ Draw.loadPlugin(function(ui)
 		{
 			ui.hideDialog();
 		});
+		cancelBtn.style.marginRight = '14px';
 		var saveBtn = mxUtils.button(mxResources.get('apply'), async function()
 		{
 			var nextEnv = {};
@@ -601,7 +628,11 @@ Draw.loadPlugin(function(ui)
 		footer.appendChild(saveBtn);
 		container.appendChild(footer);
 
-		ui.showDialog(container, 560, 440, true, true);
+		var dialogWidth = 460 + (hasChoiceControls ? 40 : 0);
+		dialogWidth = Math.max(420, Math.min(760, dialogWidth));
+		var dialogHeight = 170 + Math.round(estimatedRows * 32);
+		dialogHeight = Math.max(240, Math.min(560, dialogHeight));
+		ui.showDialog(container, dialogWidth, dialogHeight, true, true);
 	}
 
 	function runUiCommand(cmd)
