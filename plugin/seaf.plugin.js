@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.2.2
+ * Runtime script version: 0.2.3
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -632,6 +632,15 @@ Draw.loadPlugin(function(ui)
 
 		var dialogWidth = 460 + (hasChoiceControls ? 40 : 0);
 		dialogWidth = Math.max(420, Math.min(760, dialogWidth));
+		var measureHost = document.createElement('div');
+		measureHost.style.position = 'absolute';
+		measureHost.style.left = '-10000px';
+		measureHost.style.top = '0';
+		measureHost.style.visibility = 'hidden';
+		measureHost.style.pointerEvents = 'none';
+		measureHost.style.width = dialogWidth + 'px';
+		document.body.appendChild(measureHost);
+		measureHost.appendChild(container);
 		var measuredHeight = container.scrollHeight;
 		var minHeight = 220;
 		var maxHeight = 560;
@@ -648,16 +657,10 @@ Draw.loadPlugin(function(ui)
 		container.style.paddingRight = baseInset + 'px';
 		container.style.paddingBottom = bottomInset + 'px';
 		container.style.paddingLeft = baseInset + 'px';
-		if (desiredDialogHeight > maxHeight)
-		{
-			container.style.maxHeight = Math.max(180, maxHeight - framePaddingCompensation) + 'px';
-			container.style.overflowY = 'auto';
-		}
-		else
-		{
-			container.style.maxHeight = 'none';
-			container.style.overflowY = 'visible';
-		}
+		container.style.maxHeight = Math.max(180, dialogHeight - framePaddingCompensation) + 'px';
+		container.style.overflowY = 'auto';
+		measureHost.removeChild(container);
+		document.body.removeChild(measureHost);
 		ui.showDialog(container, dialogWidth, dialogHeight, true, true);
 	}
 
