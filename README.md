@@ -25,6 +25,7 @@
 - `conf/README.md` - документация формата `plugin.yaml`.
 - `python/scripts/*.py` - Python-скрипты команд full runtime.
 - `python/scripts/README.md` - документация контракта скриптов и прогресса.
+- `python/scripts/lib/io/__init__.py` - общий helper layer для REQUEST/Response/progress в Python-скриптах.
 - `runtime/version.json` - версия full runtime.
 - `minimal-runtime/*` - минимальный bootstrap runtime для package drawio.
 - `release/runtime/build-runtime.sh` - сборка full runtime (`release/out/stage` + `seaf-plugin-runtime.tar.gz`).
@@ -79,6 +80,7 @@
 - Текущий контракт полей: `companyPrefix`, `inputSeafFile`, `useSameOutputFile`, `outputSeafFile`, `pluginLogLevel`.
 - `Input SEAF file` реализован как `filePicker`: открывает системный навигатор и сохраняет выбранный путь в `env.yaml`.
 - Если `useSameOutputFile=true`, `outputSeafFile` автоматически копирует `inputSeafFile` и становится read-only/disabled.
+- Зависимость описывается декларативно в `configEditor.fields` через `syncFrom` и `disableWhen`, без жесткой привязки к конкретным env-ключам в renderer-коде.
 - При `Browse` для `inputSeafFile` поле `outputSeafFile` обновляется автоматически только при включенном `useSameOutputFile`.
 - При runtime update `env.yaml` обновляется инкрементально: локальные значения сохраняются для существующих ключей, новые ключи добавляются, отсутствующие в новой схеме ключи удаляются.
 - Уровень логирования пользователя задается через `env.pluginLogLevel` (`none|info|debug`), а блок `logging.*` в `plugin.yaml` используется как технический fallback.
@@ -86,6 +88,7 @@
 - Footer формы использует `flex + gap`, а успешное сохранение выполняется без `success` popup (сообщения показываются только при ошибках).
 - Кнопки `Cancel/Apply` и `Browse...` унифицированы с системным стилем draw.io (`geBtn`, `gePrimaryBtn`), как в стандартных диалогах (например, `Файл -> Печать`).
 - Скролл ограничен только областью полей формы, поэтому футер с action-кнопками всегда остается доступным.
+- В критических async-ветках включен fail-safe cleanup: polling ошибки обрабатываются явно, а interactive-terminal overlay завершается watchdog-ом при отсутствии terminal-closed события.
 
 ## Interactive terminal command
 

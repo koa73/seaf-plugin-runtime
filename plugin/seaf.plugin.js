@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.2.8
+ * Runtime script version: 0.2.9
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -20,6 +20,8 @@ Draw.loadPlugin(function(ui)
 		actionsRegistered: false,
 		mainMenuRegistered: false,
 		contextMenuRegistered: false,
+		contextMenuBaseCreatePopupMenu: null,
+		interactiveSessionWatchdogs: {},
 		logging: {
 			level: 'info',
 			extendedDebug: false,
@@ -200,6 +202,36 @@ Draw.loadPlugin(function(ui)
 		}
 
 		state.interactiveOverlay = null;
+	}
+
+	function clearInteractiveSessionWatchdog(sessionId)
+	{
+		if (!sessionId || !Object.prototype.hasOwnProperty.call(state.interactiveSessionWatchdogs, sessionId))
+		{
+			return;
+		}
+		window.clearTimeout(state.interactiveSessionWatchdogs[sessionId]);
+		delete state.interactiveSessionWatchdogs[sessionId];
+	}
+
+	function scheduleInteractiveSessionWatchdog(sessionId, command)
+	{
+		clearInteractiveSessionWatchdog(sessionId);
+		state.interactiveSessionWatchdogs[sessionId] = window.setTimeout(function()
+		{
+			clearInteractiveSessionWatchdog(sessionId);
+			if (state.interactiveSessionHandlers[sessionId] != null)
+			{
+				delete state.interactiveSessionHandlers[sessionId];
+			}
+			hideInteractiveOverlay(sessionId);
+			var commandId = (command && command.id) ? command.id : 'interactiveTerminal';
+			showError(formatCommandError(commandId, 'Interactive terminal session watchdog timeout'));
+			writeLog('warn', 'Interactive terminal watchdog timeout', {
+				sessionId: sessionId,
+				commandId: commandId
+			});
+		}, 5 * 60 * 1000);
 	}
 
 	function buildRestartRequiredMessage(result)
@@ -562,6 +594,8 @@ Draw.loadPlugin(function(ui)
 		var hasChoiceControls = false;
 
 		var fieldControls = {};
+		var fieldByKey = {};
+		var applyFieldRelations = function(){};
 		var createRow = function(labelText)
 		{
 			var row = document.createElement('div');
@@ -582,6 +616,7 @@ Draw.loadPlugin(function(ui)
 			{
 				continue;
 			}
+			fieldByKey[field.envKey] = field;
 
 			var row = createRow(field.label || field.envKey);
 			var method = field.inputMethod || 'text';
@@ -673,10 +708,7 @@ Draw.loadPlugin(function(ui)
 								if (picked != null && String(picked).length > 0)
 								{
 									targetInput.value = String(picked);
-									if (targetField && targetField.envKey === 'inputSeafFile')
-									{
-										syncOutputFieldState();
-									}
+									applyFieldRelations();
 								}
 							}
 							catch (e)
@@ -700,49 +732,128 @@ Draw.loadPlugin(function(ui)
 			};
 		}
 
-		var syncOutputFieldState = function()
+		function getFieldValue(entry)
 		{
-			var sameOutputEntry = fieldControls.useSameOutputFile;
-			var inputEntry = fieldControls.inputSeafFile;
-			var outputEntry = fieldControls.outputSeafFile;
+			if (entry == null)
+			{
+				return null;
+			}
+			if (entry.method === 'checkbox')
+			{
+				return entry.control.checked === true;
+			}
+			if (entry.method === 'radio')
+			{
+				var selected = '';
+				for (var r = 0; r < entry.control.length; r++)
+				{
+					if (entry.control[r].checked)
+					{
+						selected = entry.control[r].value;
+						break;
+					}
+				}
+				return selected;
+			}
+			return entry.control.value != null ? String(entry.control.value) : '';
+		}
 
-			if (!sameOutputEntry || !outputEntry)
+		function setTextFieldState(entry, value, disabled)
+		{
+			if (!entry || !entry.control || entry.control.tagName !== 'INPUT')
 			{
 				return;
 			}
-
-			var sameOutputEnabled = sameOutputEntry.control.checked === true;
-			var outputControl = outputEntry.control;
-
-			if (outputControl && outputControl.tagName === 'INPUT')
+			if (value != null)
 			{
-				if (sameOutputEnabled && inputEntry && inputEntry.control && typeof inputEntry.control.value === 'string')
+				entry.control.value = String(value);
+			}
+			entry.control.disabled = disabled === true;
+			entry.control.readOnly = disabled === true;
+			entry.control.style.backgroundColor = disabled === true ? '#f5f5f5' : '';
+		}
+
+		function buildFieldRelation(field)
+		{
+			var relation = {
+				syncFrom: field && typeof field.syncFrom === 'string' ? field.syncFrom : null,
+				disableWhen: field && typeof field.disableWhen === 'object' ? field.disableWhen : null
+			};
+			if ((!relation.syncFrom || relation.disableWhen == null) &&
+				field && field.envKey === 'outputSeafFile' &&
+				fieldControls.useSameOutputFile && fieldControls.inputSeafFile)
+			{
+				relation.syncFrom = relation.syncFrom || 'inputSeafFile';
+				relation.disableWhen = relation.disableWhen || {
+					envKey: 'useSameOutputFile',
+					equals: true
+				};
+			}
+			return relation;
+		}
+
+		applyFieldRelations = function()
+		{
+			for (var key in fieldControls)
+			{
+				if (!Object.prototype.hasOwnProperty.call(fieldControls, key))
 				{
-					outputControl.value = inputEntry.control.value;
+					continue;
 				}
-				outputControl.disabled = sameOutputEnabled;
-				outputControl.readOnly = sameOutputEnabled;
-				outputControl.style.backgroundColor = sameOutputEnabled ? '#f5f5f5' : '';
+				var field = fieldByKey[key] || {envKey: key};
+				var relation = buildFieldRelation(field);
+				var targetEntry = fieldControls[key];
+				if (!targetEntry || targetEntry.method === 'checkbox' || targetEntry.method === 'radio')
+				{
+					continue;
+				}
+
+				var shouldDisable = false;
+				if (relation.disableWhen && relation.disableWhen.envKey && fieldControls[relation.disableWhen.envKey])
+				{
+					var watchedValue = getFieldValue(fieldControls[relation.disableWhen.envKey]);
+					var expected = Object.prototype.hasOwnProperty.call(relation.disableWhen, 'equals') ?
+						relation.disableWhen.equals : true;
+					shouldDisable = watchedValue === expected;
+				}
+
+				if (shouldDisable && relation.syncFrom && fieldControls[relation.syncFrom])
+				{
+					var sourceValue = getFieldValue(fieldControls[relation.syncFrom]);
+					setTextFieldState(targetEntry, sourceValue, true);
+				}
+				else
+				{
+					setTextFieldState(targetEntry, null, shouldDisable);
+				}
 			}
 		};
 
-		if (fieldControls.useSameOutputFile && fieldControls.useSameOutputFile.control)
+		for (var fieldKey in fieldControls)
 		{
-			fieldControls.useSameOutputFile.control.onchange = function()
+			if (!Object.prototype.hasOwnProperty.call(fieldControls, fieldKey))
 			{
-				syncOutputFieldState();
-			};
+				continue;
+			}
+			var fieldEntry = fieldControls[fieldKey];
+			if (fieldEntry.method === 'radio')
+			{
+				for (var rr = 0; rr < fieldEntry.control.length; rr++)
+				{
+					fieldEntry.control[rr].onchange = applyFieldRelations;
+				}
+			}
+			else if (fieldEntry.control)
+			{
+				fieldEntry.control.onchange = applyFieldRelations;
+				if (typeof fieldEntry.control.oninput !== 'undefined')
+				{
+					fieldEntry.control.oninput = applyFieldRelations;
+				}
+			}
 		}
 
-		if (fieldControls.inputSeafFile && fieldControls.inputSeafFile.control)
-		{
-			fieldControls.inputSeafFile.control.oninput = function()
-			{
-				syncOutputFieldState();
-			};
-		}
-
-		syncOutputFieldState();
+		applyFieldRelations();
 
 		var footer = document.createElement('div');
 		footer.style.textAlign = 'right';
@@ -841,42 +952,42 @@ Draw.loadPlugin(function(ui)
 		ui.showDialog(container, dialogWidth, dialogHeight, true, true);
 	}
 
-	function runUiCommand(cmd)
-	{
-		var graph = ui.editor.graph;
-		var args = cmd.args || {};
-
-		switch (cmd.name)
+	var uiCommandHandlers = {
+		reloadDocument: function()
 		{
-		case 'reloadDocument':
 			window.location.reload();
-			break;
-		case 'refreshGraph':
+		},
+		refreshGraph: function(args)
+		{
+			var graph = ui.editor.graph;
 			graph.refresh();
-			break;
-		case 'selectCells':
-			if (Array.isArray(args.cellIds))
+		},
+		selectCells: function(args)
+		{
+			var graph = ui.editor.graph;
+			if (!Array.isArray(args.cellIds))
 			{
-				var selected = [];
-				for (var i = 0; i < args.cellIds.length; i++)
+				return;
+			}
+			var selected = [];
+			for (var i = 0; i < args.cellIds.length; i++)
+			{
+				var c = graph.model.getCell(args.cellIds[i]);
+				if (c != null)
 				{
-					var c = graph.model.getCell(args.cellIds[i]);
-					if (c != null)
-					{
-						selected.push(c);
-					}
-				}
-
-				if (selected.length > 0)
-				{
-					graph.setSelectionCells(selected);
+					selected.push(c);
 				}
 			}
-			break;
-		case 'showMessage':
+			if (selected.length > 0)
+			{
+				graph.setSelectionCells(selected);
+			}
+		},
+		showMessage: function(args)
+		{
 			if (args.text == null || String(args.text).trim().length === 0)
 			{
-				break;
+				return;
 			}
 			if (args.level === 'error')
 			{
@@ -886,11 +997,19 @@ Draw.loadPlugin(function(ui)
 			{
 				showInfo(args.text);
 			}
-			break;
-		default:
-			writeLog('warn', 'Unknown UI command ignored', {command: cmd});
-			break;
 		}
+	};
+
+	function runUiCommand(cmd)
+	{
+		var args = cmd.args || {};
+		var handler = uiCommandHandlers[cmd.name];
+		if (typeof handler === 'function')
+		{
+			handler(args);
+			return;
+		}
+		writeLog('warn', 'Unknown UI command ignored', {command: cmd});
 	}
 
 	function executeInteractiveCommands(result)
@@ -983,80 +1102,88 @@ Draw.loadPlugin(function(ui)
 			state.autoIndicatorsByJob[jobId] = indicator;
 		}
 
-		for (var i = 0; i < maxAttempts; i++)
+		var cleanupIndicator = function()
 		{
-			var status = await requestAsync({
-				action: 'pollSeafPluginJob',
-				jobId: jobId
-			});
-
 			if (indicator != null)
 			{
-				indicator.update({
-					message: status.message || status.phase || 'Выполняется...',
-					progress: Number.isFinite(status.progress) ? status.progress : null
-				});
+				indicator.stop();
+				indicator = null;
 			}
+			delete state.autoIndicatorsByJob[jobId];
+		};
 
-			if (status.status === 'completed')
+		try
+		{
+			for (var i = 0; i < maxAttempts; i++)
 			{
-				var completedResult = status.result || {};
+				var status = await requestAsync({
+					action: 'pollSeafPluginJob',
+					jobId: jobId
+				});
+
 				if (indicator != null)
 				{
 					indicator.update({
-						message: 'Обновление завершено',
-						progress: 100
+						message: status.message || status.phase || 'Выполняется...',
+						progress: Number.isFinite(status.progress) ? status.progress : null
 					});
-					await new Promise(function(resolve)
-					{
-						window.setTimeout(resolve, 300);
-					});
-					indicator.stop();
-					delete state.autoIndicatorsByJob[jobId];
 				}
-				executeInteractiveCommands(completedResult);
-				if (command && command.id === 'seafSystemUpdatePlugin')
-				{
-					var updateOutcome = getUpdateUiOutcome(completedResult);
-					if (updateOutcome.level === 'error')
-					{
-						showError(updateOutcome.message);
-					}
-					else
-					{
-						showInfo(updateOutcome.message);
-					}
-				}
-				else if (completedResult && typeof completedResult.message === 'string' &&
-					completedResult.message.trim().length > 0)
-				{
-					showInfo(completedResult.message);
-				}
-				return;
-			}
-			else if (status.status === 'failed' || status.status === 'timed_out' || status.status === 'cancelled')
-			{
-				var msg = status.status === 'cancelled' ? 'Операция остановлена' : (status.error || 'unknown error');
-				showError(formatCommandError(command.id, msg));
-				if (indicator != null)
-				{
-					indicator.stop();
-					delete state.autoIndicatorsByJob[jobId];
-				}
-				return;
-			}
 
-			await new Promise(function(resolve)
-			{
-				window.setTimeout(resolve, intervalMs);
-			});
+				if (status.status === 'completed')
+				{
+					var completedResult = status.result || {};
+					if (indicator != null)
+					{
+						indicator.update({
+							message: 'Обновление завершено',
+							progress: 100
+						});
+						await new Promise(function(resolve)
+						{
+							window.setTimeout(resolve, 300);
+						});
+						cleanupIndicator();
+					}
+					executeInteractiveCommands(completedResult);
+					if (command && command.id === 'seafSystemUpdatePlugin')
+					{
+						var updateOutcome = getUpdateUiOutcome(completedResult);
+						if (updateOutcome.level === 'error')
+						{
+							showError(updateOutcome.message);
+						}
+						else
+						{
+							showInfo(updateOutcome.message);
+						}
+					}
+					else if (completedResult && typeof completedResult.message === 'string' &&
+						completedResult.message.trim().length > 0)
+					{
+						showInfo(completedResult.message);
+					}
+					return;
+				}
+
+				if (status.status === 'failed' || status.status === 'timed_out' || status.status === 'cancelled')
+				{
+					var msg = status.status === 'cancelled' ? 'Операция остановлена' : (status.error || 'unknown error');
+					showError(formatCommandError(command.id, msg));
+					cleanupIndicator();
+					return;
+				}
+
+				await new Promise(function(resolve)
+				{
+					window.setTimeout(resolve, intervalMs);
+				});
+			}
 		}
-
-		if (indicator != null)
+		finally
 		{
-			indicator.stop();
-			delete state.autoIndicatorsByJob[jobId];
+			cleanupIndicator();
 		}
+
 		showError(formatCommandError(command.id, 'async timeout'));
 	}
 
@@ -1098,6 +1225,7 @@ Draw.loadPlugin(function(ui)
 			{
 				if (event.type === 'terminal-closed')
 				{
+					clearInteractiveSessionWatchdog(sessionId);
 					hideInteractiveOverlay(sessionId);
 					delete state.interactiveSessionHandlers[sessionId];
 					if (event.status === 'failed')
@@ -1109,6 +1237,7 @@ Draw.loadPlugin(function(ui)
 					}
 				}
 			};
+			scheduleInteractiveSessionWatchdog(sessionId, command);
 		}
 		catch (e)
 		{
@@ -1157,7 +1286,7 @@ Draw.loadPlugin(function(ui)
 
 			if (response.mode === 'async' && response.jobId)
 			{
-				pollAsyncJob(response.jobId, command, indicatorCfg, response.execution || null);
+				await pollAsyncJob(response.jobId, command, indicatorCfg, response.execution || null);
 				return;
 			}
 
@@ -1390,10 +1519,14 @@ Draw.loadPlugin(function(ui)
 
 	function registerContextMenu()
 	{
-		var oldCreatePopupMenu = ui.menus.createPopupMenu;
+		if (state.contextMenuRegistered)
+		{
+			return;
+		}
+		state.contextMenuBaseCreatePopupMenu = ui.menus.createPopupMenu;
 		ui.menus.createPopupMenu = function(menu, cell, evt)
 		{
-			oldCreatePopupMenu.apply(this, arguments);
+			state.contextMenuBaseCreatePopupMenu.apply(this, arguments);
 			var graph = ui.editor.graph;
 			var inserted = false;
 			var commands = state.config.commands || [];
@@ -1412,6 +1545,7 @@ Draw.loadPlugin(function(ui)
 				}
 			}
 		};
+		state.contextMenuRegistered = true;
 	}
 
 	function registerActions()

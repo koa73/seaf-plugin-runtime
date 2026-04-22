@@ -1,20 +1,19 @@
 #!/usr/bin/env python3
-import json
-import sys
+from lib.io import get_payload, read_request, write_response
 
 
 def main() -> int:
-    raw = sys.stdin.read()
-    payload = json.loads(raw) if raw.strip() else {}
+    request = read_request()
+    payload = get_payload(request)
 
-    response = {
-        "status": "success",
-        "message": "Document reload flow completed",
-        "payload": {
-            "receivedCommandId": payload.get("commandId"),
-            "selectionCount": len((payload.get("payload") or {}).get("selection") or []),
+    return write_response(
+        status="success",
+        message="Document reload flow completed",
+        payload={
+            "receivedCommandId": request.get("commandId"),
+            "selectionCount": len(payload.get("selection") or []),
         },
-        "commands": [
+        commands=[
             {
                 "name": "showMessage",
                 "args": {
@@ -24,11 +23,8 @@ def main() -> int:
             },
             {"name": "reloadDocument", "args": {}},
         ],
-        "errors": [],
-    }
-
-    sys.stdout.write(json.dumps(response))
-    return 0
+        errors=[],
+    )
 
 
 if __name__ == "__main__":

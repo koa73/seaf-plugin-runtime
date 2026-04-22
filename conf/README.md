@@ -148,6 +148,8 @@ UI‑плагин формирует `REQUEST.payload` и может добав�
 | `fields[].inputMethod` | `string` | Метод редактирования: `text`, `list`, `filePicker`, `checkbox`, `radio` |
 | `fields[].options` | `array<string>` | Набор значений для `list` и `radio` |
 | `fields[].fileDialog` | `object` | Параметры системного file dialog для `filePicker` |
+| `fields[].syncFrom` | `string` | Опционально: `envKey` поля-источника для автосинхронизации значения |
+| `fields[].disableWhen` | `object` | Опционально: условие блокировки поля (`{envKey, equals}`) |
 
 ### Поддерживаемые inputMethod
 
@@ -169,6 +171,18 @@ UI‑плагин формирует `REQUEST.payload` и может добав�
 UX-правило:
 - если `useSameOutputFile=true`, поле `outputSeafFile` синхронизируется со значением `inputSeafFile` и блокируется для редактирования;
 - при выборе файла через `Browse` для `inputSeafFile` значение `outputSeafFile` обновляется автоматически только в этом режиме.
+
+Пример декларативной зависимости:
+
+```yaml
+- label: Output SEAF file
+  envKey: outputSeafFile
+  inputMethod: text
+  syncFrom: inputSeafFile
+  disableWhen:
+    envKey: useSameOutputFile
+    equals: true
+```
 
 ## `interactiveTerminal` (interactive sync terminal execution)
 

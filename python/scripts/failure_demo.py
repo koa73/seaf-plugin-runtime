@@ -1,24 +1,22 @@
 #!/usr/bin/env python3
-import json
-import sys
+from lib.io import read_request, write_response
 
 
 def main() -> int:
-    _raw = sys.stdin.read()
-    response = {
-        "status": "error",
-        "message": "Simulated script error for debugging",
-        "payload": {},
-        "commands": [
+    _request = read_request()
+    return write_response(
+        status="error",
+        message="Simulated script error for debugging",
+        payload={},
+        commands=[
             {
                 "name": "showMessage",
                 "args": {"level": "error", "text": "Failure demo command returned error"},
             }
         ],
-        "errors": ["simulated_error"],
-    }
-    sys.stdout.write(json.dumps(response))
-    return 1
+        errors=["simulated_error"],
+        exit_code=1,
+    )
 
 
 if __name__ == "__main__":

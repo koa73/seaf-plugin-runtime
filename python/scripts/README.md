@@ -14,6 +14,7 @@
 - `failure_demo.py` — пример ошибки (error‑response).
 - `timeout_demo.py` — пример «долгого» выполнения (для демонстрации таймаута).
 - `interactive_terminal_demo.py` — пример интерактивного terminal-режима с `print(...)`, `input(...)` и симуляцией exception по подтверждению `Y/N`.
+- `lib/io/__init__.py` — общий helper layer для чтения REQUEST, каноничного Response и `SEAF_PROGRESS`.
 
 ## 1) Структура `REQUEST` (stdin)
 
@@ -26,19 +27,23 @@ payload = req.get("payload") or {}
 args = payload.get("arguments") or {}
 ```
 
-То есть скрипты ожидают объект с полем `payload` и дальше работают с `payload.selection`, `payload.arguments` и т.п.
+То есть скрипты ожидают **root REQUEST**, где пользовательские данные лежат в `REQUEST.payload`.
 
 ### Таблица полей `REQUEST`
 
 | Поле | Формат | Назначение |
 |---|---:|---|
+| `commandId` | `string` | Идентификатор команды (корневой уровень REQUEST). |
+| `timestamp` | `string` | Время формирования REQUEST (ISO-8601). |
+| `io` | `object` | Декларативные I/O-настройки команды из runtime config. |
+| `expectedOutput` | `object` | Декларативные ожидания по output (`commands[].output`). |
+| `postActions` | `array<object>` | UI post-actions из runtime config. |
 | `payload` | `object` | Основной контейнер данных, которые UI передаёт скрипту. В демо‑скриптах почти вся логика завязана на `REQUEST.payload`. |
 
 ### Таблица полей `REQUEST.payload`
 
 | Поле | Формат | Назначение |
 |---|---:|---|
-| `commandId` | `string` | Идентификатор команды, которая вызвала скрипт (соответствует `commands[].id` в `conf/plugin.yaml`). Удобно для маршрутизации/логов. |
 | `source` | `string` | Источник вызова (например, `menu`). Можно использовать для аналитики/ветвления логики. |
 | `timestamp` | `string` (ISO‑8601) | Время формирования payload на UI‑стороне. |
 | `selection` | `array<object>` | Снимок текущего выделения в диаграмме. Скрипты используют это для проверок и для выбора/подсветки объектов. |
@@ -163,6 +168,14 @@ return 1
   - `status="success"` → `return 0`
   - `status="error"` → `return 1`
 - Если скрипт падает исключением, старайтесь перехватывать его и возвращать `status="error"` + понятный `message` и `errors`.
+
+Рекомендуется использовать helper layer:
+
+```python
+from lib.io import read_request, get_payload, get_arguments, write_response, emit_progress
+```
+
+Это дает единый контракт для всех команд и уменьшает дублирование шаблонного кода.
 
 ## 5) События прогресса для `percent` индикатора
 
