@@ -617,7 +617,6 @@ Draw.loadPlugin(function(ui)
 				});
 				state.envConfig = saved;
 				ui.hideDialog();
-				showInfo('Configuration saved');
 			}
 			catch (e)
 			{
@@ -630,8 +629,11 @@ Draw.loadPlugin(function(ui)
 
 		var dialogWidth = 460 + (hasChoiceControls ? 40 : 0);
 		dialogWidth = Math.max(420, Math.min(760, dialogWidth));
-		var dialogHeight = 170 + Math.round(estimatedRows * 32);
-		dialogHeight = Math.max(240, Math.min(560, dialogHeight));
+		var estimatedHeight = 170 + Math.round(estimatedRows * 32);
+		var measuredHeight = container.scrollHeight + 20;
+		var dialogHeight = Math.max(estimatedHeight, measuredHeight);
+		dialogHeight = Math.max(220, Math.min(560, dialogHeight));
+		container.style.maxHeight = Math.max(180, dialogHeight - 24) + 'px';
 		ui.showDialog(container, dialogWidth, dialogHeight, true, true);
 	}
 
