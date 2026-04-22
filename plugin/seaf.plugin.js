@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.2.7
+ * Runtime script version: 0.2.8
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -504,6 +504,39 @@ Draw.loadPlugin(function(ui)
 		return String(value);
 	}
 
+	function computeUiLoggingFromEnv(configLogging, envConfig)
+	{
+		var fallback = (configLogging && typeof configLogging === 'object') ? configLogging : {};
+		var env = (envConfig && typeof envConfig.env === 'object' && envConfig.env != null) ? envConfig.env : {};
+		var rawLevel = (typeof env.pluginLogLevel === 'string') ? env.pluginLogLevel.trim().toLowerCase() : '';
+
+		var out = {
+			level: fallback.level || 'info',
+			extendedDebug: fallback.extendedDebug === true,
+			includePayload: fallback.includePayload === true,
+			output: fallback.output || 'both'
+		};
+
+		if (rawLevel === 'none')
+		{
+			out.level = 'error';
+			out.extendedDebug = false;
+			out.includePayload = false;
+		}
+		else if (rawLevel === 'info')
+		{
+			out.level = 'info';
+			out.extendedDebug = false;
+		}
+		else if (rawLevel === 'debug')
+		{
+			out.level = 'debug';
+			out.extendedDebug = true;
+		}
+
+		return out;
+	}
+
 	async function openEditConfigDialog(command)
 	{
 		var baseInset = 8;
@@ -640,6 +673,10 @@ Draw.loadPlugin(function(ui)
 								if (picked != null && String(picked).length > 0)
 								{
 									targetInput.value = String(picked);
+									if (targetField && targetField.envKey === 'inputSeafFile')
+									{
+										syncOutputFieldState();
+									}
 								}
 							}
 							catch (e)
@@ -662,6 +699,50 @@ Draw.loadPlugin(function(ui)
 				control: input
 			};
 		}
+
+		var syncOutputFieldState = function()
+		{
+			var sameOutputEntry = fieldControls.useSameOutputFile;
+			var inputEntry = fieldControls.inputSeafFile;
+			var outputEntry = fieldControls.outputSeafFile;
+
+			if (!sameOutputEntry || !outputEntry)
+			{
+				return;
+			}
+
+			var sameOutputEnabled = sameOutputEntry.control.checked === true;
+			var outputControl = outputEntry.control;
+
+			if (outputControl && outputControl.tagName === 'INPUT')
+			{
+				if (sameOutputEnabled && inputEntry && inputEntry.control && typeof inputEntry.control.value === 'string')
+				{
+					outputControl.value = inputEntry.control.value;
+				}
+				outputControl.disabled = sameOutputEnabled;
+				outputControl.readOnly = sameOutputEnabled;
+				outputControl.style.backgroundColor = sameOutputEnabled ? '#f5f5f5' : '';
+			}
+		};
+
+		if (fieldControls.useSameOutputFile && fieldControls.useSameOutputFile.control)
+		{
+			fieldControls.useSameOutputFile.control.onchange = function()
+			{
+				syncOutputFieldState();
+			};
+		}
+
+		if (fieldControls.inputSeafFile && fieldControls.inputSeafFile.control)
+		{
+			fieldControls.inputSeafFile.control.oninput = function()
+			{
+				syncOutputFieldState();
+			};
+		}
+
+		syncOutputFieldState();
 
 		var footer = document.createElement('div');
 		footer.style.textAlign = 'right';
@@ -713,6 +794,7 @@ Draw.loadPlugin(function(ui)
 					env: nextEnv
 				});
 				state.envConfig = saved;
+				state.logging = computeUiLoggingFromEnv(state.config ? state.config.logging : null, state.envConfig);
 				ui.hideDialog();
 			}
 			catch (e)
@@ -1386,7 +1468,6 @@ Draw.loadPlugin(function(ui)
 
 			state.configPath = loaded.configPath;
 			state.config = loaded.config;
-			state.logging = state.config.logging || state.logging;
 			state.runtimeVersion = await detectRuntimeVersion();
 			try
 			{
@@ -1399,6 +1480,7 @@ Draw.loadPlugin(function(ui)
 			{
 				state.envConfig = {env: {}};
 			}
+			state.logging = computeUiLoggingFromEnv(state.config ? state.config.logging : null, state.envConfig);
 
 			await writeLog('info', 'Plugin initialization started', {
 				configPath: state.configPath,

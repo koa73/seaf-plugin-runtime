@@ -76,7 +76,12 @@
 - Поля формы задаются декларативно в `conf/plugin.yaml` (`configEditor.fields[]`).
 - Каждое поле явно связывается с `envKey` из `conf/env.yaml`.
 - Поддерживаемые типы полей: `text`, `list`, `filePicker`, `checkbox`, `radio`.
-- `Input file` реализован как `filePicker`: открывает системный навигатор и сохраняет выбранный путь в переменную `env.yaml`.
+- Текущий контракт полей: `companyPrefix`, `inputSeafFile`, `useSameOutputFile`, `outputSeafFile`, `pluginLogLevel`.
+- `Input SEAF file` реализован как `filePicker`: открывает системный навигатор и сохраняет выбранный путь в `env.yaml`.
+- Если `useSameOutputFile=true`, `outputSeafFile` автоматически копирует `inputSeafFile` и становится read-only/disabled.
+- При `Browse` для `inputSeafFile` поле `outputSeafFile` обновляется автоматически только при включенном `useSameOutputFile`.
+- При runtime update `env.yaml` обновляется инкрементально: локальные значения сохраняются для существующих ключей, новые ключи добавляются, отсутствующие в новой схеме ключи удаляются.
+- Уровень логирования пользователя задается через `env.pluginLogLevel` (`none|info|debug`), а блок `logging.*` в `plugin.yaml` используется как технический fallback.
 - Геометрия диалога рассчитывается по фактическому `scrollHeight` контейнера (без эвристического запаса), с симметричными отступами `8px` по всем сторонам.
 - Footer формы использует `flex + gap`, а успешное сохранение выполняется без `success` popup (сообщения показываются только при ошибках).
 - Кнопки `Cancel/Apply` и `Browse...` унифицированы с системным стилем draw.io (`geBtn`, `gePrimaryBtn`), как в стандартных диалогах (например, `Файл -> Печать`).

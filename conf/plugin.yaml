@@ -3,7 +3,7 @@ plugin:
   id: seaf_plugin
   name: SEAF Plugin
   description: Dynamic menu integration with Python scripts
-  runtimeVersion: 0.2.7
+  runtimeVersion: 0.2.8
 python:
   executable: python3
   scriptsDir: ../python/scripts
@@ -42,31 +42,29 @@ commands:
     configEditor:
       title: Edit Config
       fields:
-        - label: Input file
-          envKey: inputFile
+        - label: Company prefix
+          envKey: companyPrefix
+          inputMethod: text
+        - label: Input SEAF file
+          envKey: inputSeafFile
           inputMethod: filePicker
           fileDialog:
-            title: Select Input File
+            title: Select Input SEAF file
             properties:
               - openFile
-        - label: Output file
-          envKey: outputFile
+        - label: Use same output file
+          envKey: useSameOutputFile
+          inputMethod: checkbox
+        - label: Output SEAF file
+          envKey: outputSeafFile
           inputMethod: text
-        - label: Processing mode
-          envKey: processingMode
+        - label: Plugin logging
+          envKey: pluginLogLevel
           inputMethod: list
           options:
-            - fast
-            - safe
-        - label: Overwrite existing
-          envKey: overwriteExisting
-          inputMethod: checkbox
-        - label: Output format
-          envKey: outputFormat
-          inputMethod: radio
-          options:
-            - json
-            - xml
+            - none
+            - info
+            - debug
   - id: seafInteractiveTerminalDemo
     title: SEAF Interactive Terminal Demo
     clientAction: interactiveTerminal

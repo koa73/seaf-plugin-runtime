@@ -37,7 +37,7 @@
 
 | Имя поля | Формат | Назначение |
 |---|---:|---|
-| `logging.level` | `string` (`debug|info|warn|error`) | Уровень логов, который выставляет runtime. |
+| `logging.level` | `string` (`debug|info|warn|error`) | Технический fallback уровня логирования (если `env.pluginLogLevel` не задан). |
 | `logging.extendedDebug` | `boolean` | Расширенная отладка (подробнее писать в логи). |
 | `logging.includePayload` | `boolean` | Если `true`, UI‑плагин будет передавать в лог‑записи объект `data` (payload при вызове команд). Если `false` — payload не пишется. |
 | `logging.output` | `string` (`file|console|both`) | Куда писать логи: в файл, в консоль или в оба места. |
@@ -157,6 +157,19 @@ UI‑плагин формирует `REQUEST.payload` и может добав�
 - `checkbox`: булево значение `true/false`.
 - `radio`: выбор одного значения из `options`.
 
+### Рекомендуемая схема `Edit Config` для SEAF
+
+Порядок полей и ожидаемые `envKey`:
+- `Company prefix` -> `companyPrefix` (`text`)
+- `Input SEAF file` -> `inputSeafFile` (`filePicker`)
+- `Use same output file` -> `useSameOutputFile` (`checkbox`)
+- `Output SEAF file` -> `outputSeafFile` (`text`)
+- `Plugin logging` -> `pluginLogLevel` (`list`, options: `none|info|debug`)
+
+UX-правило:
+- если `useSameOutputFile=true`, поле `outputSeafFile` синхронизируется со значением `inputSeafFile` и блокируется для редактирования;
+- при выборе файла через `Browse` для `inputSeafFile` значение `outputSeafFile` обновляется автоматически только в этом режиме.
+
 ## `interactiveTerminal` (interactive sync terminal execution)
 
 Команда с `clientAction: interactiveTerminal` и `execution.mode: interactive_terminal` запускается не через стандартный JSON stdin/stdout runner, а в отдельном modal terminal-окне draw.io desktop.
@@ -175,12 +188,17 @@ UI‑плагин формирует `REQUEST.payload` и может добав�
 Пример:
 
 ```yaml
-inputFile: ""
-outputFile: ""
-processingMode: fast
-overwriteExisting: false
-outputFormat: json
+companyPrefix: ""
+inputSeafFile: ""
+useSameOutputFile: true
+outputSeafFile: ""
+pluginLogLevel: "none"
 ```
+
+`pluginLogLevel` управляет эффективной моделью логирования runtime:
+- `none` — файловое логирование отключается, остаются только минимальные системные сообщения в консоли (`error`);
+- `info` — стандартные информационные/ошибочные записи;
+- `debug` — расширенная детализация (включая debug и extended debug).
 
 ## Практические примеры (из текущего `plugin.yaml`)
 
