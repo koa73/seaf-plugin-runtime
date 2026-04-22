@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.2.5
+ * Runtime script version: 0.2.6
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -13,6 +13,9 @@ Draw.loadPlugin(function(ui)
 		runtimeVersion: 'unknown',
 		manualIndicators: {},
 		autoIndicatorsByJob: {},
+		interactiveSessionHandlers: {},
+		interactiveOverlay: null,
+		interactiveSessionListenerRegistered: false,
 		systemUpdateInProgress: false,
 		actionsRegistered: false,
 		mainMenuRegistered: false,
@@ -109,6 +112,94 @@ Draw.loadPlugin(function(ui)
 	function showError(message)
 	{
 		mxUtils.alert(message);
+	}
+
+	function routeInteractiveSessionEvent(event)
+	{
+		if (event == null || !event.sessionId)
+		{
+			return;
+		}
+
+		var handler = state.interactiveSessionHandlers[event.sessionId];
+		if (typeof handler === 'function')
+		{
+			handler(event);
+		}
+		else if (event.type === 'terminal-closed')
+		{
+			hideInteractiveOverlay(event.sessionId);
+		}
+	}
+
+	function ensureInteractiveSessionListener()
+	{
+		if (state.interactiveSessionListenerRegistered ||
+			typeof electron === 'undefined' || electron == null ||
+			typeof electron.registerMsgListener !== 'function')
+		{
+			return;
+		}
+
+		electron.registerMsgListener('seafInteractiveSessionEvent', routeInteractiveSessionEvent);
+		state.interactiveSessionListenerRegistered = true;
+	}
+
+	function showInteractiveOverlay(sessionId)
+	{
+		hideInteractiveOverlay();
+
+		var host = document.createElement('div');
+		host.style.width = '1px';
+		host.style.height = '1px';
+		host.style.overflow = 'hidden';
+
+		var keyHandler = function(evt)
+		{
+			if (evt.key === 'Escape')
+			{
+				evt.preventDefault();
+				evt.stopPropagation();
+			}
+		};
+
+		document.addEventListener('keydown', keyHandler, true);
+		ui.showDialog(host, 1, 1, true, false, null, true, true, null, true);
+		state.interactiveOverlay = {
+			sessionId: sessionId || null,
+			container: host,
+			keyHandler: keyHandler
+		};
+	}
+
+	function hideInteractiveOverlay(sessionId)
+	{
+		if (state.interactiveOverlay == null)
+		{
+			return;
+		}
+
+		if (sessionId != null && state.interactiveOverlay.sessionId != null &&
+			state.interactiveOverlay.sessionId !== sessionId)
+		{
+			return;
+		}
+
+		if (typeof state.interactiveOverlay.keyHandler === 'function')
+		{
+			document.removeEventListener('keydown', state.interactiveOverlay.keyHandler, true);
+		}
+
+		try
+		{
+			ui.hideDialog(true, false, state.interactiveOverlay.container);
+		}
+		catch (ignored)
+		{
+			// ignore overlay cleanup errors
+		}
+
+		state.interactiveOverlay = null;
 	}
 
 	function buildRestartRequiredMessage(result)
@@ -887,11 +978,72 @@ Draw.loadPlugin(function(ui)
 		showError(formatCommandError(command.id, 'async timeout'));
 	}
 
+	async function executeInteractiveTerminalCommand(command, source)
+	{
+		var payload = buildPayload(command);
+		var overlayToken = 'pending-' + String(Date.now());
+		payload.source = source;
+
+		await writeLog('info', 'Interactive terminal command invocation started', {
+			commandId: command.id,
+			source: source,
+			payload: payload
+		});
+
+		showInteractiveOverlay(overlayToken);
+
+		try
+		{
+			var response = await requestAsync({
+				action: 'startSeafInteractiveTerminalSession',
+				configPath: state.configPath,
+				commandId: command.id,
+				payload: payload
+			});
+			var sessionId = response && response.sessionId ? response.sessionId : null;
+
+			if (!sessionId)
+			{
+				throw new Error('Interactive terminal session did not return session id');
+			}
+
+			if (state.interactiveOverlay != null)
+			{
+				state.interactiveOverlay.sessionId = sessionId;
+			}
+
+			state.interactiveSessionHandlers[sessionId] = function(event)
+			{
+				if (event.type === 'terminal-closed')
+				{
+					hideInteractiveOverlay(sessionId);
+					delete state.interactiveSessionHandlers[sessionId];
+				}
+			};
+		}
+		catch (e)
+		{
+			hideInteractiveOverlay(overlayToken);
+			await writeLog('error', 'Interactive terminal command invocation failed', {
+				commandId: command.id,
+				source: source,
+				error: e.message
+			});
+			showError(formatCommandError(command.id, e.message));
+		}
+	}
+
 	async function executeCommand(command, source)
 	{
 		if (command && command.clientAction === 'editConfig')
 		{
 			await openEditConfigDialog(command);
+			return;
+		}
+
+		if (command && command.clientAction === 'interactiveTerminal')
+		{
+			await executeInteractiveTerminalCommand(command, source);
 			return;
 		}
 
@@ -1246,6 +1398,7 @@ Draw.loadPlugin(function(ui)
 				commandsCount: Array.isArray(state.config.commands) ? state.config.commands.length : 0
 			});
 
+			ensureInteractiveSessionListener();
 			registerActions();
 			registerMainMenu();
 			registerContextMenu();

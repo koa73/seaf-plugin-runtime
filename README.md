@@ -82,6 +82,14 @@
 - Кнопки `Cancel/Apply` и `Browse...` унифицированы с системным стилем draw.io (`geBtn`, `gePrimaryBtn`), как в стандартных диалогах (например, `Файл -> Печать`).
 - Скролл ограничен только областью полей формы, поэтому футер с action-кнопками всегда остается доступным.
 
+## Interactive terminal command
+
+- В full runtime добавлен demo-пункт `SEAF Interactive Terminal Demo`.
+- Команда использует `clientAction: interactiveTerminal` и `execution.mode: interactive_terminal`.
+- draw.io desktop открывает отдельное modal terminal-окно поверх editor и блокирует основной экран overlay-механизмом draw.io до закрытия terminal-окна.
+- Python-скрипт запускается в настоящем TTY через `node-pty`, поэтому доступны интерактивные сценарии с `print(...)`, `input(...)` и live stdout/stderr.
+- После завершения процесса terminal-окно не закрывается автоматически: пользователь закрывает его вручную, и только после этого управление полностью возвращается editor.
+
 ## Minimal/full parity contract
 
 - `minimal-runtime` является усеченной версией `full runtime` и содержит только bootstrap/update функциональность.

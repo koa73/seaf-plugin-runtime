@@ -3,7 +3,7 @@ plugin:
   id: seaf_plugin
   name: SEAF Plugin
   description: Dynamic menu integration with Python scripts
-  runtimeVersion: 0.2.5
+  runtimeVersion: 0.2.6
 python:
   executable: python3
   scriptsDir: ../python/scripts
@@ -20,7 +20,7 @@ update:
   gitRepoSsh: git@github.com:koa73/seaf-plugin-runtime.git
   gitRef: master
   assetPath: release/out/seaf-plugin-runtime.tar.gz
-  expectedMinVersion: 0.2.5
+  expectedMinVersion: 0.2.6
   ssh:
     privateKeyPath: ../keys/seaf-plugin-runtime
     publicKeyPath: ../keys/seaf-plugin-runtime.pub
@@ -67,6 +67,25 @@ commands:
           options:
             - json
             - xml
+  - id: seafInteractiveTerminalDemo
+    title: SEAF Interactive Terminal Demo
+    clientAction: interactiveTerminal
+    script: interactive_terminal_demo.py
+    execution:
+      mode: interactive_terminal
+    menu:
+      main:
+        enabled: true
+        section: seaf
+        sectionTitle: SEAF
+      context:
+        enabled: false
+        target: any
+    input:
+      includeDiagramXml: false
+      includeCurrentPage: true
+      arguments:
+        demoMode: interactive_terminal
   - id: seafReloadDocument
     title: SEAF Reload Document
     menu:

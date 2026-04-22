@@ -13,6 +13,7 @@
 - `async_background.py` — имитация фоновой задачи (использует `arguments.simulateDurationSec`).
 - `failure_demo.py` — пример ошибки (error‑response).
 - `timeout_demo.py` — пример «долгого» выполнения (для демонстрации таймаута).
+- `interactive_terminal_demo.py` — пример интерактивного terminal-режима с `print(...)` и `input(...)`.
 
 ## 1) Структура `REQUEST` (stdin)
 
@@ -222,4 +223,21 @@ try {
   await window.SEAF_PLUGIN_API.stopIndicator(handle.indicatorId, 'completed');
 }
 ```
+
+## 7) Interactive terminal mode
+
+Для команды с `clientAction: interactiveTerminal` / `execution.mode: interactive_terminal` скрипт выполняется в реальном terminal TTY, а не через стандартный JSON stdin/stdout протокол.
+
+Что это означает:
+- можно использовать обычные `print(...)`, `input(...)`, `sys.stdin`, `sys.stdout`;
+- draw.io открывает отдельное modal terminal-окно и блокирует editor до его закрытия;
+- переменные из `env.yaml` и payload доступны через environment variables:
+  - `SEAF_RUNTIME_ENV_JSON`
+  - `SEAF_PAYLOAD_JSON`
+  - `SEAF_COMMAND_ID`
+  - `SEAF_COMMAND_TITLE`
+  - `SEAF_RUNTIME_CONFIG_PATH`
+- для отдельных ключей из `env.yaml` также экспортируются переменные вида `SEAF_ENV_<KEY>`.
+
+Этот режим предназначен для truly interactive CLI-сценариев и не требует возврата JSON `Response`.
 

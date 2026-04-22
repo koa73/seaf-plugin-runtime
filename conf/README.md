@@ -73,7 +73,7 @@
 | `commands[].id` | `string` | Уникальный id команды. Используется как id `action` в draw.io и как `commandId` в `REQUEST`. |
 | `commands[].title` | `string` | Заголовок команды (как отображается пользователю). |
 | `commands[].script` | `string` (filename) | Имя Python‑скрипта (например, `validate_selection.py`). Скрипт ищется в каталоге `python.scriptsDir`. |
-| `commands[].clientAction` | `string` | UI-действие без запуска Python (например, `editConfig` для открытия формы редактирования `env.yaml`). |
+| `commands[].clientAction` | `string` | UI-действие без стандартного JSON-runner (например, `editConfig` для открытия формы редактирования `env.yaml`, `interactiveTerminal` для запуска интерактивного terminal-окна). |
 
 ### `commands[].menu.main.*` — добавление в главное меню
 
@@ -94,7 +94,7 @@
 
 | Имя поля | Формат | Назначение |
 |---|---:|---|
-| `commands[].execution.mode` | `string` (`sync|async`) | Режим выполнения: синхронно ждать результат или запускать в фоне и опрашивать статус задачи. |
+| `commands[].execution.mode` | `string` (`sync|async|interactive_terminal`) | Режим выполнения: синхронно ждать результат, запускать в фоне с polling или открывать модальное interactive terminal-окно с реальным TTY. |
 | `commands[].execution.timeoutSec` | `number` | Таймаут выполнения скрипта (секунды). Для `sync` — ограничение по времени выполнения; для `async` — обычно используется на шаге запуска/опроса. |
 | `commands[].execution.pollIntervalMs` | `number` | Только для `async`: интервал опроса статуса job (мс). |
 | `commands[].execution.maxPollAttempts` | `number` | Только для `async`: максимальное число попыток опроса. |
@@ -156,6 +156,17 @@ UI‑плагин формирует `REQUEST.payload` и может добав�
 - `filePicker`: текстовое поле + кнопка выбора файла через системный навигатор.
 - `checkbox`: булево значение `true/false`.
 - `radio`: выбор одного значения из `options`.
+
+## `interactiveTerminal` (interactive sync terminal execution)
+
+Команда с `clientAction: interactiveTerminal` и `execution.mode: interactive_terminal` запускается не через стандартный JSON stdin/stdout runner, а в отдельном modal terminal-окне draw.io desktop.
+
+Особенности режима:
+- editor draw.io блокируется modal overlay до закрытия terminal-окна;
+- Python-скрипт запускается в настоящем TTY (`node-pty`), поэтому доступны `print(...)`, `input(...)` и другое интерактивное консольное поведение;
+- terminal-окно масштабируемое, стартует примерно в размере `1/2` окна редактора;
+- после завершения процесса terminal-окно остается открытым до ручного закрытия пользователем;
+- если terminal-окно закрыто принудительно до завершения, процесс Python завершается принудительно.
 
 ## `env.yaml`
 
