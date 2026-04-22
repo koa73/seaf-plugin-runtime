@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.2.4
+ * Runtime script version: 0.2.5
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -416,7 +416,6 @@ Draw.loadPlugin(function(ui)
 	async function openEditConfigDialog(command)
 	{
 		var baseInset = 8;
-		var bottomInset = Math.max(1, Math.floor(baseInset / 2));
 		var editorCfg = command && command.configEditor ? command.configEditor : {};
 		var fields = Array.isArray(editorCfg.fields) ? editorCfg.fields : [];
 		var loadedEnv = await requestAsync({
@@ -427,9 +426,14 @@ Draw.loadPlugin(function(ui)
 		var container = document.createElement('div');
 		container.style.minWidth = '420px';
 		container.style.maxWidth = '760px';
-		container.style.overflowY = 'auto';
+		container.style.overflow = 'hidden';
 		container.style.padding = baseInset + 'px';
 		container.style.boxSizing = 'border-box';
+		var formBody = document.createElement('div');
+		formBody.style.overflowY = 'auto';
+		formBody.style.overflowX = 'hidden';
+		formBody.style.boxSizing = 'border-box';
+		container.appendChild(formBody);
 		var estimatedRows = 0;
 		var hasChoiceControls = false;
 
@@ -443,7 +447,7 @@ Draw.loadPlugin(function(ui)
 			label.style.marginBottom = '4px';
 			label.textContent = labelText;
 			row.appendChild(label);
-			container.appendChild(row);
+			formBody.appendChild(row);
 			return row;
 		};
 
@@ -520,8 +524,8 @@ Draw.loadPlugin(function(ui)
 				inputWrap.appendChild(input);
 				if (method === 'filePicker')
 				{
-					var browseBtn = document.createElement('button');
-					browseBtn.textContent = 'Browse...';
+					var browseBtn = mxUtils.button('Browse...', function(){});
+					browseBtn.className = 'geBtn';
 					browseBtn.onclick = (function(targetInput, targetField)
 					{
 						return async function()
@@ -569,16 +573,14 @@ Draw.loadPlugin(function(ui)
 		}
 
 		var footer = document.createElement('div');
-		footer.style.display = 'flex';
-		footer.style.justifyContent = 'flex-end';
-		footer.style.alignItems = 'center';
-		footer.style.gap = '14px';
+		footer.style.textAlign = 'right';
 		footer.style.marginTop = baseInset + 'px';
-		footer.style.marginBottom = '0px';
+		footer.style.whiteSpace = 'nowrap';
 		var cancelBtn = mxUtils.button(mxResources.get('cancel'), function()
 		{
 			ui.hideDialog();
 		});
+		cancelBtn.className = 'geBtn';
 		var saveBtn = mxUtils.button(mxResources.get('apply'), async function()
 		{
 			var nextEnv = {};
@@ -627,8 +629,17 @@ Draw.loadPlugin(function(ui)
 				showError('Failed to save config: ' + e.message);
 			}
 		});
-		footer.appendChild(cancelBtn);
-		footer.appendChild(saveBtn);
+		saveBtn.className = 'geBtn gePrimaryBtn';
+		if (ui.editor != null && ui.editor.cancelFirst === false)
+		{
+			footer.appendChild(saveBtn);
+			footer.appendChild(cancelBtn);
+		}
+		else
+		{
+			footer.appendChild(cancelBtn);
+			footer.appendChild(saveBtn);
+		}
 		container.appendChild(footer);
 
 		var dialogWidth = 460 + (hasChoiceControls ? 40 : 0);
@@ -648,12 +659,10 @@ Draw.loadPlugin(function(ui)
 		var framePaddingCompensation = 24;
 		var desiredDialogHeight = measuredHeight + framePaddingCompensation;
 		var dialogHeight = Math.max(minHeight, Math.min(maxHeight, desiredDialogHeight));
-		container.style.paddingTop = baseInset + 'px';
-		container.style.paddingRight = baseInset + 'px';
-		container.style.paddingBottom = bottomInset + 'px';
-		container.style.paddingLeft = baseInset + 'px';
-		container.style.maxHeight = Math.max(180, dialogHeight - framePaddingCompensation) + 'px';
-		container.style.overflowY = 'auto';
+		container.style.maxHeight = 'none';
+		var footerHeight = footer.offsetHeight;
+		var bodyMaxHeight = Math.max(120, dialogHeight - footerHeight - (baseInset * 2) - framePaddingCompensation);
+		formBody.style.maxHeight = bodyMaxHeight + 'px';
 		measureHost.removeChild(container);
 		document.body.removeChild(measureHost);
 		ui.showDialog(container, dialogWidth, dialogHeight, true, true);
