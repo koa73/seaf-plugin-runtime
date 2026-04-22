@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.2.1
+ * Runtime script version: 0.2.2
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -635,7 +635,9 @@ Draw.loadPlugin(function(ui)
 		var measuredHeight = container.scrollHeight;
 		var minHeight = 220;
 		var maxHeight = 560;
-		var dialogHeight = Math.max(minHeight, Math.min(maxHeight, measuredHeight + (baseInset * 2)));
+		var framePaddingCompensation = 24;
+		var desiredDialogHeight = measuredHeight + framePaddingCompensation;
+		var dialogHeight = Math.max(minHeight, Math.min(maxHeight, desiredDialogHeight));
 		var topInset = baseInset;
 		var bottomInset = baseInset;
 		if (bottomInset < topInset)
@@ -646,7 +648,16 @@ Draw.loadPlugin(function(ui)
 		container.style.paddingRight = baseInset + 'px';
 		container.style.paddingBottom = bottomInset + 'px';
 		container.style.paddingLeft = baseInset + 'px';
-		container.style.maxHeight = Math.max(180, dialogHeight - (baseInset * 2)) + 'px';
+		if (desiredDialogHeight > maxHeight)
+		{
+			container.style.maxHeight = Math.max(180, maxHeight - framePaddingCompensation) + 'px';
+			container.style.overflowY = 'auto';
+		}
+		else
+		{
+			container.style.maxHeight = 'none';
+			container.style.overflowY = 'visible';
+		}
 		ui.showDialog(container, dialogWidth, dialogHeight, true, true);
 	}
 
