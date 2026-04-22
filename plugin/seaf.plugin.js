@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.2.6
+ * Runtime script version: 0.2.7
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -1018,6 +1018,13 @@ Draw.loadPlugin(function(ui)
 				{
 					hideInteractiveOverlay(sessionId);
 					delete state.interactiveSessionHandlers[sessionId];
+					if (event.status === 'failed')
+					{
+						var errMsg = (typeof event.errorMessage === 'string' && event.errorMessage.trim().length > 0) ?
+							event.errorMessage.trim() :
+							'Interactive terminal process failed';
+						showError(formatCommandError(command.id, errMsg));
+					}
 				}
 			};
 		}

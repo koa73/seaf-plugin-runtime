@@ -13,7 +13,7 @@
 - `async_background.py` — имитация фоновой задачи (использует `arguments.simulateDurationSec`).
 - `failure_demo.py` — пример ошибки (error‑response).
 - `timeout_demo.py` — пример «долгого» выполнения (для демонстрации таймаута).
-- `interactive_terminal_demo.py` — пример интерактивного terminal-режима с `print(...)` и `input(...)`.
+- `interactive_terminal_demo.py` — пример интерактивного terminal-режима с `print(...)`, `input(...)` и симуляцией exception по подтверждению `Y/N`.
 
 ## 1) Структура `REQUEST` (stdin)
 
@@ -240,4 +240,9 @@ try {
 - для отдельных ключей из `env.yaml` также экспортируются переменные вида `SEAF_ENV_<KEY>`.
 
 Этот режим предназначен для truly interactive CLI-сценариев и не требует возврата JSON `Response`.
+
+Для demo-команды `interactive_terminal_demo.py`:
+- команда `exception` (также `error`/`fail`) запрашивает подтверждение `Y/N`;
+- при `Y` скрипт симулирует исключение и завершается с ошибкой;
+- draw.io закрывает terminal-окно, снимает блокировку editor и показывает сообщение об ошибке.
 
