@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.2.0
+ * Runtime script version: 0.2.1
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -415,6 +415,7 @@ Draw.loadPlugin(function(ui)
 
 	async function openEditConfigDialog(command)
 	{
+		var baseInset = 8;
 		var editorCfg = command && command.configEditor ? command.configEditor : {};
 		var fields = Array.isArray(editorCfg.fields) ? editorCfg.fields : [];
 		var loadedEnv = await requestAsync({
@@ -423,11 +424,10 @@ Draw.loadPlugin(function(ui)
 		});
 		var env = loadedEnv && loadedEnv.env ? loadedEnv.env : {};
 		var container = document.createElement('div');
-		container.style.maxHeight = '420px';
 		container.style.minWidth = '420px';
 		container.style.maxWidth = '760px';
 		container.style.overflowY = 'auto';
-		container.style.padding = '8px';
+		container.style.padding = baseInset + 'px';
 		container.style.boxSizing = 'border-box';
 		var estimatedRows = 0;
 		var hasChoiceControls = false;
@@ -568,13 +568,16 @@ Draw.loadPlugin(function(ui)
 		}
 
 		var footer = document.createElement('div');
-		footer.style.textAlign = 'right';
-		footer.style.marginTop = '8px';
+		footer.style.display = 'flex';
+		footer.style.justifyContent = 'flex-end';
+		footer.style.alignItems = 'center';
+		footer.style.gap = '14px';
+		footer.style.marginTop = baseInset + 'px';
+		footer.style.marginBottom = baseInset + 'px';
 		var cancelBtn = mxUtils.button(mxResources.get('cancel'), function()
 		{
 			ui.hideDialog();
 		});
-		cancelBtn.style.marginRight = '14px';
 		var saveBtn = mxUtils.button(mxResources.get('apply'), async function()
 		{
 			var nextEnv = {};
@@ -629,11 +632,21 @@ Draw.loadPlugin(function(ui)
 
 		var dialogWidth = 460 + (hasChoiceControls ? 40 : 0);
 		dialogWidth = Math.max(420, Math.min(760, dialogWidth));
-		var estimatedHeight = 170 + Math.round(estimatedRows * 32);
-		var measuredHeight = container.scrollHeight + 20;
-		var dialogHeight = Math.max(estimatedHeight, measuredHeight);
-		dialogHeight = Math.max(220, Math.min(560, dialogHeight));
-		container.style.maxHeight = Math.max(180, dialogHeight - 24) + 'px';
+		var measuredHeight = container.scrollHeight;
+		var minHeight = 220;
+		var maxHeight = 560;
+		var dialogHeight = Math.max(minHeight, Math.min(maxHeight, measuredHeight + (baseInset * 2)));
+		var topInset = baseInset;
+		var bottomInset = baseInset;
+		if (bottomInset < topInset)
+		{
+			bottomInset = topInset;
+		}
+		container.style.paddingTop = topInset + 'px';
+		container.style.paddingRight = baseInset + 'px';
+		container.style.paddingBottom = bottomInset + 'px';
+		container.style.paddingLeft = baseInset + 'px';
+		container.style.maxHeight = Math.max(180, dialogHeight - (baseInset * 2)) + 'px';
 		ui.showDialog(container, dialogWidth, dialogHeight, true, true);
 	}
 
