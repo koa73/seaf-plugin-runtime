@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.2.3
+ * Runtime script version: 0.2.4
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -416,6 +416,7 @@ Draw.loadPlugin(function(ui)
 	async function openEditConfigDialog(command)
 	{
 		var baseInset = 8;
+		var bottomInset = Math.max(1, Math.floor(baseInset / 2));
 		var editorCfg = command && command.configEditor ? command.configEditor : {};
 		var fields = Array.isArray(editorCfg.fields) ? editorCfg.fields : [];
 		var loadedEnv = await requestAsync({
@@ -573,7 +574,7 @@ Draw.loadPlugin(function(ui)
 		footer.style.alignItems = 'center';
 		footer.style.gap = '14px';
 		footer.style.marginTop = baseInset + 'px';
-		footer.style.marginBottom = baseInset + 'px';
+		footer.style.marginBottom = '0px';
 		var cancelBtn = mxUtils.button(mxResources.get('cancel'), function()
 		{
 			ui.hideDialog();
@@ -647,13 +648,7 @@ Draw.loadPlugin(function(ui)
 		var framePaddingCompensation = 24;
 		var desiredDialogHeight = measuredHeight + framePaddingCompensation;
 		var dialogHeight = Math.max(minHeight, Math.min(maxHeight, desiredDialogHeight));
-		var topInset = baseInset;
-		var bottomInset = baseInset;
-		if (bottomInset < topInset)
-		{
-			bottomInset = topInset;
-		}
-		container.style.paddingTop = topInset + 'px';
+		container.style.paddingTop = baseInset + 'px';
 		container.style.paddingRight = baseInset + 'px';
 		container.style.paddingBottom = bottomInset + 'px';
 		container.style.paddingLeft = baseInset + 'px';
