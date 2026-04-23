@@ -3,7 +3,7 @@ plugin:
   id: seaf_plugin
   name: SEAF Plugin
   description: Dynamic menu integration with Python scripts
-  runtimeVersion: 0.2.19
+  runtimeVersion: 0.2.20
 python:
   executable: python3
   requirementsFile: ../python/requirements.txt

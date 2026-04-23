@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.2.19
+ * Runtime script version: 0.2.20
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -608,18 +608,6 @@ Draw.loadPlugin(function(ui)
 		return parsed;
 	}
 
-	function registerResourceFallback(resourceKey, rawValue)
-	{
-		if (typeof resourceKey !== 'string' || resourceKey.trim().length === 0)
-		{
-			return;
-		}
-
-		var value = (typeof rawValue === 'string' && rawValue.trim().length > 0) ?
-			rawValue.trim() : resourceKey;
-		mxResources.parse(resourceKey + '=' + value);
-	}
-
 	function getSavedLibrariesString()
 	{
 		try
@@ -811,14 +799,13 @@ Draw.loadPlugin(function(ui)
 						entry.id.trim() : ('seaf_stencil_' + i + '_' + j);
 					var entryTitleRaw = (typeof entry.title === 'string' && entry.title.trim().length > 0) ?
 						entry.title.trim() : entryId;
-					var entryTitleKey = 'seafStencil.entry.' + entryId;
-					registerResourceFallback(entryTitleKey, entryTitleRaw);
+					var entryTitleObj = {main: entryTitleRaw};
 					loadedEntries.push({
 						id: entryId,
-						title: entryTitleKey,
+						title: entryTitleObj,
 						_enabledByDefault: entry.enabledByDefault === true,
 						libs: [{
-							title: entryTitleKey,
+							title: entryTitleObj,
 							data: libraryData,
 							preload: entry.enabledByDefault === true
 						}]
@@ -839,11 +826,10 @@ Draw.loadPlugin(function(ui)
 					section.id.trim() : ('seaf_section_' + i);
 				var sectionTitleRaw = (typeof section.title === 'string' && section.title.trim().length > 0) ?
 					section.title.trim() : sectionId;
-				var sectionTitleKey = 'seafStencil.section.' + sectionId;
-				registerResourceFallback(sectionTitleKey, sectionTitleRaw);
+				var sectionTitleObj = {main: sectionTitleRaw};
 				loadedSections.push({
 					id: sectionId,
-					title: sectionTitleKey,
+					title: sectionTitleObj,
 					entries: loadedEntries,
 					_seafStencilSection: true
 				});
