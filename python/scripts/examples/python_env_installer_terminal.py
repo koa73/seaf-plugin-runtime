@@ -51,7 +51,7 @@ def main() -> int:
     print(f"Python root: {python_root}")
     print(f"Scripts root: {scripts_root}")
     print(f"Venv path: {venv_path}")
-    print("Mode: manual fallback installer")
+    print("Mode: interactive dependency installer")
     print("")
 
     if not scripts_root.exists():
@@ -81,7 +81,7 @@ def main() -> int:
             print("---- error tail ----")
             print(tail_text(err))
             print("--------------------")
-            print("Hint: if you don't have sudo, use an existing interpreter from PyCharm and set python.useVenv=false.")
+            print("Hint: set Python path in Edit Config and run install command manually if needed.")
             return rc
 
     print("[phase] install-requirements")

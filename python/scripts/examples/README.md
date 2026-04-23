@@ -285,7 +285,7 @@
 - `SEAF Failure Demo` -> `examples/failure_demo.py`
 - `SEAF Timeout Demo` -> `examples/timeout_demo.py`
 - `SEAF Interactive Terminal Demo` -> `examples/interactive_terminal_demo.py`
-- `Python Env Installer Terminal` -> `examples/python_env_installer_terminal.py`
+- `Python Dependency Installer Script` -> `examples/python_env_installer_terminal.py`
 
 ## Практические замечания
 

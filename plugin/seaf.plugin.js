@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.2.14
+ * Runtime script version: 0.2.15
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -515,25 +515,6 @@ Draw.loadPlugin(function(ui)
 		return null;
 	}
 
-	function getCommandById(commandId)
-	{
-		if (!state.config || !Array.isArray(state.config.commands))
-		{
-			return null;
-		}
-
-		for (var i = 0; i < state.config.commands.length; i++)
-		{
-			var cmd = state.config.commands[i];
-			if (cmd != null && cmd.id === commandId)
-			{
-				return cmd;
-			}
-		}
-
-		return null;
-	}
-
 	function normalizeFieldValue(field, value)
 	{
 		var method = field && field.inputMethod ? field.inputMethod : 'text';
@@ -785,34 +766,6 @@ Draw.loadPlugin(function(ui)
 				method: method,
 				control: input
 			};
-		}
-
-		var installerCommand = getCommandById('seafPythonEnvInstallerTerminal');
-		if (installerCommand != null)
-		{
-			var installerRow = document.createElement('div');
-			installerRow.style.marginBottom = '10px';
-			var installerLabel = document.createElement('div');
-			installerLabel.style.fontWeight = 'bold';
-			installerLabel.style.marginBottom = '4px';
-			installerLabel.textContent = 'Python dependencies (manual fallback)';
-			installerRow.appendChild(installerLabel);
-
-			var installerHint = document.createElement('div');
-			installerHint.style.marginBottom = '6px';
-			installerHint.style.color = '#666';
-			installerHint.textContent = 'Откройте terminal installer, если автоматическая настройка окружения завершилась ошибкой.';
-			installerRow.appendChild(installerHint);
-
-			var installerButton = mxUtils.button('Open Python Env Installer Terminal', async function()
-			{
-				ui.hideDialog();
-				await executeInteractiveTerminalCommand(installerCommand, 'editConfig');
-			});
-			installerButton.className = 'geBtn';
-			installerRow.appendChild(installerButton);
-			formBody.appendChild(installerRow);
-			estimatedRows += 1.5;
 		}
 
 		function getFieldValue(entry)
@@ -1494,9 +1447,6 @@ Draw.loadPlugin(function(ui)
 
 	async function ensurePythonEnvironmentAuto()
 	{
-		var installerCommand = getCommandById('seafPythonEnvInstallerTerminal');
-		var installerScript = installerCommand && typeof installerCommand.script === 'string' ?
-			installerCommand.script : null;
 		try
 		{
 			var result = await requestAsync({
@@ -1506,8 +1456,7 @@ Draw.loadPlugin(function(ui)
 			});
 			await writeLog('info', 'Python environment auto-bootstrap completed', Object.assign({
 				runtimeVersion: state.runtimeVersion || 'unknown',
-				configPath: state.configPath,
-				installerScript: installerScript
+				configPath: state.configPath
 			}, result || {ok: true}));
 		}
 		catch (e)
@@ -1515,13 +1464,12 @@ Draw.loadPlugin(function(ui)
 			await writeLog('error', 'Python environment auto-bootstrap failed', {
 				error: e.message,
 				runtimeVersion: state.runtimeVersion || 'unknown',
-				configPath: state.configPath,
-				installerScript: installerScript
+				configPath: state.configPath
 			});
 			showError('SEAF Python environment setup failed: ' + e.message +
 				'\nRuntime: v' + (state.runtimeVersion || 'unknown') +
 				'\nConfig: ' + (state.configPath || 'unknown') +
-				'\nОткройте Edit Config и запустите Python Env Installer Terminal.');
+				'\nУкажите корректный Python executable в Edit Config и повторите запуск.');
 		}
 	}
 

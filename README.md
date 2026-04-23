@@ -26,7 +26,7 @@
 - `conf/README.md` - документация формата `plugin.yaml`.
 - `python/scripts/examples/*.py` - Python entrypoint-скрипты команд full runtime (демо/примеры).
 - `python/scripts/lib/*` - общие Python-модули, которые импортируются entrypoint-скриптами.
-- `python/requirements.txt` - зависимости для автоматического bootstrap локального venv.
+- `python/requirements.txt` - зависимости для автоматической установки в выбранный Python интерпретатор.
 - `python/scripts/README.md` - документация контракта скриптов и прогресса.
 - `python/scripts/lib/io/__init__.py` - общий helper layer для REQUEST/Response/progress в Python-скриптах.
 - `runtime/version.json` - версия full runtime.
@@ -72,7 +72,7 @@
 Для секции `SEAF` порядок элементов должен оставаться стабильным (в runtime asset):
 - `Edit Config`,
 - подменю `P41`,
-- подменю `Tools` (включая `Python Env Installer Terminal`),
+- подменю `Tools` (служебные команды),
 - подменю `Examples` (все пункты, начинающиеся с `SEAF ...`),
 - `Обновить плагин` (всегда второй с конца),
 - `SEAF Runtime v...` (всегда последний).
@@ -83,16 +83,17 @@
 - Поля формы задаются декларативно в `conf/plugin.yaml` (`configEditor.fields[]`).
 - Каждое поле явно связывается с `envKey` из `conf/env.yaml`.
 - Поддерживаемые типы полей: `text`, `list`, `filePicker`, `checkbox`, `radio`.
-- Текущий контракт полей: `companyPrefix`, `inputSeafFile`, `useSameOutputFile`, `outputSeafFile`, `pluginLogLevel`.
+- Текущий контракт полей: `companyPrefix`, `inputSeafFile`, `useSameOutputFile`, `outputSeafFile`, `pluginLogLevel`, `pythonExecutable`.
 - Для поля можно задать `helpText` и получить tooltip-иконку `?` рядом с его label в диалоге.
 - `Input SEAF file` реализован как `filePicker`: открывает системный навигатор и сохраняет выбранный путь в `env.yaml`.
-- После поля `Plugin logging` доступна кнопка `Open Python Env Installer Terminal` для ручного fallback.
+- Поле `Python executable` задает интерпретатор для запуска Python-команд и установки зависимостей.
 - Если `useSameOutputFile=true`, `outputSeafFile` автоматически копирует `inputSeafFile` и становится read-only/disabled.
 - Зависимость описывается декларативно в `configEditor.fields` через `syncFrom` и `disableWhen`, без жесткой привязки к конкретным env-ключам в renderer-коде.
 - При `Browse` для `inputSeafFile` поле `outputSeafFile` обновляется автоматически только при включенном `useSameOutputFile`.
-- Автоматическая настройка Python-среды (локальный venv + preflight импортов) выполняется в основном пути без popup при успехе.
-- При ошибке автоматической настройки показывается popup с диагностикой и рекомендацией запустить ручной installer.
-- Для окружений без sudo поддержан fallback через user-level Python/PyCharm interpreter (`python.executable`, при необходимости `python.useVenv=false`).
+- Автоматическая проверка Python-среды выполняется в основном пути без popup при успехе.
+- При первом запуске runtime пытается найти системный Python (`python3`, затем `python`) и сохранить его в `env.yaml`.
+- При ошибке настройки показывается popup с диагностикой и инструкцией указать корректный путь в `Edit Config`.
+- Для окружений без sudo используется тот же путь: установить Python для пользователя и указать его бинарник в `Edit Config -> Python executable`.
 - При runtime update `env.yaml` обновляется инкрементально: локальные значения сохраняются для существующих ключей, новые ключи добавляются, отсутствующие в новой схеме ключи удаляются.
 - Уровень логирования пользователя задается через `env.pluginLogLevel` (`none|info|debug`), а блок `logging.*` в `plugin.yaml` используется как технический fallback.
 - Геометрия диалога рассчитывается по фактическому `scrollHeight` контейнера (без эвристического запаса), с симметричными отступами `8px` по всем сторонам.

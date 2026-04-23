@@ -29,26 +29,12 @@
 | Имя поля | Формат | Назначение |
 |---|---:|---|
 | `python.executable` | `string` | Команда/путь для запуска Python (например, `python3`). |
-| `python.useVenv` | `boolean` | Если `true`, runtime автоматически создает/использует локальный virtualenv. |
-| `python.venvPath` | `string` (relative path) | Путь к локальному virtualenv относительно `conf/plugin.yaml` (например, `../python/.venv`). |
 | `python.requirementsFile` | `string` (relative path) | Путь к requirements-файлу для автоматической установки зависимостей. |
 | `python.requiredModules` | `array<string>` | Список модулей для preflight-проверки импортов перед запуском команд. |
 | `python.scriptsDir` | `string` (relative path) | Каталог скриптов относительно `conf/plugin.yaml` (например, `../python/scripts`). В командах ниже поле `script` указывает файл **внутри этого каталога**. |
 
-### Fallback without sudo
-
-Если в auto-bootstrap недоступен `ensurepip`/`venv` и нет прав `sudo`, используйте один из user-level сценариев:
-
-- `python.useVenv=true` + `python.executable=<user-python>` (pyenv/mamba/python в `$HOME`);
-- `python.useVenv=false` + `python.executable=<готовый интерпретатор из PyCharm .venv/bin/python>`.
-
-Практическая матрица:
-
-| Сценарий | Требует sudo | Рекомендация |
-|---|---:|---|
-| `apt install python3-venv` + локальный `.venv` | Да | Базовый путь для чистой Ubuntu/Debian |
-| User-level Python (pyenv/mamba) + `useVenv=true` | Нет | Предпочтительный путь без админ-прав |
-| Переиспользование PyCharm `.venv` + `useVenv=false` | Нет | Быстрый fallback для dev-среды |
+`env.yaml` дополнительно хранит пользовательский путь `pythonExecutable`, который задается в `SEAF -> Edit Config`.
+Именно этот интерпретатор используется для запуска скриптов и `pip install -r requirements.txt`.
 
 ## `logging.*`
 
@@ -188,6 +174,7 @@ UI‑плагин формирует `REQUEST.payload` и может добав�
 - `Use same output file` -> `useSameOutputFile` (`checkbox`)
 - `Output SEAF file` -> `outputSeafFile` (`text`)
 - `Plugin logging` -> `pluginLogLevel` (`list`, options: `none|info|debug`)
+- `Python executable` -> `pythonExecutable` (`filePicker`)
 - Для любого поля можно задать `helpText`, чтобы показать tooltip-иконку `?` рядом с подписью.
 
 UX-правило:
@@ -229,6 +216,7 @@ inputSeafFile: ""
 useSameOutputFile: true
 outputSeafFile: ""
 pluginLogLevel: "none"
+pythonExecutable: ""
 ```
 
 `pluginLogLevel` управляет эффективной моделью логирования runtime:
@@ -241,7 +229,7 @@ pluginLogLevel: "none"
 Текущая структура главного меню `SEAF`:
 - `Edit Config` (верхний уровень);
 - `P41` (подменю, сейчас пустое);
-- `Tools` (подменю со служебными утилитами, включая installer terminal);
+- `Tools` (подменю со служебными утилитами);
 - `Examples` (подменю с demo-командами);
 - `Обновить плагин`;
 - `SEAF Runtime v...`.
@@ -255,8 +243,8 @@ pluginLogLevel: "none"
 - в `plugin.yaml` используются пути `script: examples/<name>.py`.
 
 Дополнительно:
-- в `SEAF -> Edit Config` после поля `Plugin logging` есть кнопка ручного fallback: `Open Python Env Installer Terminal`;
-- эта кнопка запускает `seafPythonEnvInstallerTerminal` (interactive terminal сценарий восстановления Python-среды).
+- при первом запуске runtime пытается найти системный Python (`python3`, затем `python`) и сохраняет выбор в `env.yaml` (`pythonExecutable`);
+- если Python не найден, пользователю показывается инструкция установить Python и указать путь через `Edit Config`.
 
 ## Режимы логирования и примеры для Python
 
@@ -376,7 +364,7 @@ def do_work() -> None:
 ```yaml
 - id: seafAsyncBackground
   title: SEAF Async Background Task
-  script: async_background.py
+  script: examples/async_background.py
   execution:
     mode: async
     pollIntervalMs: 1000

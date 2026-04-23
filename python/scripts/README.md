@@ -15,7 +15,6 @@
 - `examples/failure_demo.py` — пример ошибки (error‑response).
 - `examples/timeout_demo.py` — пример «долгого» выполнения (для демонстрации таймаута).
 - `examples/interactive_terminal_demo.py` — пример интерактивного terminal-режима с `print(...)`, `input(...)` и симуляцией exception по подтверждению `Y/N`.
-- `examples/python_env_installer_terminal.py` — ручной installer-запуск для восстановления Python-среды и зависимостей в fallback-режиме.
 - `lib/io/__init__.py` — общий helper layer для чтения REQUEST, каноничного Response и `SEAF_PROGRESS`.
 
 ## 1) Структура `REQUEST` (stdin)
