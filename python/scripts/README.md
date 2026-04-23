@@ -8,6 +8,7 @@
 - По `Response` UI выполняет интерактивные команды (`commands[]`) и показывает пользователю сообщение.
 
 Примеры entrypoint-скриптов находятся в подпапке `examples/`:
+- подробная документация по каждому примеру: [`examples/README.md`](examples/README.md);
 - `examples/success_reload.py` — успешный ответ + команды `showMessage` и `reloadDocument`.
 - `examples/validate_selection.py` — валидация выделения + команда `selectCells`.
 - `examples/async_background.py` — имитация фоновой задачи (использует `arguments.simulateDurationSec`).
