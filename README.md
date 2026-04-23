@@ -9,7 +9,8 @@
 - `full runtime` (для разработки и релиза runtime):
   - `plugin/seaf.plugin.js`
   - `conf/plugin.yaml`
-  - `python/scripts/*`
+  - `python/scripts/examples/*`
+  - `python/scripts/lib/*`
   - `runtime/version.json`
 - `minimal runtime` (для встраивания в пакет drawio):
   - `minimal-runtime/seaf.plugin.js`
@@ -23,7 +24,8 @@
 - `conf/plugin.yaml` - конфигурация full runtime (команды, logging, update).
 - `conf/env.yaml` - редактируемые переменные runtime (пути и режимы для Python-части).
 - `conf/README.md` - документация формата `plugin.yaml`.
-- `python/scripts/*.py` - Python-скрипты команд full runtime.
+- `python/scripts/examples/*.py` - Python entrypoint-скрипты команд full runtime (демо/примеры).
+- `python/scripts/lib/*` - общие Python-модули, которые импортируются entrypoint-скриптами.
 - `python/scripts/README.md` - документация контракта скриптов и прогресса.
 - `python/scripts/lib/io/__init__.py` - общий helper layer для REQUEST/Response/progress в Python-скриптах.
 - `runtime/version.json` - версия full runtime.
@@ -67,7 +69,10 @@
 ## Menu order contract
 
 Для секции `SEAF` порядок элементов должен оставаться стабильным (в runtime asset):
-- кастомные команды runtime (если есть),
+- `Edit Config`,
+- подменю `P41`,
+- подменю `Tools`,
+- подменю `Examples` (все пункты, начинающиеся с `SEAF ...`),
 - `Обновить плагин` (всегда второй с конца),
 - `SEAF Runtime v...` (всегда последний).
 

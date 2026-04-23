@@ -7,13 +7,13 @@
 - Скрипт печатает **в stdout** JSON‑объект `Response`.
 - По `Response` UI выполняет интерактивные команды (`commands[]`) и показывает пользователю сообщение.
 
-Примеры скриптов в этом каталоге:
-- `success_reload.py` — успешный ответ + команды `showMessage` и `reloadDocument`.
-- `validate_selection.py` — валидация выделения + команда `selectCells`.
-- `async_background.py` — имитация фоновой задачи (использует `arguments.simulateDurationSec`).
-- `failure_demo.py` — пример ошибки (error‑response).
-- `timeout_demo.py` — пример «долгого» выполнения (для демонстрации таймаута).
-- `interactive_terminal_demo.py` — пример интерактивного terminal-режима с `print(...)`, `input(...)` и симуляцией exception по подтверждению `Y/N`.
+Примеры entrypoint-скриптов находятся в подпапке `examples/`:
+- `examples/success_reload.py` — успешный ответ + команды `showMessage` и `reloadDocument`.
+- `examples/validate_selection.py` — валидация выделения + команда `selectCells`.
+- `examples/async_background.py` — имитация фоновой задачи (использует `arguments.simulateDurationSec`).
+- `examples/failure_demo.py` — пример ошибки (error‑response).
+- `examples/timeout_demo.py` — пример «долгого» выполнения (для демонстрации таймаута).
+- `examples/interactive_terminal_demo.py` — пример интерактивного terminal-режима с `print(...)`, `input(...)` и симуляцией exception по подтверждению `Y/N`.
 - `lib/io/__init__.py` — общий helper layer для чтения REQUEST, каноничного Response и `SEAF_PROGRESS`.
 
 ## 1) Структура `REQUEST` (stdin)
@@ -254,7 +254,7 @@ try {
 
 Этот режим предназначен для truly interactive CLI-сценариев и не требует возврата JSON `Response`.
 
-Для demo-команды `interactive_terminal_demo.py`:
+Для demo-команды `examples/interactive_terminal_demo.py`:
 - команда `exception` (также `error`/`fail`) запрашивает подтверждение `Y/N`;
 - при `Y` скрипт симулирует исключение и завершается с ошибкой;
 - draw.io закрывает terminal-окно, снимает блокировку editor и показывает сообщение об ошибке.

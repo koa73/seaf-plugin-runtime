@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.2.11
+ * Runtime script version: 0.2.12
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -1514,7 +1514,17 @@ Draw.loadPlugin(function(ui)
 		}
 		var commands = state.config.commands || [];
 		ensureTopLevelMenu('seaf', 'SEAF');
-		var customSeafItems = [];
+		var rootItems = [];
+		var p41Items = [];
+		var toolsItems = [];
+		var examplesItems = [];
+
+		var normalizeSubmenu = function(value)
+		{
+			var out = (typeof value === 'string') ? value.trim().toLowerCase() : '';
+			return out;
+		};
+
 		for (var i = 0; i < commands.length; i++)
 		{
 			var cmd = commands[i];
@@ -1527,11 +1537,55 @@ Draw.loadPlugin(function(ui)
 			{
 				continue;
 			}
-			if (mxUtils.indexOf(customSeafItems, cmd.id) < 0)
+
+			var title = (typeof cmd.title === 'string') ? cmd.title : '';
+			var submenu = normalizeSubmenu(mainCfg.submenu);
+			var target = rootItems;
+
+			if (title.indexOf('SEAF') === 0 || submenu === 'examples')
 			{
-				customSeafItems.push(cmd.id);
+				target = examplesItems;
+			}
+			else if (submenu === 'p41')
+			{
+				target = p41Items;
+			}
+			else if (submenu === 'tools')
+			{
+				target = toolsItems;
+			}
+
+			if (mxUtils.indexOf(target, cmd.id) < 0)
+			{
+				target.push(cmd.id);
 			}
 		}
+
+		ui.menus.put('seafP41', new Menu(function(menuObj, parent)
+		{
+			if (p41Items.length > 0)
+			{
+				ui.menus.addMenuItems(menuObj, p41Items, parent);
+			}
+		}));
+		ui.menus.put('seafTools', new Menu(function(menuObj, parent)
+		{
+			if (toolsItems.length > 0)
+			{
+				ui.menus.addMenuItems(menuObj, toolsItems, parent);
+			}
+		}));
+		ui.menus.put('seafExamples', new Menu(function(menuObj, parent)
+		{
+			if (examplesItems.length > 0)
+			{
+				ui.menus.addMenuItems(menuObj, examplesItems, parent);
+			}
+		}));
+		mxResources.parse('seafP41=P41');
+		mxResources.parse('seafTools=Tools');
+		mxResources.parse('seafExamples=Examples');
+
 		var seafMenu = ui.menus.get('seaf');
 		if (seafMenu != null)
 		{
@@ -1539,11 +1593,15 @@ Draw.loadPlugin(function(ui)
 			seafMenu.funct = function(menuObj, parent)
 			{
 				oldFunct.apply(this, arguments);
-				if (customSeafItems.length > 0)
+				if (rootItems.length > 0)
 				{
-					ui.menus.addMenuItems(menuObj, ['-'].concat(customSeafItems), parent);
+					ui.menus.addMenuItems(menuObj, ['-'].concat(rootItems), parent);
 					menuObj.addSeparator(parent);
 				}
+				ui.menus.addSubmenu('seafP41', menuObj, parent, mxResources.get('seafP41'));
+				ui.menus.addSubmenu('seafTools', menuObj, parent, mxResources.get('seafTools'));
+				ui.menus.addSubmenu('seafExamples', menuObj, parent, mxResources.get('seafExamples'));
+				menuObj.addSeparator(parent);
 				ui.menus.addMenuItems(menuObj, ['seafSystemUpdatePlugin'], parent);
 				menuObj.addSeparator(parent);
 				menuObj.addItem(getRuntimeVersionLabel(), null, null, parent, null, false);

@@ -82,6 +82,7 @@
 | `commands[].menu.main.enabled` | `boolean` | Если `false`, команда не попадёт в верхнее меню. |
 | `commands[].menu.main.section` | `string` | Идентификатор верхнего меню (например, `seaf` или `extras`). |
 | `commands[].menu.main.sectionTitle` | `string` | Заголовок верхнего меню (например, `SEAF`). Если не задан — используется `section`. |
+| `commands[].menu.main.submenu` | `string` (`p41|tools|examples`) | Опциональная группировка внутри меню `SEAF` во вложенные подменю. |
 
 ### `commands[].menu.context.*` — добавление в контекстное меню
 
@@ -215,6 +216,128 @@ pluginLogLevel: "none"
 - `none` — файловое логирование отключается, остаются только минимальные системные сообщения в консоли (`error`);
 - `info` — стандартные информационные/ошибочные записи;
 - `debug` — расширенная детализация (включая debug и extended debug).
+
+## Структура меню SEAF (вложенные подменю)
+
+Текущая структура главного меню `SEAF`:
+- `Edit Config` (верхний уровень);
+- `P41` (подменю, сейчас пустое);
+- `Tools` (подменю, сейчас пустое);
+- `Examples` (подменю с demo-командами);
+- `Обновить плагин`;
+- `SEAF Runtime v...`.
+
+Правило маршрутизации для demo-команд:
+- пункты, у которых `title` начинается с `SEAF`, относятся к группе `Examples`;
+- для явной декларации можно задать `commands[].menu.main.submenu: examples`.
+
+Для команд в `Examples` Python entrypoint-скрипты размещаются в подпапке:
+- `python/scripts/examples/*.py`
+- в `plugin.yaml` используются пути `script: examples/<name>.py`.
+
+## Режимы логирования и примеры для Python
+
+Ниже собрана практическая модель логирования, которая сейчас реализована в runtime.
+
+### 1) Где задается уровень логирования
+
+- Базовый fallback берется из `plugin.yaml` (`logging.level`, `logging.extendedDebug`, `logging.includePayload`, `logging.output`, `logging.filePath`).
+- Пользовательский режим задается через `env.yaml` в поле `pluginLogLevel` (`none|info|debug`) и переопределяет поведение runtime.
+- Фактическая запись строк в лог выполняется на стороне desktop-host (`seafPluginService`), а не в Python-скриптах напрямую.
+
+### 2) Поддерживаемые уровни и их приоритет
+
+Внутренний фильтр логов использует уровни:
+- `debug` (10)
+- `info` (20)
+- `warn` (30)
+- `error` (40)
+
+Сообщение пишется, если его приоритет не ниже активного уровня.
+
+### 3) Что реально означает `pluginLogLevel`
+
+- `none`
+  - эффективно включает только `error`;
+  - отключает `extendedDebug`;
+  - отключает `includePayload`;
+  - переключает вывод в `console` (без файла).
+- `info`
+  - включает `info`, `warn`, `error`;
+  - `extendedDebug=false`;
+  - `includePayload` остается как в `plugin.yaml`.
+- `debug`
+  - включает максимум (`debug`, `info`, `warn`, `error`);
+  - `extendedDebug=true`;
+  - на практике дает наибольшую диагностическую детализацию.
+
+### 4) Какой объем информации обычно попадает в лог
+
+- При `none`:
+  - почти только аварийные события/ошибки;
+  - payload не пишется.
+- При `info`:
+  - видны типовые события выполнения команд: `Command started`, `Command finished`, `Async command completed/failed`;
+  - payload пишется только если `logging.includePayload=true`.
+- При `debug`:
+  - максимальная детализация;
+  - при ошибках добавляются расширенные детали;
+  - для sync-выполнения в meta доступны подробности (`stdout/stderr`) благодаря `extendedDebug`.
+
+### 5) Как Python участвует в логировании
+
+Python-скрипты в runtime используют протокол I/O, а не прямую запись в `seaf-plugin.log`:
+- `stdout`: итоговый JSON через `write_response(...)`;
+- `stderr`: прогресс в формате `SEAF_PROGRESS ...` через `emit_progress(...)`.
+
+Desktop-host принимает результаты выполнения и уже сам пишет структурированные строки в лог.
+
+### 6) Примеры использования из Python-скриптов
+
+Пример A: прогресс + успешный ответ.
+
+```python
+from lib.io import read_request, emit_progress, write_response
+
+def main() -> int:
+    _req = read_request()
+    emit_progress(10, phase="start", message="Начало обработки")
+    emit_progress(80, phase="processing", message="Почти готово")
+    return write_response(
+        status="success",
+        message="Обработка завершена",
+        payload={"processed": 42},
+        commands=[{"name": "showMessage", "args": {"level": "info", "text": "Готово"}}]
+    )
+```
+
+Пример B: контролируемая ошибка.
+
+```python
+from lib.io import write_response
+
+def main() -> int:
+    return write_response(
+        status="error",
+        message="Ошибка валидации входных данных",
+        payload={"reason": "invalid input"},
+        errors=["validation_failed"],
+        exit_code=1
+    )
+```
+
+Пример C: отправка прогресса в фоне.
+
+```python
+from lib.io import emit_progress
+
+def do_work() -> None:
+    emit_progress(25, phase="step 1")
+    emit_progress(50, phase="step 2")
+    emit_progress(100, phase="done", message="Завершено")
+```
+
+Примечание: `showMessage.args.level` (`info|error`) относится к уровню UI-сообщения в draw.io, а не к уровню строки в `seaf-plugin.log`.
 
 ## Практические примеры (из текущего `plugin.yaml`)
 

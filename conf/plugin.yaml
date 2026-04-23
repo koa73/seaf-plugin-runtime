@@ -3,7 +3,7 @@ plugin:
   id: seaf_plugin
   name: SEAF Plugin
   description: Dynamic menu integration with Python scripts
-  runtimeVersion: 0.2.11
+  runtimeVersion: 0.2.12
 python:
   executable: python3
   scriptsDir: ../python/scripts
@@ -73,7 +73,7 @@ commands:
   - id: seafInteractiveTerminalDemo
     title: SEAF Interactive Terminal Demo
     clientAction: interactiveTerminal
-    script: interactive_terminal_demo.py
+    script: examples/interactive_terminal_demo.py
     execution:
       mode: interactive_terminal
     menu:
@@ -81,6 +81,7 @@ commands:
         enabled: true
         section: seaf
         sectionTitle: SEAF
+        submenu: examples
       context:
         enabled: false
         target: any
@@ -96,10 +97,11 @@ commands:
         enabled: true
         section: seaf
         sectionTitle: SEAF
+        submenu: examples
       context:
         enabled: true
         target: selection_non_empty
-    script: success_reload.py
+    script: examples/success_reload.py
     execution:
       mode: sync
       timeoutSec: 20
@@ -122,10 +124,11 @@ commands:
       main:
         enabled: true
         section: extras
+        submenu: examples
       context:
         enabled: true
         target: selection_non_empty
-    script: validate_selection.py
+    script: examples/validate_selection.py
     execution:
       mode: sync
       timeoutSec: 20
@@ -139,10 +142,11 @@ commands:
       main:
         enabled: true
         section: seaf
+        submenu: examples
       context:
         enabled: true
         target: any
-    script: async_background.py
+    script: examples/async_background.py
     execution:
       mode: async
       timeoutSec: 40
@@ -165,10 +169,11 @@ commands:
       main:
         enabled: true
         section: seaf
+        submenu: examples
       context:
         enabled: true
         target: any
-    script: failure_demo.py
+    script: examples/failure_demo.py
     execution:
       mode: sync
       timeoutSec: 20
@@ -182,9 +187,10 @@ commands:
       main:
         enabled: true
         section: seaf
+        submenu: examples
       context:
         enabled: false
-    script: timeout_demo.py
+    script: examples/timeout_demo.py
     execution:
       mode: sync
       timeoutSec: 1
