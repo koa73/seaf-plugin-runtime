@@ -23,6 +23,8 @@
 - `plugin/seaf.plugin.js` - полный renderer plugin (меню, IPC, async, системный update).
 - `conf/plugin.yaml` - конфигурация full runtime (команды, logging, update).
 - `conf/env.yaml` - редактируемые переменные runtime (пути и режимы для Python-части).
+- `conf/stencils/libraries.yaml` - конфиг секций/библиотек фигур для окна `More Shapes`.
+- `conf/stencils/*.xml` - файлы библиотек фигур в формате `mxlibrary`.
 - `conf/README.md` - документация формата `plugin.yaml`.
 - `python/scripts/examples/*.py` - Python entrypoint-скрипты команд full runtime (демо/примеры).
 - `python/scripts/lib/*` - общие Python-модули, которые импортируются entrypoint-скриптами.
@@ -66,6 +68,7 @@
 7. Для `seaf.plugin.js` используется cache-busting загрузка (`?v=<mtime>`), чтобы после перезапуска гарантированно подхватывался новый plugin entry.
 8. В update-конфиге поддерживается `update.expectedMinVersion`; если скачанный asset старее минимума, обновление завершается ошибкой.
 9. При `payload.status=already_up_to_date` update не переустанавливает runtime и UI показывает сообщение о том, что уже установлена актуальная версия (без restart-required текста).
+10. Кастомные библиотеки фигур из `conf/stencils` доставляются тем же runtime update и становятся доступны в `More Shapes -> SEAF` без пересборки desktop-пакета.
 
 ## Menu order contract
 

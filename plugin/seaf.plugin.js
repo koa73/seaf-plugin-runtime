@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.2.16
+ * Runtime script version: 0.2.17
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -26,7 +26,8 @@ Draw.loadPlugin(function(ui)
 			level: 'info',
 			extendedDebug: false,
 			includePayload: false
-		}
+		},
+		seafStencilPaletteIds: []
 	};
 
 	function requestAsync(msg)
@@ -495,6 +496,231 @@ Draw.loadPlugin(function(ui)
 	function getRuntimeVersionLabel()
 	{
 		return 'SEAF Runtime v' + (state.runtimeVersion || 'unknown');
+	}
+
+	function joinPathFragments()
+	{
+		var out = '';
+		for (var i = 0; i < arguments.length; i++)
+		{
+			var part = arguments[i];
+			if (part == null)
+			{
+				continue;
+			}
+			var text = String(part);
+			if (text.length === 0)
+			{
+				continue;
+			}
+			if (out.length === 0)
+			{
+				out = text.replace(/[\\\/]+$/, '');
+			}
+			else
+			{
+				out = out.replace(/[\\\/]+$/, '') + '/' + text.replace(/^[\\\/]+/, '');
+			}
+		}
+		return out;
+	}
+
+	function getStencilsConfigPath()
+	{
+		if (typeof state.configPath !== 'string' || state.configPath.length === 0)
+		{
+			return null;
+		}
+		var normalized = state.configPath.replace(/\\/g, '/');
+		var suffix = '/conf/plugin.yaml';
+		if (normalized.length <= suffix.length || normalized.slice(-suffix.length) !== suffix)
+		{
+			return null;
+		}
+		var runtimeRoot = normalized.slice(0, normalized.length - suffix.length);
+		return joinPathFragments(runtimeRoot, 'conf', 'stencils', 'libraries.yaml');
+	}
+
+	function parseLibrariesConfig(rawText)
+	{
+		var raw = (typeof rawText === 'string') ? rawText.trim() : '';
+		if (raw.length === 0)
+		{
+			return null;
+		}
+
+		// YAML is a superset of JSON. We keep config JSON-compatible for stable parsing in renderer.
+		return JSON.parse(raw);
+	}
+
+	function parseMxLibraryData(rawXml)
+	{
+		var doc = mxUtils.parseXml(rawXml);
+		if (doc == null || doc.documentElement == null || doc.documentElement.nodeName !== 'mxlibrary')
+		{
+			throw new Error('Invalid library XML root (expected <mxlibrary>)');
+		}
+		var dataText = mxUtils.getTextContent(doc.documentElement);
+		var parsed = JSON.parse(dataText);
+		if (!Array.isArray(parsed))
+		{
+			throw new Error('Library data must be an array');
+		}
+		return parsed;
+	}
+
+	function removeSeafStencilPalettes(sidebar)
+	{
+		if (sidebar == null || typeof sidebar.removePalette !== 'function')
+		{
+			return;
+		}
+		for (var i = 0; i < state.seafStencilPaletteIds.length; i++)
+		{
+			sidebar.removePalette(state.seafStencilPaletteIds[i]);
+		}
+		state.seafStencilPaletteIds = [];
+	}
+
+	function applySeafCustomEntriesToSidebar(sidebar, sections)
+	{
+		if (sidebar == null)
+		{
+			return;
+		}
+		var current = Array.isArray(sidebar.customEntries) ? sidebar.customEntries.slice() : [];
+		var filtered = [];
+		for (var i = 0; i < current.length; i++)
+		{
+			if (current[i] && current[i]._seafStencilSection === true)
+			{
+				continue;
+			}
+			filtered.push(current[i]);
+		}
+		for (var j = 0; j < sections.length; j++)
+		{
+			filtered.push(sections[j]);
+		}
+		sidebar.customEntries = filtered;
+	}
+
+	async function loadSeafStencilLibraries()
+	{
+		var sidebar = ui != null ? ui.sidebar : null;
+		if (sidebar == null)
+		{
+			return;
+		}
+
+		var configPath = getStencilsConfigPath();
+		if (configPath == null)
+		{
+			await writeLog('warn', 'SEAF stencils config path is unavailable', {
+				configPath: state.configPath
+			});
+			return;
+		}
+
+		var configRaw = await requestAsync({
+			action: 'readFile',
+			filename: configPath,
+			encoding: 'utf8'
+		});
+		var parsedConfig = parseLibrariesConfig(configRaw) || {};
+		var sections = Array.isArray(parsedConfig.sections) ? parsedConfig.sections : [];
+		var stencilsDir = configPath.replace(/[\\\/]libraries\.yaml$/i, '');
+		var loadedSections = [];
+
+		for (var i = 0; i < sections.length; i++)
+		{
+			var section = sections[i] || {};
+			var entries = Array.isArray(section.entries) ? section.entries : [];
+			var loadedEntries = [];
+
+			for (var j = 0; j < entries.length; j++)
+			{
+				var entry = entries[j] || {};
+				if (typeof entry.file !== 'string' || entry.file.trim().length === 0)
+				{
+					continue;
+				}
+				var resolvedFile = joinPathFragments(stencilsDir, entry.file.trim());
+				try
+				{
+					var rawXml = await requestAsync({
+						action: 'readFile',
+						filename: resolvedFile,
+						encoding: 'utf8'
+					});
+					var libraryData = parseMxLibraryData(rawXml);
+					var entryId = (typeof entry.id === 'string' && entry.id.trim().length > 0) ?
+						entry.id.trim() : ('seaf_stencil_' + i + '_' + j);
+					var entryTitle = (typeof entry.title === 'string' && entry.title.trim().length > 0) ?
+						entry.title.trim() : entryId;
+					loadedEntries.push({
+						id: entryId,
+						title: entryTitle,
+						libs: [{
+							title: entryTitle,
+							data: libraryData,
+							preload: entry.enabledByDefault === true
+						}]
+					});
+				}
+				catch (entryErr)
+				{
+					await writeLog('warn', 'SEAF stencil library skipped', {
+						file: resolvedFile,
+						error: entryErr.message
+					});
+				}
+			}
+
+			if (loadedEntries.length > 0)
+			{
+				var sectionId = (typeof section.id === 'string' && section.id.trim().length > 0) ?
+					section.id.trim() : ('seaf_section_' + i);
+				var sectionTitle = (typeof section.title === 'string' && section.title.trim().length > 0) ?
+					section.title.trim() : sectionId;
+				loadedSections.push({
+					id: sectionId,
+					title: sectionTitle,
+					entries: loadedEntries,
+					_seafStencilSection: true
+				});
+			}
+		}
+
+		removeSeafStencilPalettes(sidebar);
+		applySeafCustomEntriesToSidebar(sidebar, loadedSections);
+		if (typeof sidebar.addCustomEntries === 'function')
+		{
+			sidebar.addCustomEntries();
+		}
+		if (typeof sidebar.updateEntries === 'function')
+		{
+			sidebar.updateEntries();
+		}
+
+		for (var s = 0; s < loadedSections.length; s++)
+		{
+			var loadedSection = loadedSections[s];
+			for (var e = 0; e < loadedSection.entries.length; e++)
+			{
+				var loadedEntry = loadedSection.entries[e];
+				for (var k = 0; k < loadedEntry.libs.length; k++)
+				{
+					state.seafStencilPaletteIds.push(loadedEntry.id + '.' + k);
+				}
+			}
+		}
+
+		await writeLog('info', 'SEAF stencil libraries loaded', {
+			configPath: configPath,
+			sections: loadedSections.length,
+			palettes: state.seafStencilPaletteIds.length
+		});
 	}
 
 	function getSelectionPayload()
@@ -1807,6 +2033,7 @@ Draw.loadPlugin(function(ui)
 				runtimeVersion: state.runtimeVersion || 'unknown'
 			});
 			await ensurePythonEnvironmentAuto();
+			await loadSeafStencilLibraries();
 
 			ensureInteractiveSessionListener();
 			registerActions();

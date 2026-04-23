@@ -242,6 +242,43 @@ pythonExecutable: ""
 - `python/scripts/examples/*.py`
 - в `plugin.yaml` используются пути `script: examples/<name>.py`.
 
+## Кастомные библиотеки фигур (`conf/stencils`)
+
+SEAF runtime поддерживает добавление библиотек фигур в окно `More Shapes` через отдельный конфиг:
+- `conf/stencils/libraries.yaml`
+- файлы библиотек (`*.xml` с корнем `<mxlibrary>`) хранятся в той же папке `conf/stencils`.
+
+Формат `libraries.yaml`:
+
+```yaml
+version: 1
+sections:
+  - id: seaf
+    title: SEAF
+    entries:
+      - id: seaf_p1
+        title: SEAF_P1
+        file: Р41.xml
+        enabledByDefault: false
+```
+
+Пояснения:
+- `sections[]` — разделы, которые отображаются в `More Shapes`;
+- `entries[]` — библиотеки внутри раздела;
+- `file` — имя XML-файла библиотеки в `conf/stencils`;
+- `enabledByDefault` — флаг preload палитры (опционально).
+
+Важно:
+- `libraries.yaml` читается в runtime-плагине на старте;
+- XML-файл должен быть в формате draw.io `mxlibrary` (JSON-массив внутри тега `<mxlibrary>`);
+- ошибки чтения/парсинга отдельной библиотеки логируются, остальные библиотеки продолжают загружаться.
+
+Обновление перечня библиотек:
+- добавьте/измените `libraries.yaml` и `*.xml` в `seaf-plugin-runtime/conf/stencils`;
+- соберите новый runtime asset (`release/runtime/build-runtime.sh`);
+- обновите runtime через `SEAF -> Обновить плагин`;
+- пересборка desktop-пакета для этого сценария не требуется.
+
 Дополнительно:
 - при первом запуске runtime пытается найти системный Python (`python3`, затем `python`) и сохраняет выбор в `env.yaml` (`pythonExecutable`);
 - если Python не найден, пользователю показывается инструкция установить Python и указать путь через `Edit Config`.
