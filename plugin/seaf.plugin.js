@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.2.15
+ * Runtime script version: 0.2.16
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -77,6 +77,69 @@ Draw.loadPlugin(function(ui)
 	function safeLogData(data)
 	{
 		return state.logging.includePayload ? maskSensitive(data) : null;
+	}
+
+	function sanitizeForIpc(value, depth, seen)
+	{
+		var maxDepth = 6;
+		var nextDepth = Number.isFinite(depth) ? depth : 0;
+		var known = seen || [];
+
+		if (nextDepth > maxDepth)
+		{
+			return '[max_depth]';
+		}
+
+		if (value == null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')
+		{
+			return value;
+		}
+
+		if (Array.isArray(value))
+		{
+			var outArr = [];
+			for (var i = 0; i < value.length; i++)
+			{
+				outArr.push(sanitizeForIpc(value[i], nextDepth + 1, known));
+			}
+			return outArr;
+		}
+
+		if (typeof value === 'function' || typeof value === 'symbol' || typeof value === 'undefined')
+		{
+			return null;
+		}
+
+		if (typeof value === 'object')
+		{
+			for (var j = 0; j < known.length; j++)
+			{
+				if (known[j] === value)
+				{
+					return '[circular]';
+				}
+			}
+
+			known.push(value);
+			var outObj = {};
+			for (var key in value)
+			{
+				if (!Object.prototype.hasOwnProperty.call(value, key))
+				{
+					continue;
+				}
+				var current = value[key];
+				if (typeof current === 'function' || typeof current === 'symbol' || typeof current === 'undefined')
+				{
+					continue;
+				}
+				outObj[key] = sanitizeForIpc(current, nextDepth + 1, known);
+			}
+			known.pop();
+			return outObj;
+		}
+
+		return String(value);
 	}
 
 	async function writeLog(level, message, data)
@@ -448,8 +511,8 @@ Draw.loadPlugin(function(ui)
 				isVertex: graph.model.isVertex(cell),
 				isEdge: graph.model.isEdge(cell),
 				label: graph.convertValueToString(cell),
-				style: graph.getCellStyle(cell),
-				geometry: graph.getCellGeometry(cell)
+				style: sanitizeForIpc(graph.getCellStyle(cell)),
+				geometry: sanitizeForIpc(graph.getCellGeometry(cell))
 			});
 		}
 
