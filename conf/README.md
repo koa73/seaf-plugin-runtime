@@ -291,6 +291,22 @@ SEAF runtime поддерживает добавление библиотек ф
 - обновите runtime через `SEAF -> Обновить плагин`;
 - пересборка desktop-пакета для этого сценария не требуется.
 
+## Stability invariants (do not break)
+
+1. **Env merge invariant**: при `updateRuntime` существующие пользовательские ключи/значения в `env.yaml` не удаляются и не перезаписываются дефолтами; добавляются только отсутствующие ключи из нового runtime/schema.
+2. **More Shapes label invariant**: `title` для custom section/entry всегда приводится к локализуемому объекту (`{main: ...}`), чтобы исключить `UNDEFINED` в UI.
+3. **Visibility invariant**: сохраненный выбор библиотек (`mxSettings.getLibraries()`) приоритетнее `enabledByDefault`; `enabledByDefault` используется только при отсутствии сохраненного выбора.
+4. **Init invariant**: ошибки в некритичных шагах инициализации логируются в `seaf-plugin.log` и не ломают остальные подсистемы.
+5. **Update safety invariant**: при ошибке после частичного `rename` update обязан откатить runtime/plugin и не оставлять полуобновленное состояние.
+
+## Release checklist (required)
+
+- Запустить `release/runtime/build-runtime.sh`.
+- Запустить `node ../../drawio-desktop/scripts/seaf-stability-smoke.mjs`.
+- Проверить в UI `More Shapes -> SEAF`: секция и библиотека без `undefined`.
+- Проверить policy `respect_saved`: сохраненный выбор библиотек не перетирается `enabledByDefault`.
+- Проверить update smoke: до/после `SEAF -> Обновить плагин` пользовательские значения в `env.yaml` сохраняются.
+
 Дополнительно:
 - при первом запуске runtime пытается найти системный Python (`python3`, затем `python`) и сохраняет выбор в `env.yaml` (`pythonExecutable`);
 - если Python не найден, пользователю показывается инструкция установить Python и указать путь через `Edit Config`.

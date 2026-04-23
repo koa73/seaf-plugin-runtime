@@ -100,7 +100,7 @@
 - При первом запуске runtime пытается найти системный Python (`python3`, затем `python`) и сохранить его в `env.yaml`.
 - При ошибке настройки показывается popup с диагностикой и инструкцией указать корректный путь в `Edit Config`.
 - Для окружений без sudo используется тот же путь: установить Python для пользователя и указать его бинарник в `Edit Config -> Python executable`.
-- При runtime update `env.yaml` обновляется инкрементально: локальные значения сохраняются для существующих ключей, новые ключи добавляются, отсутствующие в новой схеме ключи удаляются.
+- При runtime update `env.yaml` обновляется инкрементально: локальные значения пользователя сохраняются, новые ключи из схемы/дефолта добавляются, пользовательские ключи не удаляются.
 - Уровень логирования пользователя задается через `env.pluginLogLevel` (`none|info|debug`), а блок `logging.*` в `plugin.yaml` используется как технический fallback.
 - Геометрия диалога рассчитывается по фактическому `scrollHeight` контейнера (без эвристического запаса), с симметричными отступами `8px` по всем сторонам.
 - Footer формы использует `flex + gap`, а успешное сохранение выполняется без `success` popup (сообщения показываются только при ошибках).
@@ -124,6 +124,22 @@
   - одинаковые статусы результата (`updated`, `already_up_to_date`, `error`);
   - одинаковая семантика сообщений пользователю;
   - одинаковая логика завершения прогресса (100% -> закрытие индикатора -> сообщение).
+
+## Stability invariants (do not break)
+
+- `env.yaml` merge policy: preserve existing values, add missing keys, keep unknown keys.
+- Custom More Shapes titles contract: runtime always passes localizable objects (`{main: ...}`), never plain string keys.
+- Visibility policy contract: `respect_saved` is always higher priority than `enabledByDefault`.
+- Init pipeline contract: failures in non-critical init steps must be logged and must not break other plugin subsystems.
+- Update/rollback contract: failed update/apply never leaves a partially switched runtime state.
+
+## Pre-release checklist
+
+- Run `release/runtime/build-runtime.sh`.
+- Run `node ../drawio-desktop/scripts/seaf-stability-smoke.mjs`.
+- Manual UI smoke: `More Shapes -> SEAF -> SEAF_Р41` renders without `undefined`.
+- Manual UI smoke: saved library selection is respected over defaults.
+- Runtime update smoke: `env.yaml` keeps user values after update.
 
 ## Versioning notes
 

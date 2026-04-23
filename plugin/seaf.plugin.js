@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.2.20
+ * Runtime script version: 0.2.21
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -608,6 +608,93 @@ Draw.loadPlugin(function(ui)
 		return parsed;
 	}
 
+	function normalizeLocalizedResource(value, fallback)
+	{
+		if (value != null && typeof value === 'object' && !Array.isArray(value))
+		{
+			if (typeof value.main === 'string' && value.main.trim().length > 0)
+			{
+				return value;
+			}
+		}
+
+		if (typeof value === 'string' && value.trim().length > 0)
+		{
+			return {main: value.trim()};
+		}
+
+		return {main: (typeof fallback === 'string' && fallback.trim().length > 0) ? fallback.trim() : ''};
+	}
+
+	function normalizeCustomEntriesConfig(rawSections)
+	{
+		var sections = Array.isArray(rawSections) ? rawSections : [];
+		var outSections = [];
+		var usedSectionIds = {};
+		var usedEntryIds = {};
+
+		for (var i = 0; i < sections.length; i++)
+		{
+			var section = sections[i];
+			if (section == null || typeof section !== 'object' || Array.isArray(section))
+			{
+				continue;
+			}
+
+			var sectionId = (typeof section.id === 'string' && section.id.trim().length > 0) ?
+				section.id.trim() : ('seaf_section_' + i);
+			if (Object.prototype.hasOwnProperty.call(usedSectionIds, sectionId))
+			{
+				continue;
+			}
+			usedSectionIds[sectionId] = true;
+
+			var sectionTitle = normalizeLocalizedResource(section.title, sectionId);
+			var rawEntries = Array.isArray(section.entries) ? section.entries : [];
+			var entries = [];
+
+			for (var j = 0; j < rawEntries.length; j++)
+			{
+				var entry = rawEntries[j];
+				if (entry == null || typeof entry !== 'object' || Array.isArray(entry))
+				{
+					continue;
+				}
+				var entryId = (typeof entry.id === 'string' && entry.id.trim().length > 0) ?
+					entry.id.trim() : ('seaf_stencil_' + i + '_' + j);
+				if (entryId.indexOf(';') >= 0 || Object.prototype.hasOwnProperty.call(usedEntryIds, entryId))
+				{
+					continue;
+				}
+				usedEntryIds[entryId] = true;
+
+				var file = (typeof entry.file === 'string') ? entry.file.trim() : '';
+				if (file.length === 0)
+				{
+					continue;
+				}
+
+				entries.push({
+					id: entryId,
+					file: file,
+					title: normalizeLocalizedResource(entry.title, entryId),
+					enabledByDefault: entry.enabledByDefault === true
+				});
+			}
+
+			if (entries.length > 0)
+			{
+				outSections.push({
+					id: sectionId,
+					title: sectionTitle,
+					entries: entries
+				});
+			}
+		}
+
+		return outSections;
+	}
+
 	function getSavedLibrariesString()
 	{
 		try
@@ -745,6 +832,21 @@ Draw.loadPlugin(function(ui)
 		sidebar.customEntries = filtered;
 	}
 
+	function applySeafCustomEntriesPipeline(sidebar, loadedSections)
+	{
+		removeSeafStencilPalettes(sidebar);
+		applySeafCustomEntriesToSidebar(sidebar, loadedSections);
+		if (typeof sidebar.addCustomEntries === 'function')
+		{
+			sidebar.addCustomEntries();
+		}
+		if (typeof sidebar.updateEntries === 'function')
+		{
+			sidebar.updateEntries();
+		}
+		applySeafStencilVisibilityPolicy(sidebar, loadedSections);
+	}
+
 	async function loadSeafStencilLibraries()
 	{
 		var sidebar = ui != null ? ui.sidebar : null;
@@ -769,7 +871,7 @@ Draw.loadPlugin(function(ui)
 		});
 		var parsedConfig = parseLibrariesConfig(configRaw) || {};
 		validateLibrariesConfig(parsedConfig);
-		var sections = Array.isArray(parsedConfig.sections) ? parsedConfig.sections : [];
+		var sections = normalizeCustomEntriesConfig(parsedConfig.sections);
 		var stencilsDir = configPath.replace(/[\\\/]libraries\.json$/i, '');
 		var loadedSections = [];
 
@@ -795,11 +897,8 @@ Draw.loadPlugin(function(ui)
 						encoding: 'utf8'
 					});
 					var libraryData = parseMxLibraryData(rawXml);
-					var entryId = (typeof entry.id === 'string' && entry.id.trim().length > 0) ?
-						entry.id.trim() : ('seaf_stencil_' + i + '_' + j);
-					var entryTitleRaw = (typeof entry.title === 'string' && entry.title.trim().length > 0) ?
-						entry.title.trim() : entryId;
-					var entryTitleObj = {main: entryTitleRaw};
+					var entryId = entry.id;
+					var entryTitleObj = normalizeLocalizedResource(entry.title, entryId);
 					loadedEntries.push({
 						id: entryId,
 						title: entryTitleObj,
@@ -822,11 +921,8 @@ Draw.loadPlugin(function(ui)
 
 			if (loadedEntries.length > 0)
 			{
-				var sectionId = (typeof section.id === 'string' && section.id.trim().length > 0) ?
-					section.id.trim() : ('seaf_section_' + i);
-				var sectionTitleRaw = (typeof section.title === 'string' && section.title.trim().length > 0) ?
-					section.title.trim() : sectionId;
-				var sectionTitleObj = {main: sectionTitleRaw};
+				var sectionId = section.id;
+				var sectionTitleObj = normalizeLocalizedResource(section.title, sectionId);
 				loadedSections.push({
 					id: sectionId,
 					title: sectionTitleObj,
@@ -836,17 +932,7 @@ Draw.loadPlugin(function(ui)
 			}
 		}
 
-		removeSeafStencilPalettes(sidebar);
-		applySeafCustomEntriesToSidebar(sidebar, loadedSections);
-		if (typeof sidebar.addCustomEntries === 'function')
-		{
-			sidebar.addCustomEntries();
-		}
-		if (typeof sidebar.updateEntries === 'function')
-		{
-			sidebar.updateEntries();
-		}
-		applySeafStencilVisibilityPolicy(sidebar, loadedSections);
+		applySeafCustomEntriesPipeline(sidebar, loadedSections);
 
 		for (var s = 0; s < loadedSections.length; s++)
 		{
@@ -2144,6 +2230,25 @@ Draw.loadPlugin(function(ui)
 
 	async function init()
 	{
+		async function runInitStep(stepName, fn, isCritical)
+		{
+			try
+			{
+				await fn();
+			}
+			catch (stepErr)
+			{
+				await writeLog('error', 'Initialization step failed', {
+					step: stepName,
+					error: stepErr && stepErr.message ? stepErr.message : String(stepErr)
+				});
+				if (isCritical !== false)
+				{
+					throw stepErr;
+				}
+			}
+		}
+
 		try
 		{
 			var loaded = await requestAsync({
@@ -2177,8 +2282,8 @@ Draw.loadPlugin(function(ui)
 				commandsCount: Array.isArray(state.config.commands) ? state.config.commands.length : 0,
 				runtimeVersion: state.runtimeVersion || 'unknown'
 			});
-			await ensurePythonEnvironmentAuto();
-			await loadSeafStencilLibraries();
+			await runInitStep('python_env_auto', ensurePythonEnvironmentAuto, true);
+			await runInitStep('stencil_libraries_load', loadSeafStencilLibraries, false);
 
 			ensureInteractiveSessionListener();
 			registerActions();
