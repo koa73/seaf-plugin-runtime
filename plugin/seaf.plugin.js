@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.2.18
+ * Runtime script version: 0.2.19
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -608,6 +608,119 @@ Draw.loadPlugin(function(ui)
 		return parsed;
 	}
 
+	function registerResourceFallback(resourceKey, rawValue)
+	{
+		if (typeof resourceKey !== 'string' || resourceKey.trim().length === 0)
+		{
+			return;
+		}
+
+		var value = (typeof rawValue === 'string' && rawValue.trim().length > 0) ?
+			rawValue.trim() : resourceKey;
+		mxResources.parse(resourceKey + '=' + value);
+	}
+
+	function getSavedLibrariesString()
+	{
+		try
+		{
+			if (typeof mxSettings !== 'undefined' && mxSettings != null &&
+				typeof mxSettings.getLibraries === 'function')
+			{
+				var saved = mxSettings.getLibraries();
+				if (typeof saved === 'string' && saved.trim().length > 0)
+				{
+					return saved.trim();
+				}
+			}
+		}
+		catch (ignored)
+		{
+			// ignore settings read errors
+		}
+
+		return '';
+	}
+
+	function splitLibrariesString(value)
+	{
+		var text = (typeof value === 'string') ? value : '';
+		if (text.trim().length === 0)
+		{
+			return [];
+		}
+
+		var parts = text.split(';');
+		var out = [];
+		for (var i = 0; i < parts.length; i++)
+		{
+			var item = parts[i].trim();
+			if (item.length > 0)
+			{
+				out.push(item);
+			}
+		}
+		return out;
+	}
+
+	function buildLibrariesString(items)
+	{
+		var seen = {};
+		var out = [];
+		for (var i = 0; i < items.length; i++)
+		{
+			var item = items[i];
+			if (typeof item !== 'string' || item.trim().length === 0)
+			{
+				continue;
+			}
+			var key = item.trim();
+			if (!Object.prototype.hasOwnProperty.call(seen, key))
+			{
+				seen[key] = true;
+				out.push(key);
+			}
+		}
+		return out.join(';');
+	}
+
+	function applySeafStencilVisibilityPolicy(sidebar, loadedSections)
+	{
+		if (sidebar == null || typeof sidebar.showEntries !== 'function')
+		{
+			return;
+		}
+
+		var saved = getSavedLibrariesString();
+		if (saved.length > 0)
+		{
+			// respect_saved policy
+			sidebar.showEntries(saved, false, true);
+			return;
+		}
+
+		var baseline = [];
+		if (typeof sidebar.defaultEntries === 'string')
+		{
+			baseline = splitLibrariesString(sidebar.defaultEntries);
+		}
+
+		for (var i = 0; i < loadedSections.length; i++)
+		{
+			var section = loadedSections[i];
+			for (var j = 0; section && section.entries && j < section.entries.length; j++)
+			{
+				var entry = section.entries[j];
+				if (entry && entry._enabledByDefault === true)
+				{
+					baseline.push(entry.id);
+				}
+			}
+		}
+
+		sidebar.showEntries(buildLibrariesString(baseline), false, true);
+	}
+
 	function removeSeafStencilPalettes(sidebar)
 	{
 		if (sidebar == null || typeof sidebar.removePalette !== 'function')
@@ -696,13 +809,16 @@ Draw.loadPlugin(function(ui)
 					var libraryData = parseMxLibraryData(rawXml);
 					var entryId = (typeof entry.id === 'string' && entry.id.trim().length > 0) ?
 						entry.id.trim() : ('seaf_stencil_' + i + '_' + j);
-					var entryTitle = (typeof entry.title === 'string' && entry.title.trim().length > 0) ?
+					var entryTitleRaw = (typeof entry.title === 'string' && entry.title.trim().length > 0) ?
 						entry.title.trim() : entryId;
+					var entryTitleKey = 'seafStencil.entry.' + entryId;
+					registerResourceFallback(entryTitleKey, entryTitleRaw);
 					loadedEntries.push({
 						id: entryId,
-						title: entryTitle,
+						title: entryTitleKey,
+						_enabledByDefault: entry.enabledByDefault === true,
 						libs: [{
-							title: entryTitle,
+							title: entryTitleKey,
 							data: libraryData,
 							preload: entry.enabledByDefault === true
 						}]
@@ -721,11 +837,13 @@ Draw.loadPlugin(function(ui)
 			{
 				var sectionId = (typeof section.id === 'string' && section.id.trim().length > 0) ?
 					section.id.trim() : ('seaf_section_' + i);
-				var sectionTitle = (typeof section.title === 'string' && section.title.trim().length > 0) ?
+				var sectionTitleRaw = (typeof section.title === 'string' && section.title.trim().length > 0) ?
 					section.title.trim() : sectionId;
+				var sectionTitleKey = 'seafStencil.section.' + sectionId;
+				registerResourceFallback(sectionTitleKey, sectionTitleRaw);
 				loadedSections.push({
 					id: sectionId,
-					title: sectionTitle,
+					title: sectionTitleKey,
 					entries: loadedEntries,
 					_seafStencilSection: true
 				});
@@ -742,6 +860,7 @@ Draw.loadPlugin(function(ui)
 		{
 			sidebar.updateEntries();
 		}
+		applySeafStencilVisibilityPolicy(sidebar, loadedSections);
 
 		for (var s = 0; s < loadedSections.length; s++)
 		{
