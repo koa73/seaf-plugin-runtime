@@ -150,6 +150,7 @@ UI‑плагин формирует `REQUEST.payload` и может добав�
 | `fields[].fileDialog` | `object` | Параметры системного file dialog для `filePicker` |
 | `fields[].syncFrom` | `string` | Опционально: `envKey` поля-источника для автосинхронизации значения |
 | `fields[].disableWhen` | `object` | Опционально: условие блокировки поля (`{envKey, equals}`) |
+| `fields[].helpText` | `string` | Опционально: текст подсказки для иконки `?` рядом с label поля |
 
 ### Поддерживаемые inputMethod
 
@@ -167,6 +168,7 @@ UI‑плагин формирует `REQUEST.payload` и может добав�
 - `Use same output file` -> `useSameOutputFile` (`checkbox`)
 - `Output SEAF file` -> `outputSeafFile` (`text`)
 - `Plugin logging` -> `pluginLogLevel` (`list`, options: `none|info|debug`)
+- Для любого поля можно задать `helpText`, чтобы показать tooltip-иконку `?` рядом с подписью.
 
 UX-правило:
 - если `useSameOutputFile=true`, поле `outputSeafFile` синхронизируется со значением `inputSeafFile` и блокируется для редактирования;

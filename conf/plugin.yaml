@@ -3,7 +3,7 @@ plugin:
   id: seaf_plugin
   name: SEAF Plugin
   description: Dynamic menu integration with Python scripts
-  runtimeVersion: 0.2.10
+  runtimeVersion: 0.2.11
 python:
   executable: python3
   scriptsDir: ../python/scripts
@@ -45,6 +45,7 @@ commands:
         - label: Company prefix
           envKey: companyPrefix
           inputMethod: text
+          helpText: "Префикс для именования объектов модели SEAF"
         - label: Input SEAF file
           envKey: inputSeafFile
           inputMethod: filePicker

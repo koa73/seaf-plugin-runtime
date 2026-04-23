@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.2.10
+ * Runtime script version: 0.2.11
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -596,15 +596,51 @@ Draw.loadPlugin(function(ui)
 		var fieldControls = {};
 		var fieldByKey = {};
 		var applyFieldRelations = function(){};
-		var createRow = function(labelText)
+		var createRow = function(labelText, field)
 		{
 			var row = document.createElement('div');
 			row.style.marginBottom = '10px';
+			var labelWrap = document.createElement('div');
+			labelWrap.style.display = 'inline-flex';
+			labelWrap.style.alignItems = 'center';
+			labelWrap.style.gap = '4px';
+			labelWrap.style.marginBottom = '4px';
 			var label = document.createElement('div');
 			label.style.fontWeight = 'bold';
-			label.style.marginBottom = '4px';
 			label.textContent = labelText;
-			row.appendChild(label);
+			labelWrap.appendChild(label);
+			var helpText = (field && typeof field.helpText === 'string') ? field.helpText.trim() : '';
+			if (helpText.length > 0)
+			{
+				if (typeof Editor !== 'undefined' && Editor != null && typeof Editor.helpImage === 'string' && Editor.helpImage.length > 0)
+				{
+					var helpIcon = document.createElement('img');
+					helpIcon.setAttribute('src', Editor.helpImage);
+					helpIcon.setAttribute('title', helpText);
+					helpIcon.setAttribute('aria-label', helpText);
+					helpIcon.className = 'geHelpIcon';
+					labelWrap.appendChild(helpIcon);
+				}
+				else
+				{
+					var helpFallback = document.createElement('span');
+					helpFallback.textContent = '?';
+					helpFallback.setAttribute('title', helpText);
+					helpFallback.setAttribute('aria-label', helpText);
+					helpFallback.style.display = 'inline-block';
+					helpFallback.style.width = '14px';
+					helpFallback.style.height = '14px';
+					helpFallback.style.lineHeight = '14px';
+					helpFallback.style.textAlign = 'center';
+					helpFallback.style.borderRadius = '50%';
+					helpFallback.style.border = '1px solid #909090';
+					helpFallback.style.fontSize = '10px';
+					helpFallback.style.fontWeight = 'bold';
+					helpFallback.style.cursor = 'help';
+					labelWrap.appendChild(helpFallback);
+				}
+			}
+			row.appendChild(labelWrap);
 			formBody.appendChild(row);
 			return row;
 		};
@@ -618,7 +654,7 @@ Draw.loadPlugin(function(ui)
 			}
 			fieldByKey[field.envKey] = field;
 
-			var row = createRow(field.label || field.envKey);
+			var row = createRow(field.label || field.envKey, field);
 			var method = field.inputMethod || 'text';
 			var currentValue = normalizeFieldValue(field, env[field.envKey]);
 			var input = null;

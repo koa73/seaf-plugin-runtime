@@ -78,6 +78,7 @@
 - Каждое поле явно связывается с `envKey` из `conf/env.yaml`.
 - Поддерживаемые типы полей: `text`, `list`, `filePicker`, `checkbox`, `radio`.
 - Текущий контракт полей: `companyPrefix`, `inputSeafFile`, `useSameOutputFile`, `outputSeafFile`, `pluginLogLevel`.
+- Для поля можно задать `helpText` и получить tooltip-иконку `?` рядом с его label в диалоге.
 - `Input SEAF file` реализован как `filePicker`: открывает системный навигатор и сохраняет выбранный путь в `env.yaml`.
 - Если `useSameOutputFile=true`, `outputSeafFile` автоматически копирует `inputSeafFile` и становится read-only/disabled.
 - Зависимость описывается декларативно в `configEditor.fields` через `syncFrom` и `disableWhen`, без жесткой привязки к конкретным env-ключам в renderer-коде.
