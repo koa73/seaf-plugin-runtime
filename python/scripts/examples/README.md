@@ -237,6 +237,40 @@
    - любой другой текст: `Echo: ...`;
    - пустой ввод: отдельное сообщение.
 
+## 7) `python_env_installer_terminal.py`
+
+### Что делает
+
+- Интерактивный ручной installer для fallback-сценария настройки Python-среды.
+- Проверяет runtime-пути, создает/переиспользует локальный `.venv`, при необходимости обновляет `pip` и ставит зависимости из `python/requirements.txt`.
+- Запускает preflight `import lib.io`.
+
+### Что получает на вход
+
+- Через env:
+  - `SEAF_RUNTIME_CONFIG_PATH` (обязателен) — путь к `conf/plugin.yaml`.
+- На основе этого пути скрипт вычисляет:
+  - `python_root`,
+  - `scripts_root`,
+  - `venv_path`,
+  - `requirements_path`.
+
+### Что возвращает
+
+- Это interactive terminal script, поэтому возвращает только код процесса:
+  - `0` — среда успешно подготовлена;
+  - `!=0` — ошибка любого шага.
+
+### Логика внутри скрипта
+
+1. Валидирует наличие `SEAF_RUNTIME_CONFIG_PATH`.
+2. Вычисляет пути runtime Python-дерева.
+3. Предлагает создать `.venv` (если нет).
+4. Опционально обновляет `pip`.
+5. Опционально ставит зависимости из `requirements.txt`.
+6. Проверяет `import lib.io` с `PYTHONPATH=scripts_root`.
+7. Печатает итоговый статус и инструкции.
+
 ## Содержимое примеров и соответствие пунктам меню
 
 - `SEAF Reload Document` -> `examples/success_reload.py`
@@ -245,6 +279,7 @@
 - `SEAF Failure Demo` -> `examples/failure_demo.py`
 - `SEAF Timeout Demo` -> `examples/timeout_demo.py`
 - `SEAF Interactive Terminal Demo` -> `examples/interactive_terminal_demo.py`
+- `Python Env Installer Terminal` -> `examples/python_env_installer_terminal.py`
 
 ## Практические замечания
 

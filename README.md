@@ -26,6 +26,7 @@
 - `conf/README.md` - документация формата `plugin.yaml`.
 - `python/scripts/examples/*.py` - Python entrypoint-скрипты команд full runtime (демо/примеры).
 - `python/scripts/lib/*` - общие Python-модули, которые импортируются entrypoint-скриптами.
+- `python/requirements.txt` - зависимости для автоматического bootstrap локального venv.
 - `python/scripts/README.md` - документация контракта скриптов и прогресса.
 - `python/scripts/lib/io/__init__.py` - общий helper layer для REQUEST/Response/progress в Python-скриптах.
 - `runtime/version.json` - версия full runtime.
@@ -71,7 +72,7 @@
 Для секции `SEAF` порядок элементов должен оставаться стабильным (в runtime asset):
 - `Edit Config`,
 - подменю `P41`,
-- подменю `Tools`,
+- подменю `Tools` (включая `Python Env Installer Terminal`),
 - подменю `Examples` (все пункты, начинающиеся с `SEAF ...`),
 - `Обновить плагин` (всегда второй с конца),
 - `SEAF Runtime v...` (всегда последний).
@@ -85,9 +86,12 @@
 - Текущий контракт полей: `companyPrefix`, `inputSeafFile`, `useSameOutputFile`, `outputSeafFile`, `pluginLogLevel`.
 - Для поля можно задать `helpText` и получить tooltip-иконку `?` рядом с его label в диалоге.
 - `Input SEAF file` реализован как `filePicker`: открывает системный навигатор и сохраняет выбранный путь в `env.yaml`.
+- После поля `Plugin logging` доступна кнопка `Open Python Env Installer Terminal` для ручного fallback.
 - Если `useSameOutputFile=true`, `outputSeafFile` автоматически копирует `inputSeafFile` и становится read-only/disabled.
 - Зависимость описывается декларативно в `configEditor.fields` через `syncFrom` и `disableWhen`, без жесткой привязки к конкретным env-ключам в renderer-коде.
 - При `Browse` для `inputSeafFile` поле `outputSeafFile` обновляется автоматически только при включенном `useSameOutputFile`.
+- Автоматическая настройка Python-среды (локальный venv + preflight импортов) выполняется в основном пути без popup при успехе.
+- При ошибке автоматической настройки показывается popup с диагностикой и рекомендацией запустить ручной installer.
 - При runtime update `env.yaml` обновляется инкрементально: локальные значения сохраняются для существующих ключей, новые ключи добавляются, отсутствующие в новой схеме ключи удаляются.
 - Уровень логирования пользователя задается через `env.pluginLogLevel` (`none|info|debug`), а блок `logging.*` в `plugin.yaml` используется как технический fallback.
 - Геометрия диалога рассчитывается по фактическому `scrollHeight` контейнера (без эвристического запаса), с симметричными отступами `8px` по всем сторонам.

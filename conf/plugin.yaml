@@ -3,9 +3,14 @@ plugin:
   id: seaf_plugin
   name: SEAF Plugin
   description: Dynamic menu integration with Python scripts
-  runtimeVersion: 0.2.12
+  runtimeVersion: 0.2.13
 python:
   executable: python3
+  useVenv: true
+  venvPath: ../python/.venv
+  requirementsFile: ../python/requirements.txt
+  requiredModules:
+    - lib.io
   scriptsDir: ../python/scripts
 logging:
   level: info
@@ -90,6 +95,26 @@ commands:
       includeCurrentPage: true
       arguments:
         demoMode: interactive_terminal
+  - id: seafPythonEnvInstallerTerminal
+    title: Python Env Installer Terminal
+    clientAction: interactiveTerminal
+    script: examples/python_env_installer_terminal.py
+    execution:
+      mode: interactive_terminal
+    menu:
+      main:
+        enabled: true
+        section: seaf
+        sectionTitle: SEAF
+        submenu: tools
+      context:
+        enabled: false
+        target: any
+    input:
+      includeDiagramXml: false
+      includeCurrentPage: false
+      arguments:
+        installerMode: manual
   - id: seafReloadDocument
     title: SEAF Reload Document
     menu:

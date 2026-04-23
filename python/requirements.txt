@@ -1,1 +1,3 @@
+# SEAF runtime Python dependencies.
+# Keep this file explicit and pinned when external libraries are added.
 # External dependencies are optional for demo scripts.

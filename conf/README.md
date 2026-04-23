@@ -29,6 +29,10 @@
 | Имя поля | Формат | Назначение |
 |---|---:|---|
 | `python.executable` | `string` | Команда/путь для запуска Python (например, `python3`). |
+| `python.useVenv` | `boolean` | Если `true`, runtime автоматически создает/использует локальный virtualenv. |
+| `python.venvPath` | `string` (relative path) | Путь к локальному virtualenv относительно `conf/plugin.yaml` (например, `../python/.venv`). |
+| `python.requirementsFile` | `string` (relative path) | Путь к requirements-файлу для автоматической установки зависимостей. |
+| `python.requiredModules` | `array<string>` | Список модулей для preflight-проверки импортов перед запуском команд. |
 | `python.scriptsDir` | `string` (relative path) | Каталог скриптов относительно `conf/plugin.yaml` (например, `../python/scripts`). В командах ниже поле `script` указывает файл **внутри этого каталога**. |
 
 ## `logging.*`
@@ -222,7 +226,7 @@ pluginLogLevel: "none"
 Текущая структура главного меню `SEAF`:
 - `Edit Config` (верхний уровень);
 - `P41` (подменю, сейчас пустое);
-- `Tools` (подменю, сейчас пустое);
+- `Tools` (подменю со служебными утилитами, включая installer terminal);
 - `Examples` (подменю с demo-командами);
 - `Обновить плагин`;
 - `SEAF Runtime v...`.
@@ -234,6 +238,10 @@ pluginLogLevel: "none"
 Для команд в `Examples` Python entrypoint-скрипты размещаются в подпапке:
 - `python/scripts/examples/*.py`
 - в `plugin.yaml` используются пути `script: examples/<name>.py`.
+
+Дополнительно:
+- в `SEAF -> Edit Config` после поля `Plugin logging` есть кнопка ручного fallback: `Open Python Env Installer Terminal`;
+- эта кнопка запускает `seafPythonEnvInstallerTerminal` (interactive terminal сценарий восстановления Python-среды).
 
 ## Режимы логирования и примеры для Python
 
