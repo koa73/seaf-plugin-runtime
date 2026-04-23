@@ -35,6 +35,21 @@
 | `python.requiredModules` | `array<string>` | Список модулей для preflight-проверки импортов перед запуском команд. |
 | `python.scriptsDir` | `string` (relative path) | Каталог скриптов относительно `conf/plugin.yaml` (например, `../python/scripts`). В командах ниже поле `script` указывает файл **внутри этого каталога**. |
 
+### Fallback without sudo
+
+Если в auto-bootstrap недоступен `ensurepip`/`venv` и нет прав `sudo`, используйте один из user-level сценариев:
+
+- `python.useVenv=true` + `python.executable=<user-python>` (pyenv/mamba/python в `$HOME`);
+- `python.useVenv=false` + `python.executable=<готовый интерпретатор из PyCharm .venv/bin/python>`.
+
+Практическая матрица:
+
+| Сценарий | Требует sudo | Рекомендация |
+|---|---:|---|
+| `apt install python3-venv` + локальный `.venv` | Да | Базовый путь для чистой Ubuntu/Debian |
+| User-level Python (pyenv/mamba) + `useVenv=true` | Нет | Предпочтительный путь без админ-прав |
+| Переиспользование PyCharm `.venv` + `useVenv=false` | Нет | Быстрый fallback для dev-среды |
+
 ## `logging.*`
 
 > Примечание: часть настроек логирования используется в UI‑плагине напрямую (например, `includePayload` влияет на то, будет ли UI отправлять payload в логи; при этом чувствительные ключи маскируются).

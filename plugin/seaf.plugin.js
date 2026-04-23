@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.2.13
+ * Runtime script version: 0.2.14
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -1494,6 +1494,9 @@ Draw.loadPlugin(function(ui)
 
 	async function ensurePythonEnvironmentAuto()
 	{
+		var installerCommand = getCommandById('seafPythonEnvInstallerTerminal');
+		var installerScript = installerCommand && typeof installerCommand.script === 'string' ?
+			installerCommand.script : null;
 		try
 		{
 			var result = await requestAsync({
@@ -1501,14 +1504,23 @@ Draw.loadPlugin(function(ui)
 				configPath: state.configPath,
 				source: 'plugin_init'
 			});
-			await writeLog('info', 'Python environment auto-bootstrap completed', result || {ok: true});
+			await writeLog('info', 'Python environment auto-bootstrap completed', Object.assign({
+				runtimeVersion: state.runtimeVersion || 'unknown',
+				configPath: state.configPath,
+				installerScript: installerScript
+			}, result || {ok: true}));
 		}
 		catch (e)
 		{
 			await writeLog('error', 'Python environment auto-bootstrap failed', {
-				error: e.message
+				error: e.message,
+				runtimeVersion: state.runtimeVersion || 'unknown',
+				configPath: state.configPath,
+				installerScript: installerScript
 			});
 			showError('SEAF Python environment setup failed: ' + e.message +
+				'\nRuntime: v' + (state.runtimeVersion || 'unknown') +
+				'\nConfig: ' + (state.configPath || 'unknown') +
 				'\nОткройте Edit Config и запустите Python Env Installer Terminal.');
 		}
 	}
@@ -1780,7 +1792,8 @@ Draw.loadPlugin(function(ui)
 
 			await writeLog('info', 'Plugin initialization started', {
 				configPath: state.configPath,
-				commandsCount: Array.isArray(state.config.commands) ? state.config.commands.length : 0
+				commandsCount: Array.isArray(state.config.commands) ? state.config.commands.length : 0,
+				runtimeVersion: state.runtimeVersion || 'unknown'
 			});
 			await ensurePythonEnvironmentAuto();
 
