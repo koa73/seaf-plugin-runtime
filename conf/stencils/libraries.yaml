@@ -1,9 +1,0 @@
-version: 1
-sections:
-  - id: seaf
-    title: SEAF
-    entries:
-      - id: seaf_p1
-        title: SEAF_P1
-        file: Р41.xml
-        enabledByDefault: false

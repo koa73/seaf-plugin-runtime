@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.2.17
+ * Runtime script version: 0.2.18
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -538,7 +538,7 @@ Draw.loadPlugin(function(ui)
 			return null;
 		}
 		var runtimeRoot = normalized.slice(0, normalized.length - suffix.length);
-		return joinPathFragments(runtimeRoot, 'conf', 'stencils', 'libraries.yaml');
+		return joinPathFragments(runtimeRoot, 'conf', 'stencils', 'libraries.json');
 	}
 
 	function parseLibrariesConfig(rawText)
@@ -551,6 +551,45 @@ Draw.loadPlugin(function(ui)
 
 		// YAML is a superset of JSON. We keep config JSON-compatible for stable parsing in renderer.
 		return JSON.parse(raw);
+	}
+
+	function validateLibrariesConfig(parsed)
+	{
+		if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed))
+		{
+			throw new Error('Stencils config must be an object');
+		}
+
+		if (!Array.isArray(parsed.sections))
+		{
+			throw new Error('Stencils config must contain sections[]');
+		}
+
+		for (var i = 0; i < parsed.sections.length; i++)
+		{
+			var section = parsed.sections[i];
+			if (section == null || typeof section !== 'object' || Array.isArray(section))
+			{
+				throw new Error('Invalid section at index ' + i);
+			}
+			if (!Array.isArray(section.entries))
+			{
+				throw new Error('Section "' + (section.id || i) + '" must contain entries[]');
+			}
+
+			for (var j = 0; j < section.entries.length; j++)
+			{
+				var entry = section.entries[j];
+				if (entry == null || typeof entry !== 'object' || Array.isArray(entry))
+				{
+					throw new Error('Invalid entry at section ' + i + ', index ' + j);
+				}
+				if (typeof entry.file !== 'string' || entry.file.trim().length === 0)
+				{
+					throw new Error('Entry "' + (entry.id || (i + ':' + j)) + '" must contain non-empty file');
+				}
+			}
+		}
 	}
 
 	function parseMxLibraryData(rawXml)
@@ -628,8 +667,9 @@ Draw.loadPlugin(function(ui)
 			encoding: 'utf8'
 		});
 		var parsedConfig = parseLibrariesConfig(configRaw) || {};
+		validateLibrariesConfig(parsedConfig);
 		var sections = Array.isArray(parsedConfig.sections) ? parsedConfig.sections : [];
-		var stencilsDir = configPath.replace(/[\\\/]libraries\.yaml$/i, '');
+		var stencilsDir = configPath.replace(/[\\\/]libraries\.json$/i, '');
 		var loadedSections = [];
 
 		for (var i = 0; i < sections.length; i++)
@@ -2048,6 +2088,27 @@ Draw.loadPlugin(function(ui)
 		}
 		catch (e)
 		{
+			try
+			{
+				await writeLog('error', 'Plugin initialization failed', {
+					error: e && e.message ? e.message : String(e),
+					stack: e && e.stack ? String(e.stack) : null,
+					configPath: state.configPath || null,
+					runtimeVersion: state.runtimeVersion || 'unknown'
+				});
+			}
+			catch (logErr)
+			{
+				try
+				{
+					console.error('SEAF plugin init writeLog failed', logErr);
+				}
+				catch (ignored2)
+				{
+					// ignore
+				}
+			}
+
 			showError('SEAF plugin initialization failed: ' + e.message);
 			try
 			{

@@ -245,21 +245,29 @@ pythonExecutable: ""
 ## Кастомные библиотеки фигур (`conf/stencils`)
 
 SEAF runtime поддерживает добавление библиотек фигур в окно `More Shapes` через отдельный конфиг:
-- `conf/stencils/libraries.yaml`
+- `conf/stencils/libraries.json`
 - файлы библиотек (`*.xml` с корнем `<mxlibrary>`) хранятся в той же папке `conf/stencils`.
 
-Формат `libraries.yaml`:
+Формат `libraries.json`:
 
-```yaml
-version: 1
-sections:
-  - id: seaf
-    title: SEAF
-    entries:
-      - id: seaf_p1
-        title: SEAF_P1
-        file: Р41.xml
-        enabledByDefault: false
+```json
+{
+  "version": 1,
+  "sections": [
+    {
+      "id": "seaf",
+      "title": "SEAF",
+      "entries": [
+        {
+          "id": "seaf_r41",
+          "title": "SEAF_Р41",
+          "file": "Р41.xml",
+          "enabledByDefault": false
+        }
+      ]
+    }
+  ]
+}
 ```
 
 Пояснения:
@@ -269,12 +277,13 @@ sections:
 - `enabledByDefault` — флаг preload палитры (опционально).
 
 Важно:
-- `libraries.yaml` читается в runtime-плагине на старте;
+- `libraries.json` читается в runtime-плагине на старте;
+- файл должен быть JSON-совместимым, т.к. в renderer используется `JSON.parse`;
 - XML-файл должен быть в формате draw.io `mxlibrary` (JSON-массив внутри тега `<mxlibrary>`);
 - ошибки чтения/парсинга отдельной библиотеки логируются, остальные библиотеки продолжают загружаться.
 
 Обновление перечня библиотек:
-- добавьте/измените `libraries.yaml` и `*.xml` в `seaf-plugin-runtime/conf/stencils`;
+- добавьте/измените `libraries.json` и `*.xml` в `seaf-plugin-runtime/conf/stencils`;
 - соберите новый runtime asset (`release/runtime/build-runtime.sh`);
 - обновите runtime через `SEAF -> Обновить плагин`;
 - пересборка desktop-пакета для этого сценария не требуется.

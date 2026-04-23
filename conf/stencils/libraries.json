@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "sections": [
+    {
+      "id": "seaf",
+      "title": "SEAF",
+      "entries": [
+        {
+          "id": "seaf_r41",
+          "title": "SEAF_Р41",
+          "file": "Р41.xml",
+          "enabledByDefault": false
+        }
+      ]
+    }
+  ]
+}
