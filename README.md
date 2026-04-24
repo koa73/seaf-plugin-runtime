@@ -92,7 +92,7 @@
 - Поля формы задаются декларативно через composed config; источник `seafEditConfig` хранится в `conf/main_menu.yaml` и подключается через `conf/plugin.yaml`.
 - Каждое поле явно связывается с `envKey` из `conf/env.yaml`.
 - Поддерживаемые типы полей: `text`, `list`, `filePicker`, `checkbox`, `radio`.
-- Текущий контракт полей: `companyPrefix`, `inputSeafFile`, `useSameOutputFile`, `outputSeafFile`, `pluginLogLevel`, `pythonExecutable`.
+- Текущий контракт полей: `companyPrefix`, `inputSeafFile`, `useSameOutputFile`, `outputSeafFile`, `pluginLogLevel`, `scriptLogLevel`, `pythonExecutable`.
 - Для поля можно задать `helpText` и получить tooltip-иконку `?` рядом с его label в диалоге.
 - `Input SEAF file` реализован как `filePicker`: открывает системный навигатор и сохраняет выбранный путь в `env.yaml`.
 - Поле `Python executable` задает интерпретатор для запуска Python-команд и установки зависимостей.
@@ -119,7 +119,8 @@
 - Event payload для Python handlers обогащен полями `objectId`, `geometry(x,y,width,height)` и `data` (атрибуты объекта по модели `Edit Data`).
 - Для modify дополнительно передаются `valueBefore/valueAfter` и `dataBefore/dataAfter`.
 - В payload команд контекстного меню (`selection[]`) передаются те же ключевые поля: `objectId`, `geometry`, `data`.
-- Примерные Python handlers логируют извлеченные поля через `stderr`; эти записи попадают в `seaf-plugin.log`.
+- Примерные Python handlers логируют извлеченные поля через `stderr`; поддержан протокол `SEAF_ERROR`/`SEAF_INFO`/`SEAF_LOG`.
+- В `seaf-plugin.log` записи получают префикс `[PYTHON][script.py][ERROR|INFO]`; `INFO` пишется только при `env.scriptLogLevel=info`, `ERROR` — всегда.
 - Значения `handlers` в `events.yaml` (например `seafStencilSpecificModify`) — это command id composed config; реальные скрипты задаются в `python/scripts/examples/events/*.py` через скрытые commands в `events.yaml`.
 - Детальная спецификация конфига и mapping `handler id -> command -> script` описаны в `conf/README.md`, а подробное поведение скриптов — в `python/scripts/examples/events/README.md`.
 

@@ -5,6 +5,14 @@ import sys
 from lib.io import read_request, write_response
 
 
+def _emit_info(payload: dict) -> None:
+    print(f"SEAF_INFO {json.dumps(payload, ensure_ascii=False)}", file=sys.stderr)
+
+
+def _emit_error(message: str) -> None:
+    print(f"SEAF_ERROR {message}", file=sys.stderr)
+
+
 def _log_items(handler: str, event: dict, items: list) -> None:
     page = event.get("page") or {}
     for item in items:
@@ -26,20 +34,24 @@ def _log_items(handler: str, event: dict, items: list) -> None:
             "dataBefore": item.get("dataBefore") or {},
             "dataAfter": item.get("dataAfter") or {},
         }
-        print(json.dumps(debug_row, ensure_ascii=False), file=sys.stderr)
+        _emit_info(debug_row)
 
 
 def main() -> int:
-    req = read_request()
-    payload = req.get("payload") or {}
-    event = payload.get("event") or {}
-    items = event.get("items") or []
-    _log_items("specific_modify", event, items)
-    return write_response(
-        status="success",
-        message=f"specific_modify processed: {len(items)}",
-        payload={"handler": "specific_modify", "count": len(items)},
-    )
+    try:
+        req = read_request()
+        payload = req.get("payload") or {}
+        event = payload.get("event") or {}
+        items = event.get("items") or []
+        _log_items("specific_modify", event, items)
+        return write_response(
+            status="success",
+            message=f"specific_modify processed: {len(items)}",
+            payload={"handler": "specific_modify", "count": len(items)},
+        )
+    except Exception as exc:
+        _emit_error(f"specific_modify failed: {exc}")
+        return write_response(status="error", message=f"specific_modify failed: {exc}", payload={"handler": "specific_modify"})
 
 
 if __name__ == "__main__":

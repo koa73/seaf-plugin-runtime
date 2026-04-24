@@ -76,6 +76,7 @@
 | `useSameOutputFile` | `boolean` | Использовать входной файл как выходной |
 | `outputSeafFile` | `string` | Выходной файл |
 | `pluginLogLevel` | `string` | `none/info/debug` (переопределяет `logging.level`) |
+| `scriptLogLevel` | `string` | Включает INFO-логирование сообщений Python скриптов (`none/info`) |
 | `pythonExecutable` | `string` | Путь к Python-бинарнику или каталогу `.venv` |
 
 ---
@@ -187,6 +188,16 @@ Compose-loader объединяет их в финальный `commands[]`.
 2. проверьте эффективный `pluginLogLevel` из `env.yaml` (он приоритетнее `plugin.yaml`),
 3. перезапустите draw.io после обновления runtime.
 
+### Логи из Python скриптов
+
+- Main-process поддерживает stderr-протокол:
+  - `SEAF_ERROR <message>` — всегда пишется в `seaf-plugin.log` как error;
+  - `SEAF_INFO <message>` — пишется только если `env.scriptLogLevel=info`;
+  - `SEAF_LOG {\"level\":\"error|info\",\"message\":\"...\",\"data\":...}`.
+- В log сообщение получает префикс:
+  - `[PYTHON][<script_name>][ERROR] ...`
+  - `[PYTHON][<script_name>][INFO] ...`
+
 ---
 
 ## 8) Примеры конфигов
@@ -197,7 +208,7 @@ Compose-loader объединяет их в финальный `commands[]`.
 version: 1
 plugin:
   id: seaf_plugin
-  runtimeVersion: 0.3.3
+  runtimeVersion: 0.3.4
 events:
   configFile: events.yaml
 includes:

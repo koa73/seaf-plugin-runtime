@@ -39,6 +39,13 @@ commands:
             - none
             - info
             - debug
+        - label: Script info logging
+          envKey: scriptLogLevel
+          inputMethod: list
+          helpText: "Включает INFO-сообщения из Python скриптов в seaf-plugin.log. ERROR выводится всегда."
+          options:
+            - none
+            - info
         - label: Python executable
           envKey: pythonExecutable
           inputMethod: filePicker

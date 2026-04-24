@@ -103,3 +103,15 @@ Event processor передает события в поле `REQUEST.payload.eve
 Если событие не ушло в python, смотрите строки:
 - `Stencil event item filtered out` (причина в поле `reason`);
 - `Stencil event batch produced no dispatch groups`.
+
+## Протокол stderr для логирования в plugin log
+
+- Для ошибок используйте:
+  - `SEAF_ERROR <message>`
+- Для информационных сообщений:
+  - `SEAF_INFO <message>`
+- Расширенный вариант:
+  - `SEAF_LOG {"level":"info|error","message":"...","data":{...}}`
+
+Main-process добавляет префикс вида `[PYTHON][script.py][ERROR|INFO]`.
+`INFO`-сообщения пишутся только при включенном `env.scriptLogLevel=info`.
