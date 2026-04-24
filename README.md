@@ -1,4 +1,4 @@
-# SEAF Plugin Runtime
+# SEAF Plugin Runtime -
 
 Репозиторий runtime-дополнений SEAF для draw.io desktop.
 
