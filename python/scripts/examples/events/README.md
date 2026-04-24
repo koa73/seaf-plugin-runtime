@@ -22,8 +22,9 @@
 Все 6 скриптов используют одинаковый шаблон:
 1. Читают входной `REQUEST` через `lib.io.read_request()`.
 2. Извлекают `payload.event.items`.
-3. Возвращают `status=success` через `lib.io.write_response(...)`.
-4. В `payload` ответа возвращают:
+3. Пишут диагностику по каждому item в `stderr` (попадает в plugin log).
+4. Возвращают `status=success` через `lib.io.write_response(...)`.
+5. В `payload` ответа возвращают:
    - имя обработчика (`handler`),
    - количество элементов (`count`).
 
@@ -55,19 +56,23 @@ Event processor передает события в поле `REQUEST.payload.eve
 ### `items[]` для `add/remove`
 
 - `id`
+- `objectId` (алиас `id`)
 - `operation`
 - `label`
 - `schema`
 - `style`
 - `styleText`
-- `geometry`
+- `geometry` (`x`, `y`, `width`, `height`)
+- `data` (атрибуты объекта по модели `Edit Data`)
 - `value`
 
 ### `items[]` для `modify`
 
 Дополнительно к полям выше:
-- `dataBefore`: данные объекта до `Edit Data -> Apply`
-- `dataAfter`: данные объекта после `Edit Data -> Apply`
+- `valueBefore`: исходное значение объекта до `Edit Data -> Apply`
+- `valueAfter`: новое значение объекта после `Edit Data -> Apply`
+- `dataBefore`: атрибуты объекта до `Edit Data -> Apply`
+- `dataAfter`: атрибуты объекта после `Edit Data -> Apply`
 
 ## По скриптам отдельно
 
@@ -93,6 +98,7 @@ Event processor передает события в поле `REQUEST.payload.eve
 3. `Stencil event routing selected` с `ruleId`, `matchType` (`exact|wildcard|all`) и `commandId`  
 4. `Stencil event batch dispatched`  
 5. `Stencil event batch handler completed` (для `sync`) или `Stencil event async dispatch accepted`/`Stencil event async handler completed` (для `async`)  
+6. Строки из Python `stderr` с `objectId`, `pageId`, `pageName`, `geometry`, `data`  
 
 Если событие не ушло в python, смотрите строки:
 - `Stencil event item filtered out` (причина в поле `reason`);

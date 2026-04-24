@@ -197,7 +197,7 @@ Compose-loader объединяет их в финальный `commands[]`.
 version: 1
 plugin:
   id: seaf_plugin
-  runtimeVersion: 0.3.2
+  runtimeVersion: 0.3.3
 events:
   configFile: events.yaml
 includes:
@@ -244,6 +244,9 @@ rules:
 ## Диагностика matching
 
 - `item.schema` извлекается в первую очередь из `cell.value.schema`, затем fallback на `style.shape`.
+- `item.data` формируется из атрибутов объекта (`cell.value`) по модели `Edit Data`.
+- `item.objectId` дублирует `item.id` для унифицированного контракта Python handlers.
+- `item.geometry` передается в нормализованном виде: `x`, `y`, `width`, `height`.
 - Если `schema` пустой, событие фильтруется с reason `schema_missing`.
 - Для wildcard используйте `*`, например `seaf.company.ta.*`.
 
@@ -263,3 +266,12 @@ rules:
 - Для одного события выбирается только **одно** правило (без повторного dispatch по нескольким rules).
 - Если совпали несколько правил **одинаковой специфичности** (например, два wildcard), применяется то, которое раньше в `rules[]`.
 - Рекомендуемый порядок в `rules[]` для читаемости: `exact -> wildcard -> all`.
+
+## Payload contract (event + context commands)
+
+- Event processor передает enriched `payload.event.items[]`:
+  - `id`, `objectId`, `schema`, `geometry`, `data`, `value`;
+  - для modify также: `valueBefore`, `valueAfter`, `dataBefore`, `dataAfter`.
+- Команды контекстного меню получают те же ключевые поля в `payload.selection[]`:
+  - `id`, `objectId`, `geometry`, `data`.
+- Это позволяет Python-скриптам использовать единый контракт для event и context сценариев.

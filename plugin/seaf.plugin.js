@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.3.2
+ * Runtime script version: 0.3.3
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -969,17 +969,120 @@ Draw.loadPlugin(function(ui)
 		for (var i = 0; i < cells.length; i++)
 		{
 			var cell = cells[i];
+			var geometry = null;
+			try
+			{
+				geometry = graph.getCellGeometry(cell);
+			}
+			catch (e)
+			{
+				geometry = null;
+			}
 			out.push({
 				id: cell.id,
+				objectId: cell.id || null,
 				isVertex: graph.model.isVertex(cell),
 				isEdge: graph.model.isEdge(cell),
 				label: graph.convertValueToString(cell),
 				style: sanitizeForIpc(graph.getCellStyle(cell)),
-				geometry: sanitizeForIpc(graph.getCellGeometry(cell))
+				geometry: buildGeometryPayload(geometry),
+				data: extractEditableDataFromCell(cell, graph)
 			});
 		}
 
 		return out;
+	}
+
+	function buildGeometryPayload(geometry)
+	{
+		var g = geometry || null;
+		return {
+			x: g && Number.isFinite(g.x) ? Number(g.x) : null,
+			y: g && Number.isFinite(g.y) ? Number(g.y) : null,
+			width: g && Number.isFinite(g.width) ? Number(g.width) : null,
+			height: g && Number.isFinite(g.height) ? Number(g.height) : null
+		};
+	}
+
+	function extractEditableDataFromValue(value, graph, cell)
+	{
+		var out = {};
+		var isLayer = false;
+		var allowLabel = false;
+		try
+		{
+			isLayer = !!(graph && graph.model && typeof graph.model.isLayer === 'function' && cell && graph.model.isLayer(cell));
+		}
+		catch (e)
+		{
+			isLayer = false;
+		}
+		try
+		{
+			var currentStyle = (graph && typeof graph.getCurrentCellStyle === 'function' && cell) ? (graph.getCurrentCellStyle(cell) || {}) : {};
+			allowLabel = (currentStyle && String(currentStyle.metaEdit || '') === '1') ||
+				(typeof Graph !== 'undefined' && Graph != null && Graph.translateDiagram === true) ||
+				isLayer;
+		}
+		catch (e)
+		{
+			allowLabel = false;
+		}
+
+		if (value && typeof value.getAttribute === 'function' && value.attributes)
+		{
+			var attrs = value.attributes;
+			for (var i = 0; i < attrs.length; i++)
+			{
+				var attr = attrs[i];
+				var name = attr && typeof attr.nodeName === 'string' ? attr.nodeName : '';
+				if (!name || name === 'placeholders')
+				{
+					continue;
+				}
+				if (name === 'label' && !allowLabel)
+				{
+					continue;
+				}
+				out[name] = attr && attr.nodeValue != null ? String(attr.nodeValue) : '';
+			}
+			return out;
+		}
+
+		if (value && typeof value === 'object')
+		{
+			for (var key in value)
+			{
+				if (!Object.prototype.hasOwnProperty.call(value, key))
+				{
+					continue;
+				}
+				if (key === 'placeholders')
+				{
+					continue;
+				}
+				if (key === 'label' && !allowLabel)
+				{
+					continue;
+				}
+				var v = value[key];
+				if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean')
+				{
+					out[key] = String(v);
+				}
+			}
+		}
+
+		return out;
+	}
+
+	function extractEditableDataFromCell(cell, graph)
+	{
+		if (!cell)
+		{
+			return {};
+		}
+		return extractEditableDataFromValue(cell.value, graph, cell);
 	}
 
 	function parseStyleString(styleValue)
@@ -1075,13 +1178,15 @@ Draw.loadPlugin(function(ui)
 		}
 		return {
 			id: cell.id || null,
+			objectId: cell.id || null,
 			operation: operation || 'unknown',
 			label: graph.convertValueToString(cell),
 			schema: meta.schema,
 			schemaSource: meta.schemaSource,
 			style: sanitizeForIpc(graph.getCellStyle(cell)),
 			styleText: meta.styleText,
-			geometry: sanitizeForIpc(geom),
+			geometry: buildGeometryPayload(geom),
+			data: extractEditableDataFromCell(cell, graph),
 			value: sanitizeForIpc(cell.value)
 		};
 	}
@@ -1473,8 +1578,13 @@ Draw.loadPlugin(function(ui)
 			if (state.editDataSessionActive === true && change.cell && Object.prototype.hasOwnProperty.call(change, 'value'))
 			{
 				var beforeKey = change.cell.id || '';
-				var beforeValue = state.editDataBeforeByCell[beforeKey];
+				var beforeState = state.editDataBeforeByCell[beforeKey];
+				var beforeValue = (beforeState && typeof beforeState === 'object' && Object.prototype.hasOwnProperty.call(beforeState, 'value')) ?
+					beforeState.value : beforeState;
+				var beforeData = (beforeState && typeof beforeState === 'object' && Object.prototype.hasOwnProperty.call(beforeState, 'data')) ?
+					beforeState.data : {};
 				var afterValue = sanitizeForIpc(change.value);
+				var afterData = extractEditableDataFromValue(change.value, graph, change.cell);
 				var beforeJson = JSON.stringify(beforeValue);
 				var afterJson = JSON.stringify(afterValue);
 				if (beforeJson !== afterJson)
@@ -1486,8 +1596,10 @@ Draw.loadPlugin(function(ui)
 						if (!Object.prototype.hasOwnProperty.call(seen, mKey))
 						{
 							seen[mKey] = true;
-							modifySnapshot.dataBefore = beforeValue;
-							modifySnapshot.dataAfter = afterValue;
+							modifySnapshot.valueBefore = beforeValue;
+							modifySnapshot.valueAfter = afterValue;
+							modifySnapshot.dataBefore = beforeData;
+							modifySnapshot.dataAfter = afterData;
 							result.push(modifySnapshot);
 						}
 					}
@@ -1557,7 +1669,10 @@ Draw.loadPlugin(function(ui)
 					var cell = selected[i];
 					if (cell && cell.id)
 					{
-						state.editDataBeforeByCell[cell.id] = sanitizeForIpc(cell.value);
+						state.editDataBeforeByCell[cell.id] = {
+							value: sanitizeForIpc(cell.value),
+							data: extractEditableDataFromCell(cell, graph)
+						};
 					}
 				}
 			}

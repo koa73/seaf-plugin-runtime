@@ -116,6 +116,10 @@
 - Маршрутизация событий идет по `rules` из `events.yaml` в рамках `listId` и `schema`-паттернов: приоритет `exact > wildcard > all`.
 - `rule.schema` поддерживает 3 режима: точное значение (например `seaf.company.ta.services.dc_azs`), wildcard с `*` (например `seaf.company.ta.*`) и `all`.
 - `rule.execution` задает режим вызова handler: `sync` (ожидание ответа) или `async` (fire-and-forget с отдельным trace в логе).
+- Event payload для Python handlers обогащен полями `objectId`, `geometry(x,y,width,height)` и `data` (атрибуты объекта по модели `Edit Data`).
+- Для modify дополнительно передаются `valueBefore/valueAfter` и `dataBefore/dataAfter`.
+- В payload команд контекстного меню (`selection[]`) передаются те же ключевые поля: `objectId`, `geometry`, `data`.
+- Примерные Python handlers логируют извлеченные поля через `stderr`; эти записи попадают в `seaf-plugin.log`.
 - Значения `handlers` в `events.yaml` (например `seafStencilSpecificModify`) — это command id composed config; реальные скрипты задаются в `python/scripts/examples/events/*.py` через скрытые commands в `events.yaml`.
 - Детальная спецификация конфига и mapping `handler id -> command -> script` описаны в `conf/README.md`, а подробное поведение скриптов — в `python/scripts/examples/events/README.md`.
 
