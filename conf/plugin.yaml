@@ -3,7 +3,7 @@ plugin:
   id: seaf_plugin
   name: SEAF Plugin
   description: Dynamic menu integration with Python scripts
-  runtimeVersion: 0.2.21
+  runtimeVersion: 0.2.22
 python:
   executable: python3
   requirementsFile: ../python/requirements.txt
@@ -81,6 +81,7 @@ commands:
             title: Select Python executable
             properties:
               - openFile
+              - openDirectory
   - id: seafInteractiveTerminalDemo
     title: SEAF Interactive Terminal Demo
     clientAction: interactiveTerminal

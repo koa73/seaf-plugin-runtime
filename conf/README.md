@@ -34,7 +34,10 @@
 | `python.scriptsDir` | `string` (relative path) | Каталог скриптов относительно `conf/plugin.yaml` (например, `../python/scripts`). В командах ниже поле `script` указывает файл **внутри этого каталога**. |
 
 `env.yaml` дополнительно хранит пользовательский путь `pythonExecutable`, который задается в `SEAF -> Edit Config`.
-Именно этот интерпретатор используется для запуска скриптов и `pip install -r requirements.txt`.
+Поддерживаются оба формата:
+- путь к бинарнику интерпретатора (например, `/usr/bin/python3`, `/path/.venv/bin/python`);
+- путь к каталогу virtual environment (например, `/path/.venv`) — runtime автоматически резолвит его до интерпретатора (`bin/python`, `bin/python3`, `Scripts/python.exe`).
+Именно резолвленный интерпретатор используется для запуска скриптов и `pip install -r requirements.txt`.
 
 ## `logging.*`
 
@@ -174,7 +177,7 @@ UI‑плагин формирует `REQUEST.payload` и может добав�
 - `Use same output file` -> `useSameOutputFile` (`checkbox`)
 - `Output SEAF file` -> `outputSeafFile` (`text`)
 - `Plugin logging` -> `pluginLogLevel` (`list`, options: `none|info|debug`)
-- `Python executable` -> `pythonExecutable` (`filePicker`)
+- `Python executable` -> `pythonExecutable` (`filePicker`, выбор файла или каталога venv)
 - Для любого поля можно задать `helpText`, чтобы показать tooltip-иконку `?` рядом с подписью.
 
 UX-правило:
@@ -309,6 +312,7 @@ SEAF runtime поддерживает добавление библиотек ф
 
 Дополнительно:
 - при первом запуске runtime пытается найти системный Python (`python3`, затем `python`) и сохраняет выбор в `env.yaml` (`pythonExecutable`);
+- если в `pythonExecutable` задан каталог venv, runtime автоматически пробует `bin/python`, `bin/python3`, `Scripts/python.exe`, `Scripts/python`, `python.exe`;
 - если Python не найден, пользователю показывается инструкция установить Python и указать путь через `Edit Config`.
 
 ## Режимы логирования и примеры для Python
