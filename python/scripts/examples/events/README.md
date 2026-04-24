@@ -83,3 +83,17 @@ Event processor передает события в поле `REQUEST.payload.eve
   - fallback-обработчик `remove` для правила `all`.
 - `all_modify.py`:
   - fallback-обработчик `modify` для правила `all`.
+
+## Debug trace шаблон для `all_add`
+
+При `pluginLogLevel=debug` ожидаемая последовательность в `seaf-plugin.log`:
+
+1. `Stencil model change detected`  
+2. `Stencil event batch queued`  
+3. `Stencil event routing selected` с `commandId=seafStencilAllAdd` (или specific, если есть match)  
+4. `Stencil event batch dispatched`  
+5. `Stencil event batch handler completed`  
+
+Если событие не ушло в python, смотрите строки:
+- `Stencil event item filtered out` (причина в поле `reason`);
+- `Stencil event batch produced no dispatch groups`.

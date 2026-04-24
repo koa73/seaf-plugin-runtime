@@ -5,7 +5,7 @@ defaultRuleId: "all"
 stencilLists:
   - id: SEAF_Р41
     prefixes:
-      - "seaf.r41."
+      - "seaf.company."
 rules:
   - id: specific_r41
     listId: SEAF_Р41
