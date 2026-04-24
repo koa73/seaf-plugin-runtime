@@ -15,6 +15,8 @@
 - `examples/failure_demo.py` — пример ошибки (error‑response).
 - `examples/timeout_demo.py` — пример «долгого» выполнения (для демонстрации таймаута).
 - `examples/interactive_terminal_demo.py` — пример интерактивного terminal-режима с `print(...)`, `input(...)` и симуляцией exception по подтверждению `Y/N`.
+- `examples/events/*.py` — примеры batch-обработчиков событий стенсилов (`specific` и `all` для `add/remove/modify`).
+- подробная документация по event handlers: [`examples/events/README.md`](examples/events/README.md).
 - `lib/io/__init__.py` — общий helper layer для чтения REQUEST, каноничного Response и `SEAF_PROGRESS`.
 
 ## 1) Структура `REQUEST` (stdin)
@@ -259,4 +261,33 @@ try {
 - команда `exception` (также `error`/`fail`) запрашивает подтверждение `Y/N`;
 - при `Y` скрипт симулирует исключение и завершается с ошибкой;
 - draw.io закрывает terminal-окно, снимает блокировку editor и показывает сообщение об ошибке.
+
+## 8) Stencil events contract
+
+Auto-event processor передает event batch в Python handlers через `REQUEST.payload.event`.
+
+Источник:
+- `event.yaml.handlers.<event>` -> `plugin.yaml.commands[id]` -> `script`.
+
+Это означает:
+- значения вроде `seafStencilSpecificModify` — это **command id**, а не Python/JS функция;
+- реальный файл скрипта определяется в `plugin.yaml` полем `commands[].script`.
+
+Формат `REQUEST.payload.event`:
+
+| Поле | Формат | Назначение |
+|---|---:|---|
+| `eventType` | `add \| remove \| modify` | Тип события |
+| `ruleId` | `string` | matched rule из `event.yaml` |
+| `listId` | `string` | matched stencil list |
+| `txId` | `string` | идентификатор транзакции модели |
+| `timestamp` | `string` | время события |
+| `page` | `object` | текущая страница `{id,name}` |
+| `items` | `array<object>` | затронутые объекты |
+
+`items[]` обычно содержит:
+- `id`, `operation`, `label`, `schema`, `style`, `styleText`, `geometry`, `value`.
+
+Для `eventType=modify` добавляются:
+- `dataBefore`, `dataAfter`.
 

@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.2.22
+ * Runtime script version: 0.3.0
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -27,7 +27,13 @@ Draw.loadPlugin(function(ui)
 			extendedDebug: false,
 			includePayload: false
 		},
-		seafStencilPaletteIds: []
+		seafStencilPaletteIds: [],
+		eventConfig: null,
+		stencilModelListenerInstalled: false,
+		stencilEventDispatchInFlight: false,
+		pendingStencilBatches: [],
+		editDataSessionActive: false,
+		editDataBeforeByCell: {}
 	};
 
 	function requestAsync(msg)
@@ -974,6 +980,420 @@ Draw.loadPlugin(function(ui)
 		}
 
 		return out;
+	}
+
+	function parseStyleString(styleValue)
+	{
+		var out = {};
+		var text = (typeof styleValue === 'string') ? styleValue : '';
+		if (text.length === 0)
+		{
+			return out;
+		}
+		var parts = text.split(';');
+		for (var i = 0; i < parts.length; i++)
+		{
+			var item = parts[i];
+			if (typeof item !== 'string' || item.length === 0)
+			{
+				continue;
+			}
+			var idx = item.indexOf('=');
+			if (idx <= 0)
+			{
+				continue;
+			}
+			var key = item.substring(0, idx).trim();
+			var value = item.substring(idx + 1).trim();
+			if (key.length > 0)
+			{
+				out[key] = value;
+			}
+		}
+		return out;
+	}
+
+	function extractShapeSchema(cell, graph)
+	{
+		var styleText = '';
+		try
+		{
+			styleText = (cell && typeof cell.style === 'string') ? cell.style :
+				(graph && graph.model && typeof graph.model.getStyle === 'function') ? (graph.model.getStyle(cell) || '') : '';
+		}
+		catch (e)
+		{
+			styleText = '';
+		}
+		var parsedStyle = parseStyleString(styleText);
+		var shape = (typeof parsedStyle.shape === 'string') ? parsedStyle.shape.trim() : '';
+		return {
+			schema: shape,
+			styleText: styleText
+		};
+	}
+
+	function buildStencilItemSnapshot(cell, operation)
+	{
+		var graph = ui && ui.editor ? ui.editor.graph : null;
+		if (!graph || !cell)
+		{
+			return null;
+		}
+		var meta = extractShapeSchema(cell, graph);
+		var geom = null;
+		try
+		{
+			geom = graph.getCellGeometry(cell);
+		}
+		catch (e)
+		{
+			geom = null;
+		}
+		return {
+			id: cell.id || null,
+			operation: operation || 'unknown',
+			label: graph.convertValueToString(cell),
+			schema: meta.schema,
+			style: sanitizeForIpc(graph.getCellStyle(cell)),
+			styleText: meta.styleText,
+			geometry: sanitizeForIpc(geom),
+			value: sanitizeForIpc(cell.value)
+		};
+	}
+
+	function getEventConfigListsMap()
+	{
+		var map = {};
+		var cfg = state.eventConfig && state.eventConfig.events ? state.eventConfig.events : null;
+		var lists = cfg && Array.isArray(cfg.stencilLists) ? cfg.stencilLists : [];
+		for (var i = 0; i < lists.length; i++)
+		{
+			var list = lists[i];
+			if (list && typeof list.id === 'string')
+			{
+				map[list.id] = Array.isArray(list.prefixes) ? list.prefixes.slice() : [];
+			}
+		}
+		return map;
+	}
+
+	function matchEventRule(item)
+	{
+		var cfg = state.eventConfig && state.eventConfig.events ? state.eventConfig.events : null;
+		if (!cfg || cfg.enabled === false)
+		{
+			return null;
+		}
+		var schemaPrefix = (typeof cfg.schemaPrefix === 'string' && cfg.schemaPrefix.length > 0) ? cfg.schemaPrefix : 'seaf.';
+		var schema = item && typeof item.schema === 'string' ? item.schema : '';
+		if (schema.indexOf(schemaPrefix) !== 0)
+		{
+			return null;
+		}
+		var listsMap = getEventConfigListsMap();
+		var rules = Array.isArray(cfg.rules) ? cfg.rules : [];
+		var fallbackRule = null;
+		for (var i = 0; i < rules.length; i++)
+		{
+			var rule = rules[i];
+			if (!rule || typeof rule !== 'object')
+			{
+				continue;
+			}
+			if (rule.all === true)
+			{
+				fallbackRule = rule;
+				continue;
+			}
+			if (typeof rule.listId !== 'string' || rule.listId.trim().length === 0)
+			{
+				continue;
+			}
+			var prefixes = listsMap[rule.listId] || [];
+			for (var j = 0; j < prefixes.length; j++)
+			{
+				var prefix = String(prefixes[j] || '');
+				if (prefix.length > 0 && schema.indexOf(prefix) === 0)
+				{
+					return rule;
+				}
+			}
+		}
+		return fallbackRule;
+	}
+
+	async function runStencilEventCommand(commandId, eventPayload)
+	{
+		if (typeof commandId !== 'string' || commandId.trim().length === 0)
+		{
+			return;
+		}
+		await requestAsync({
+			action: 'runSeafPluginCommand',
+			configPath: state.configPath,
+			commandId: commandId.trim(),
+			payload: {
+				commandId: commandId.trim(),
+				source: 'stencil_event_processor',
+				timestamp: new Date().toISOString(),
+				selection: [],
+				event: eventPayload,
+				arguments: {
+					eventType: eventPayload.eventType,
+					ruleId: eventPayload.ruleId || '',
+					listId: eventPayload.listId || ''
+				}
+			}
+		});
+	}
+
+	async function flushStencilBatches()
+	{
+		if (state.stencilEventDispatchInFlight)
+		{
+			return;
+		}
+		state.stencilEventDispatchInFlight = true;
+		try
+		{
+			while (state.pendingStencilBatches.length > 0)
+			{
+				var batch = state.pendingStencilBatches.shift();
+				var grouped = {};
+				for (var i = 0; i < batch.items.length; i++)
+				{
+					var item = batch.items[i];
+					var rule = matchEventRule(item);
+					if (!rule || !rule.handlers)
+					{
+						continue;
+					}
+					var operation = item.operation;
+					var handlerCmd = rule.handlers[operation];
+					if (typeof handlerCmd !== 'string' || handlerCmd.trim().length === 0)
+					{
+						continue;
+					}
+					var key = handlerCmd.trim() + '::' + operation + '::' + (rule.id || '');
+					if (!grouped[key])
+					{
+						grouped[key] = {
+							commandId: handlerCmd.trim(),
+							operation: operation,
+							ruleId: rule.id || '',
+							listId: rule.listId || '',
+							items: []
+						};
+					}
+					grouped[key].items.push(item);
+				}
+
+				for (var groupKey in grouped)
+				{
+					if (!Object.prototype.hasOwnProperty.call(grouped, groupKey))
+					{
+						continue;
+					}
+					var group = grouped[groupKey];
+					try
+					{
+						await runStencilEventCommand(group.commandId, {
+							eventType: group.operation,
+							txId: batch.txId,
+							timestamp: batch.timestamp,
+							page: batch.page,
+							ruleId: group.ruleId,
+							listId: group.listId,
+							items: group.items
+						});
+						await writeLog('debug', 'Stencil event batch dispatched', {
+							commandId: group.commandId,
+							eventType: group.operation,
+							txId: batch.txId,
+							items: group.items.length
+						});
+					}
+					catch (dispatchErr)
+					{
+						await writeLog('error', 'Stencil event batch dispatch failed', {
+							commandId: group.commandId,
+							eventType: group.operation,
+							txId: batch.txId,
+							error: dispatchErr && dispatchErr.message ? dispatchErr.message : String(dispatchErr)
+						});
+					}
+				}
+			}
+		}
+		finally
+		{
+			state.stencilEventDispatchInFlight = false;
+		}
+	}
+
+	function queueStencilBatch(items)
+	{
+		if (!Array.isArray(items) || items.length === 0)
+		{
+			return;
+		}
+		var currentPage = (ui && ui.currentPage) ? {
+			id: ui.currentPage.getId ? ui.currentPage.getId() : null,
+			name: ui.currentPage.getName ? ui.currentPage.getName() : null
+		} : null;
+		state.pendingStencilBatches.push({
+			txId: 'tx_' + Date.now() + '_' + Math.round(Math.random() * 100000),
+			timestamp: new Date().toISOString(),
+			page: currentPage,
+			items: items
+		});
+		flushStencilBatches();
+	}
+
+	function collectStencilEventsFromModelChange(evt)
+	{
+		var result = [];
+		var graph = ui && ui.editor ? ui.editor.graph : null;
+		if (!graph)
+		{
+			return result;
+		}
+		var edit = evt && typeof evt.getProperty === 'function' ? evt.getProperty('edit') : null;
+		var changes = edit && Array.isArray(edit.changes) ? edit.changes : [];
+		var seen = {};
+		for (var i = 0; i < changes.length; i++)
+		{
+			var change = changes[i];
+			if (!change || typeof change !== 'object')
+			{
+				continue;
+			}
+
+			if (change.child)
+			{
+				var operation = null;
+				if (change.parent != null && (change.previous == null || change.previous !== change.parent))
+				{
+					operation = 'add';
+				}
+				if (change.parent == null && change.previous != null)
+				{
+					operation = 'remove';
+				}
+				if (operation != null)
+				{
+					var snapshot = buildStencilItemSnapshot(change.child, operation);
+					if (snapshot && snapshot.id)
+					{
+						var key = operation + ':' + snapshot.id;
+						if (!Object.prototype.hasOwnProperty.call(seen, key))
+						{
+							seen[key] = true;
+							result.push(snapshot);
+						}
+					}
+				}
+			}
+
+			if (state.editDataSessionActive === true && change.cell && Object.prototype.hasOwnProperty.call(change, 'value'))
+			{
+				var beforeKey = change.cell.id || '';
+				var beforeValue = state.editDataBeforeByCell[beforeKey];
+				var afterValue = sanitizeForIpc(change.value);
+				var beforeJson = JSON.stringify(beforeValue);
+				var afterJson = JSON.stringify(afterValue);
+				if (beforeJson !== afterJson)
+				{
+					var modifySnapshot = buildStencilItemSnapshot(change.cell, 'modify');
+					if (modifySnapshot && modifySnapshot.id)
+					{
+						var mKey = 'modify:' + modifySnapshot.id;
+						if (!Object.prototype.hasOwnProperty.call(seen, mKey))
+						{
+							seen[mKey] = true;
+							modifySnapshot.dataBefore = beforeValue;
+							modifySnapshot.dataAfter = afterValue;
+							result.push(modifySnapshot);
+						}
+					}
+				}
+			}
+		}
+		return result;
+	}
+
+	function installStencilModelListener()
+	{
+		if (state.stencilModelListenerInstalled)
+		{
+			return;
+		}
+		var graph = ui && ui.editor ? ui.editor.graph : null;
+		if (!graph || !graph.model || typeof graph.model.addListener !== 'function' || typeof mxEvent === 'undefined')
+		{
+			return;
+		}
+		graph.model.addListener(mxEvent.CHANGE, function(sender, evt)
+		{
+			try
+			{
+				var items = collectStencilEventsFromModelChange(evt);
+				if (items.length > 0)
+				{
+					queueStencilBatch(items);
+				}
+			}
+			catch (e)
+			{
+				writeLog('error', 'Stencil model listener failed', {
+					error: e && e.message ? e.message : String(e)
+				});
+			}
+			finally
+			{
+				if (state.editDataSessionActive)
+				{
+					state.editDataSessionActive = false;
+					state.editDataBeforeByCell = {};
+				}
+			}
+		});
+		state.stencilModelListenerInstalled = true;
+	}
+
+	function installEditDataApplyHook()
+	{
+		var action = ui && ui.actions ? ui.actions.get('editData') : null;
+		if (!action || typeof action.funct !== 'function' || action._seafEditDataHookInstalled === true)
+		{
+			return;
+		}
+		var original = action.funct;
+		action.funct = function()
+		{
+			state.editDataSessionActive = true;
+			state.editDataBeforeByCell = {};
+			try
+			{
+				var graph = ui && ui.editor ? ui.editor.graph : null;
+				var selected = graph ? graph.getSelectionCells() : [];
+				for (var i = 0; i < selected.length; i++)
+				{
+					var cell = selected[i];
+					if (cell && cell.id)
+					{
+						state.editDataBeforeByCell[cell.id] = sanitizeForIpc(cell.value);
+					}
+				}
+			}
+			catch (e)
+			{
+				// ignore pre-snapshot errors
+			}
+			return original.apply(this, arguments);
+		};
+		action._seafEditDataHookInstalled = true;
 	}
 
 	function buildPayload(command)
@@ -2275,6 +2695,17 @@ Draw.loadPlugin(function(ui)
 			{
 				state.envConfig = {env: {}};
 			}
+			try
+			{
+				state.eventConfig = await requestAsync({
+					action: 'getSeafEventConfig',
+					configPath: state.configPath
+				});
+			}
+			catch (eventCfgErr)
+			{
+				state.eventConfig = {events: {enabled: false, stencilLists: [], rules: []}};
+			}
 			state.logging = computeUiLoggingFromEnv(state.config ? state.config.logging : null, state.envConfig);
 
 			await writeLog('info', 'Plugin initialization started', {
@@ -2284,6 +2715,8 @@ Draw.loadPlugin(function(ui)
 			});
 			await runInitStep('python_env_auto', ensurePythonEnvironmentAuto, true);
 			await runInitStep('stencil_libraries_load', loadSeafStencilLibraries, false);
+			await runInitStep('install_stencil_model_listener', installStencilModelListener, false);
+			await runInitStep('install_edit_data_apply_hook', installEditDataApplyHook, false);
 
 			ensureInteractiveSessionListener();
 			registerActions();

@@ -1,0 +1,100 @@
+version: 1
+enabled: true
+schemaPrefix: "seaf."
+defaultRuleId: "all"
+stencilLists:
+  - id: SEAF_Р41
+    prefixes:
+      - "seaf.r41."
+rules:
+  - id: specific_r41
+    listId: SEAF_Р41
+    handlers:
+      add: seafStencilSpecificAdd
+      remove: seafStencilSpecificRemove
+      modify: seafStencilSpecificModify
+  - id: all
+    all: true
+    handlers:
+      add: seafStencilAllAdd
+      remove: seafStencilAllRemove
+      modify: seafStencilAllModify
+commands:
+  - id: seafStencilSpecificAdd
+    title: SEAF Stencil Specific Add
+    menu:
+      main:
+        enabled: false
+      context:
+        enabled: false
+    script: examples/events/specific_add.py
+    execution:
+      mode: sync
+      timeoutSec: 30
+    input:
+      includeDiagramXml: false
+  - id: seafStencilSpecificRemove
+    title: SEAF Stencil Specific Remove
+    menu:
+      main:
+        enabled: false
+      context:
+        enabled: false
+    script: examples/events/specific_remove.py
+    execution:
+      mode: sync
+      timeoutSec: 30
+    input:
+      includeDiagramXml: false
+  - id: seafStencilSpecificModify
+    title: SEAF Stencil Specific Modify
+    menu:
+      main:
+        enabled: false
+      context:
+        enabled: false
+    script: examples/events/specific_modify.py
+    execution:
+      mode: sync
+      timeoutSec: 30
+    input:
+      includeDiagramXml: false
+  - id: seafStencilAllAdd
+    title: SEAF Stencil All Add
+    menu:
+      main:
+        enabled: false
+      context:
+        enabled: false
+    script: examples/events/all_add.py
+    execution:
+      mode: sync
+      timeoutSec: 30
+    input:
+      includeDiagramXml: false
+  - id: seafStencilAllRemove
+    title: SEAF Stencil All Remove
+    menu:
+      main:
+        enabled: false
+      context:
+        enabled: false
+    script: examples/events/all_remove.py
+    execution:
+      mode: sync
+      timeoutSec: 30
+    input:
+      includeDiagramXml: false
+  - id: seafStencilAllModify
+    title: SEAF Stencil All Modify
+    menu:
+      main:
+        enabled: false
+      context:
+        enabled: false
+    script: examples/events/all_modify.py
+    execution:
+      mode: sync
+      timeoutSec: 30
+    input:
+      includeDiagramXml: false

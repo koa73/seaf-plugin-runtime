@@ -1,3 +1,211 @@
+# SEAF runtime configuration (modular layout)
+
+Этот каталог хранит конфигурацию runtime в модульном формате.
+
+## Файлы конфигурации
+
+| Файл | Назначение |
+|---|---|
+| `plugin.yaml` | Общие настройки плагина и точки подключения include-файлов |
+| `env.yaml` | Пользовательские настройки (редактируются через `SEAF -> Edit Config`) |
+| `main_menu.yaml` | Описание команд/пунктов главного меню |
+| `context_menu.yaml` | Описание правил контекстного меню |
+| `events.yaml` | Правила event processor и скрытые event handlers (`add/remove/modify`) |
+
+---
+
+## 1) `plugin.yaml` (core config)
+
+`plugin.yaml` больше не хранит полный монолит `commands[]`.  
+Он задает общие секции и include-файлы:
+
+- `plugin.*`
+- `python.*`
+- `logging.*`
+- `update.*`
+- `events.configFile`
+- `includes.menus.main`
+- `includes.menus.context`
+- `includes.events.commands`
+
+### Таблица параметров `plugin.yaml`
+
+| Параметр | Тип | Назначение | Default/Priority |
+|---|---|---|---|
+| `version` | `number` | Версия схемы core-конфига | `1` |
+| `plugin.id` | `string` | Идентификатор runtime | required |
+| `plugin.name` | `string` | Имя плагина | required |
+| `plugin.description` | `string` | Описание плагина | optional |
+| `plugin.runtimeVersion` | `string` | Fallback runtime version для UI | required |
+| `python.executable` | `string` | Базовый Python (fallback) | `python3` |
+| `python.requirementsFile` | `string` | Путь к requirements | `../python/requirements.txt` |
+| `python.requiredModules` | `array<string>` | Preflight import check | `["lib.io"]` |
+| `python.scriptsDir` | `string` | Корневой каталог скриптов | `../python/scripts` |
+| `logging.level` | `string` | Fallback уровень логов (`debug/info/warn/error`) | `info` |
+| `logging.extendedDebug` | `boolean` | Расширенная детализация логов | `false` |
+| `logging.includePayload` | `boolean` | Логировать payload | `false` |
+| `logging.output` | `string` | `console/file/both` | `console` |
+| `logging.filePath` | `string` | Путь к лог-файлу | optional |
+| `update.*` | `object` | Настройки runtime update | required для update |
+| `events.configFile` | `string` | Файл event-правил | `events.yaml` |
+| `includes.menus.main` | `string` | Include для main menu commands | `main_menu.yaml` |
+| `includes.menus.context` | `string` | Include для context menu overrides | `context_menu.yaml` |
+| `includes.events.commands` | `string` | Include для скрытых event commands | `events.yaml` |
+
+---
+
+## 2) `env.yaml` (user config)
+
+`env.yaml` хранит пользовательские значения из `Edit Config`.
+
+### Контракт приоритетов
+
+1. Значения пользователя из `env.yaml` имеют приоритет над пересекающимися defaults.
+2. Если пользовательское значение отсутствует, используется default из конфигурации.
+3. При runtime update действует инкрементальный merge:
+   - existing keys/values сохраняются;
+   - добавляются только отсутствующие ключи;
+   - неизвестные пользовательские ключи не удаляются.
+
+### Типовые поля
+
+| Параметр | Тип | Назначение |
+|---|---|---|
+| `companyPrefix` | `string` | Префикс для именования объектов |
+| `inputSeafFile` | `string` | Входной файл |
+| `useSameOutputFile` | `boolean` | Использовать входной файл как выходной |
+| `outputSeafFile` | `string` | Выходной файл |
+| `pluginLogLevel` | `string` | `none/info/debug` (переопределяет `logging.level`) |
+| `pythonExecutable` | `string` | Путь к Python-бинарнику или каталогу `.venv` |
+
+---
+
+## 3) `main_menu.yaml`
+
+Содержит полный список команд main menu (`commands[]`) с:
+- `id`, `title`, `script`, `execution`, `input`, `output`, `postActions`;
+- `menu.main.*`;
+- при необходимости `clientAction` и `configEditor`.
+
+Именно здесь хранится `seafEditConfig` schema для `Edit Config`.
+
+---
+
+## 4) `context_menu.yaml`
+
+Содержит `commands[]`-overrides по `id` для секции `menu.context.*`.
+
+Пример идеи:
+- в `main_menu.yaml` лежит полное описание команды;
+- в `context_menu.yaml` лежит только:
+  - `id`
+  - `menu.context.enabled`
+  - `menu.context.target`.
+
+Compose-loader объединяет их в финальный `commands[]`.
+
+---
+
+## 5) `events.yaml`
+
+`events.yaml` объединяет:
+1) event routing rules;
+2) скрытые `commands[]` для Python handlers.
+
+### Поля event routing
+
+| Параметр | Тип | Назначение |
+|---|---|---|
+| `version` | `number` | Версия схемы events |
+| `enabled` | `boolean` | Включение event processor |
+| `schemaPrefix` | `string` | Ранний фильтр (обычно `seaf.`) |
+| `defaultRuleId` | `string` | Fallback rule id |
+| `stencilLists[]` | `array<object>` | Списки стенсилов/префиксов |
+| `rules[]` | `array<object>` | Маршрутизация событий в handler command ids |
+| `rules[].handlers.add` | `string` | command id для `add` |
+| `rules[].handlers.remove` | `string` | command id для `remove` |
+| `rules[].handlers.modify` | `string` | command id для `modify` |
+
+### Что такое handler id
+
+`seafStencilSpecificModify` (и аналогичные) — это **command id**, а не метод.
+
+Маршрут:
+1. `events.yaml.rules[].handlers.modify` -> `seafStencilSpecificModify`
+2. compose config ищет command с `id=seafStencilSpecificModify`
+3. command указывает `script: examples/events/specific_modify.py`
+4. service runner запускает этот Python script
+
+---
+
+## 6) Handler mapping (event -> command -> script)
+
+| Handler id | Script |
+|---|---|
+| `seafStencilSpecificAdd` | `examples/events/specific_add.py` |
+| `seafStencilSpecificRemove` | `examples/events/specific_remove.py` |
+| `seafStencilSpecificModify` | `examples/events/specific_modify.py` |
+| `seafStencilAllAdd` | `examples/events/all_add.py` |
+| `seafStencilAllRemove` | `examples/events/all_remove.py` |
+| `seafStencilAllModify` | `examples/events/all_modify.py` |
+
+---
+
+## 7) Logging levels and effective priority
+
+Фактический уровень логирования определяется так:
+1. база из `plugin.yaml -> logging.*`;
+2. пользовательский override из `env.yaml -> pluginLogLevel`.
+
+`pluginLogLevel`:
+- `none` -> только `error` в console;
+- `info` -> `info/warn/error`;
+- `debug` -> максимум детализации.
+
+---
+
+## 8) Примеры конфигов
+
+### `plugin.yaml` (короткий)
+
+```yaml
+version: 1
+plugin:
+  id: seaf_plugin
+  runtimeVersion: 0.3.0
+events:
+  configFile: events.yaml
+includes:
+  menus:
+    main: main_menu.yaml
+    context: context_menu.yaml
+  events:
+    commands: events.yaml
+```
+
+### `events.yaml` (короткий)
+
+```yaml
+version: 1
+enabled: true
+schemaPrefix: "seaf."
+stencilLists:
+  - id: SEAF_Р41
+    prefixes: ["seaf.r41."]
+rules:
+  - id: specific_r41
+    listId: SEAF_Р41
+    handlers:
+      add: seafStencilSpecificAdd
+      remove: seafStencilSpecificRemove
+      modify: seafStencilSpecificModify
+  - id: all
+    all: true
+    handlers:
+      add: seafStencilAllAdd
+      remove: seafStencilAllRemove
+      modify: seafStencilAllModify
+```
 # Конфигурация SEAF runtime (`plugin.yaml`)
 
 Файл [`plugin.yaml`](plugin.yaml) описывает:
@@ -63,6 +271,89 @@
 | `update.tag` | `string` или пусто | Тег релиза. Если пусто — используется «latest» (по логике обновлятора). |
 | `update.apiBaseUrl` | `string` URL | База GitHub API (обычно `https://api.github.com`). Полезно для GitHub Enterprise/прокси. |
 | `update.expectedMinVersion` | `string` semver | Минимально допустимая версия runtime в скачанном asset. Если архив содержит более старую версию, update завершается с ошибкой «получен устаревший runtime asset». |
+
+## `events.*` (авто-реакция на изменения стенсилов)
+
+| Имя поля | Формат | Назначение |
+|---|---:|---|
+| `events.configFile` | `string` | Путь к конфигу обработчика событий (по умолчанию `event.yaml` рядом с `plugin.yaml`). |
+
+Файл `conf/event.yaml` содержит:
+- `schemaPrefix` (например `seaf.`) для ранней фильтрации;
+- `stencilLists[]` со списками префиксов стенсилов (например `SEAF_Р41`);
+- `rules[]` с маршрутизацией в python command id для `add/remove/modify`;
+- fallback-правило `all: true`.
+
+Важно:
+- обработка выполняется batch-пакетами на одну транзакцию модели;
+- в `plugin.yaml` для event handlers используются скрытые команды (`menu.main.enabled: false`), чтобы они не отображались в UI-меню.
+
+### Полная спецификация `conf/event.yaml`
+
+| Поле | Формат | Обязательное | Назначение |
+|---|---:|---:|---|
+| `version` | `number` | нет | Версия схемы event-конфига (по умолчанию `1`) |
+| `enabled` | `boolean` | нет | Глобальное включение event processor (`true` по умолчанию) |
+| `schemaPrefix` | `string` | нет | Ранний фильтр по `schema` (обычно `seaf.`) |
+| `defaultRuleId` | `string` | нет | Идентификатор fallback-правила (обычно `all`) |
+| `stencilLists` | `array<object>` | да | Списки стенсилов для матчинга |
+| `stencilLists[].id` | `string` | да | Идентификатор списка (пример: `SEAF_Р41`) |
+| `stencilLists[].prefixes` | `array<string>` | да | Префиксы `schema` для этого списка |
+| `rules` | `array<object>` | да | Правила маршрутизации событий |
+| `rules[].id` | `string` | да | Идентификатор правила |
+| `rules[].listId` | `string` | условно | Ссылка на `stencilLists[].id` для specific-rule |
+| `rules[].all` | `boolean` | условно | Если `true`, правило используется как fallback |
+| `rules[].handlers` | `object` | да | Маршрутизация eventType -> command id |
+| `rules[].handlers.add` | `string` | нет | command id обработчика `add` |
+| `rules[].handlers.remove` | `string` | нет | command id обработчика `remove` |
+| `rules[].handlers.modify` | `string` | нет | command id обработчика `modify` |
+
+Пример:
+
+```yaml
+version: 1
+enabled: true
+schemaPrefix: "seaf."
+defaultRuleId: "all"
+stencilLists:
+  - id: SEAF_Р41
+    prefixes:
+      - "seaf.r41."
+rules:
+  - id: specific_r41
+    listId: SEAF_Р41
+    handlers:
+      add: seafStencilSpecificAdd
+      remove: seafStencilSpecificRemove
+      modify: seafStencilSpecificModify
+  - id: all
+    all: true
+    handlers:
+      add: seafStencilAllAdd
+      remove: seafStencilAllRemove
+      modify: seafStencilAllModify
+```
+
+### Что такое `seafStencilSpecificModify`
+
+`seafStencilSpecificModify` — это **command id** в `plugin.yaml`, а не Python/JS метод.
+
+Маршрут выполнения:
+1. `event.yaml.rules[].handlers.modify` возвращает `seafStencilSpecificModify`;
+2. runtime находит `commands[].id = seafStencilSpecificModify` в `plugin.yaml`;
+3. у этой команды берется `script: examples/events/specific_modify.py`;
+4. запускается соответствующий Python-скрипт.
+
+### Mapping: handler id -> command -> python script
+
+| Handler id (`event.yaml`) | Command id (`plugin.yaml`) | Script |
+|---|---|---|
+| `seafStencilSpecificAdd` | `seafStencilSpecificAdd` | `examples/events/specific_add.py` |
+| `seafStencilSpecificRemove` | `seafStencilSpecificRemove` | `examples/events/specific_remove.py` |
+| `seafStencilSpecificModify` | `seafStencilSpecificModify` | `examples/events/specific_modify.py` |
+| `seafStencilAllAdd` | `seafStencilAllAdd` | `examples/events/all_add.py` |
+| `seafStencilAllRemove` | `seafStencilAllRemove` | `examples/events/all_remove.py` |
+| `seafStencilAllModify` | `seafStencilAllModify` | `examples/events/all_modify.py` |
 
 ## `commands[]` — описание команд меню
 

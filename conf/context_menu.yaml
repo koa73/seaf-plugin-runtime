@@ -1,0 +1,36 @@
+version: 1
+commands:
+  - id: seafEditConfig
+    menu:
+      context:
+        enabled: false
+        target: any
+  - id: seafInteractiveTerminalDemo
+    menu:
+      context:
+        enabled: false
+        target: any
+  - id: seafReloadDocument
+    menu:
+      context:
+        enabled: true
+        target: selection_non_empty
+  - id: seafValidateSelection
+    menu:
+      context:
+        enabled: true
+        target: selection_non_empty
+  - id: seafAsyncBackground
+    menu:
+      context:
+        enabled: true
+        target: any
+  - id: seafFailureDemo
+    menu:
+      context:
+        enabled: true
+        target: any
+  - id: seafTimeoutDemo
+    menu:
+      context:
+        enabled: false

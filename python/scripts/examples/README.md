@@ -286,6 +286,20 @@
 - `SEAF Timeout Demo` -> `examples/timeout_demo.py`
 - `SEAF Interactive Terminal Demo` -> `examples/interactive_terminal_demo.py`
 - `Python Dependency Installer Script` -> `examples/python_env_installer_terminal.py`
+- `SEAF Stencil Events (hidden handlers)` -> `examples/events/*.py`
+
+## 8) `events/*` (batch handlers for stencil events)
+
+Набор из 6 обработчиков для auto-event processor:
+- `specific_add.py`, `specific_remove.py`, `specific_modify.py`
+- `all_add.py`, `all_remove.py`, `all_modify.py`
+
+Скрипты получают payload с полями:
+- `event.eventType` (`add|remove|modify`)
+- `event.txId`, `event.ruleId`, `event.listId`
+- `event.items[]` (атрибуты затронутых элементов)
+
+Текущая реализация скриптов демонстрационная: подтверждает обработку и возвращает количество элементов.
 
 ## Практические замечания
 

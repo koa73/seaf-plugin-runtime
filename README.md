@@ -21,8 +21,11 @@
 ## Layout
 
 - `plugin/seaf.plugin.js` - полный renderer plugin (меню, IPC, async, системный update).
-- `conf/plugin.yaml` - конфигурация full runtime (команды, logging, update).
+- `conf/plugin.yaml` - core-конфигурация full runtime (общие настройки + includes).
+- `conf/main_menu.yaml` - описание main menu команд.
+- `conf/context_menu.yaml` - описание context menu правил (overrides по id).
 - `conf/env.yaml` - редактируемые переменные runtime (пути и режимы для Python-части).
+- `conf/events.yaml` - конфигурация auto-event processor (правила add/remove/modify + скрытые event handlers).
 - `conf/stencils/libraries.json` - JSON-конфиг секций/библиотек фигур для окна `More Shapes`.
 - `conf/stencils/*.xml` - файлы библиотек фигур в формате `mxlibrary`.
 - `conf/README.md` - документация формата `plugin.yaml`.
@@ -86,7 +89,7 @@
 ## Edit Config menu
 
 - В full runtime добавлена UI-команда `Edit Config` в меню `SEAF`.
-- Поля формы задаются декларативно в `conf/plugin.yaml` (`configEditor.fields[]`).
+- Поля формы задаются декларативно через composed config; источник `seafEditConfig` хранится в `conf/main_menu.yaml` и подключается через `conf/plugin.yaml`.
 - Каждое поле явно связывается с `envKey` из `conf/env.yaml`.
 - Поддерживаемые типы полей: `text`, `list`, `filePicker`, `checkbox`, `radio`.
 - Текущий контракт полей: `companyPrefix`, `inputSeafFile`, `useSameOutputFile`, `outputSeafFile`, `pluginLogLevel`, `pythonExecutable`.
@@ -108,6 +111,11 @@
 - Кнопки `Cancel/Apply` и `Browse...` унифицированы с системным стилем draw.io (`geBtn`, `gePrimaryBtn`), как в стандартных диалогах (например, `Файл -> Печать`).
 - Скролл ограничен только областью полей формы, поэтому футер с action-кнопками всегда остается доступным.
 - В критических async-ветках включен fail-safe cleanup: polling ошибки обрабатываются явно, а interactive-terminal overlay завершается watchdog-ом при отсутствии terminal-closed события.
+- Auto-event processor подписывается на изменения модели и отправляет batch события `add/remove` для стенсилов из `events.yaml`.
+- `modify` обрабатывается только в сценарии `Edit Data -> Apply` и только при реальном изменении данных.
+- Маршрутизация событий идет по `rules` из `events.yaml`: сначала specific-rule, затем fallback `all`.
+- Значения `handlers` в `events.yaml` (например `seafStencilSpecificModify`) — это command id composed config; реальные скрипты задаются в `python/scripts/examples/events/*.py` через скрытые commands в `events.yaml`.
+- Детальная спецификация конфига и mapping `handler id -> command -> script` описаны в `conf/README.md`, а подробное поведение скриптов — в `python/scripts/examples/events/README.md`.
 
 ## Interactive terminal command
 

@@ -1,0 +1,163 @@
+version: 1
+commands:
+  - id: seafEditConfig
+    title: Edit Config
+    clientAction: editConfig
+    menu:
+      main:
+        enabled: true
+        section: seaf
+        sectionTitle: SEAF
+    configEditor:
+      title: Edit Config
+      fields:
+        - label: Company prefix
+          envKey: companyPrefix
+          inputMethod: text
+          helpText: "Префикс для именования объектов модели SEAF"
+        - label: Input SEAF file
+          envKey: inputSeafFile
+          inputMethod: filePicker
+          fileDialog:
+            title: Select Input SEAF file
+            properties:
+              - openFile
+        - label: Use same output file
+          envKey: useSameOutputFile
+          inputMethod: checkbox
+        - label: Output SEAF file
+          envKey: outputSeafFile
+          inputMethod: text
+          syncFrom: inputSeafFile
+          disableWhen:
+            envKey: useSameOutputFile
+            equals: true
+        - label: Plugin logging
+          envKey: pluginLogLevel
+          inputMethod: list
+          options:
+            - none
+            - info
+            - debug
+        - label: Python executable
+          envKey: pythonExecutable
+          inputMethod: filePicker
+          helpText: "Путь к Python интерпретатору, который используется для запуска скриптов и установки зависимостей"
+          fileDialog:
+            title: Select Python executable
+            properties:
+              - openFile
+              - openDirectory
+  - id: seafInteractiveTerminalDemo
+    title: SEAF Interactive Terminal Demo
+    clientAction: interactiveTerminal
+    script: examples/interactive_terminal_demo.py
+    execution:
+      mode: interactive_terminal
+    menu:
+      main:
+        enabled: true
+        section: seaf
+        sectionTitle: SEAF
+        submenu: examples
+    input:
+      includeDiagramXml: false
+      includeCurrentPage: true
+      arguments:
+        demoMode: interactive_terminal
+  - id: seafReloadDocument
+    title: SEAF Reload Document
+    menu:
+      main:
+        enabled: true
+        section: seaf
+        sectionTitle: SEAF
+        submenu: examples
+    script: examples/success_reload.py
+    execution:
+      mode: sync
+      timeoutSec: 20
+    input:
+      includeDiagramXml: false
+      includeCurrentPage: true
+      arguments:
+        operation: reload
+    output:
+      expectedStatus: success
+    postActions:
+      - name: showMessage
+        args:
+          level: info
+          text: Reload command completed
+      - name: reloadDocument
+  - id: seafValidateSelection
+    title: SEAF Validate Selection
+    menu:
+      main:
+        enabled: true
+        section: extras
+        submenu: examples
+    script: examples/validate_selection.py
+    execution:
+      mode: sync
+      timeoutSec: 20
+    input:
+      includeDiagramXml: true
+    output:
+      expectedStatus: success
+  - id: seafAsyncBackground
+    title: SEAF Async Background Task
+    menu:
+      main:
+        enabled: true
+        section: seaf
+        submenu: examples
+    script: examples/async_background.py
+    execution:
+      mode: async
+      timeoutSec: 40
+      pollIntervalMs: 1000
+      maxPollAttempts: 120
+    indicator:
+      enabled: true
+      type: percent
+      timeoutMs: 40000
+      allowStop: true
+    input:
+      includeDiagramXml: false
+      arguments:
+        simulateDurationSec: 3
+    output:
+      expectedStatus: success
+  - id: seafFailureDemo
+    title: SEAF Failure Demo
+    menu:
+      main:
+        enabled: true
+        section: seaf
+        submenu: examples
+    script: examples/failure_demo.py
+    execution:
+      mode: sync
+      timeoutSec: 20
+    input:
+      includeDiagramXml: false
+    output:
+      expectedStatus: error
+  - id: seafTimeoutDemo
+    title: SEAF Timeout Demo
+    menu:
+      main:
+        enabled: true
+        section: seaf
+        submenu: examples
+    script: examples/timeout_demo.py
+    execution:
+      mode: sync
+      timeoutSec: 1
+    input:
+      includeDiagramXml: false
+      arguments:
+        sleepSec: 5
+    output:
+      expectedStatus: error
