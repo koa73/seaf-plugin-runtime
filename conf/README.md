@@ -120,11 +120,26 @@ Compose-loader объединяет их в финальный `commands[]`.
 | `enabled` | `boolean` | Включение event processor |
 | `schemaPrefix` | `string` | Ранний фильтр (обычно `seaf.`) |
 | `defaultRuleId` | `string` | Fallback rule id |
-| `stencilLists[]` | `array<object>` | Списки стенсилов/префиксов |
-| `rules[]` | `array<object>` | Маршрутизация событий в handler command ids |
+| `stencilLists[]` | `array<object>` | Списки библиотек стенсилов (по `id`) |
+| `rules[]` | `array<object>` | Правила маршрутизации по `listId` и `schema` |
+| `rules[].id` | `string` | Идентификатор правила |
+| `rules[].listId` | `string` | К какому stencil list применяется правило |
+| `rules[].schema` | `string` | `exact`, wildcard с `*`, или `all` |
+| `rules[].execution` | `string` | Режим запуска handler: `sync` или `async` |
 | `rules[].handlers.add` | `string` | command id для `add` |
 | `rules[].handlers.remove` | `string` | command id для `remove` |
 | `rules[].handlers.modify` | `string` | command id для `modify` |
+
+### Семантика `rules[].schema`
+
+- `seaf.company.ta.services.dc_azs` — exact match только для одного schema.
+- `seaf.company.ta.*` — wildcard match для группы schema.
+- `all` — правило на все стенсилы выбранного `listId`.
+
+Приоритет матчинга внутри list:
+1. exact
+2. wildcard
+3. all
 
 ### Что такое handler id
 
@@ -162,6 +177,16 @@ Compose-loader объединяет их в финальный `commands[]`.
 - `info` -> `info/warn/error`;
 - `debug` -> максимум детализации.
 
+### Где смотреть лог
+
+- Full runtime: `~/.config/draw.io/plugins/seaf_plugin/logs/seaf-plugin.log`
+- Minimal runtime bootstrap: `~/.config/draw.io/plugins/seaf_plugin/log/seaf-plugin.log`
+
+Если event-трейсы не видны:
+1. проверьте, что активен full runtime (есть event listener),
+2. проверьте эффективный `pluginLogLevel` из `env.yaml` (он приоритетнее `plugin.yaml`),
+3. перезапустите draw.io после обновления runtime.
+
 ---
 
 ## 8) Примеры конфигов
@@ -172,7 +197,7 @@ Compose-loader объединяет их в финальный `commands[]`.
 version: 1
 plugin:
   id: seaf_plugin
-  runtimeVersion: 0.3.0
+  runtimeVersion: 0.3.2
 events:
   configFile: events.yaml
 includes:
@@ -191,16 +216,25 @@ enabled: true
 schemaPrefix: "seaf."
 stencilLists:
   - id: SEAF_Р41
-    prefixes: ["seaf.r41."]
 rules:
-  - id: specific_r41
+  - id: exact_dc_azs
     listId: SEAF_Р41
+    schema: "seaf.company.ta.services.dc_azs"
+    execution: sync
     handlers:
       add: seafStencilSpecificAdd
       remove: seafStencilSpecificRemove
       modify: seafStencilSpecificModify
+  - id: wildcard_ta_services
+    listId: SEAF_Р41
+    schema: "seaf.company.ta.*"
+    execution: async
+    handlers:
+      add: seafStencilSpecificAdd
   - id: all
-    all: true
+    listId: SEAF_Р41
+    schema: all
+    execution: sync
     handlers:
       add: seafStencilAllAdd
       remove: seafStencilAllRemove
@@ -209,17 +243,14 @@ rules:
 
 ## Диагностика matching
 
-- `stencilLists[].prefixes` должны соответствовать **реальным** значениям `schema` в XML стенсила.
-- Если префиксы не совпадают, specific-rule не сработает и будет fallback в `all` (или no-match, если fallback отсутствует).
-
-Пример:
-- schema у объекта: `seaf.company.ta.services...`
-- корректный prefix для списка: `seaf.company.`
-- некорректный prefix: `seaf.r41.` (specific-rule не матчится).
+- `item.schema` извлекается в первую очередь из `cell.value.schema`, затем fallback на `style.shape`.
+- Если `schema` пустой, событие фильтруется с reason `schema_missing`.
+- Для wildcard используйте `*`, например `seaf.company.ta.*`.
 
 ### Порядок роутинга
 
 1. Проверка `schemaPrefix` (обычно `seaf.`).
-2. Попытка specific-rule по `listId` + `prefixes`.
-3. Если нет specific match -> fallback `all`.
+2. Поиск rules в рамках `listId`.
+3. Match по `schema` с приоритетом `exact > wildcard > all`.
 4. Если нет handler для eventType -> dispatch пропускается.
+5. `execution: sync` ждет ответ, `execution: async` отправляет fire-and-forget и пишет отдельный trace.

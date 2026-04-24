@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.3.1
+ * Runtime script version: 0.3.2
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -1015,6 +1015,26 @@ Draw.loadPlugin(function(ui)
 
 	function extractShapeSchema(cell, graph)
 	{
+		var schemaFromValue = '';
+		try
+		{
+			var cellValue = cell ? cell.value : null;
+			if (cellValue != null)
+			{
+				if (typeof cellValue.getAttribute === 'function')
+				{
+					schemaFromValue = String(cellValue.getAttribute('schema') || '').trim();
+				}
+				else if (typeof cellValue === 'object' && typeof cellValue.schema === 'string')
+				{
+					schemaFromValue = cellValue.schema.trim();
+				}
+			}
+		}
+		catch (e)
+		{
+			schemaFromValue = '';
+		}
 		var styleText = '';
 		try
 		{
@@ -1027,9 +1047,12 @@ Draw.loadPlugin(function(ui)
 		}
 		var parsedStyle = parseStyleString(styleText);
 		var shape = (typeof parsedStyle.shape === 'string') ? parsedStyle.shape.trim() : '';
+		var schema = schemaFromValue.length > 0 ? schemaFromValue : shape;
+		var schemaSource = schemaFromValue.length > 0 ? 'cell.value.schema' : (shape.length > 0 ? 'style.shape' : 'missing');
 		return {
-			schema: shape,
-			styleText: styleText
+			schema: schema,
+			styleText: styleText,
+			schemaSource: schemaSource
 		};
 	}
 
@@ -1055,6 +1078,7 @@ Draw.loadPlugin(function(ui)
 			operation: operation || 'unknown',
 			label: graph.convertValueToString(cell),
 			schema: meta.schema,
+			schemaSource: meta.schemaSource,
 			style: sanitizeForIpc(graph.getCellStyle(cell)),
 			styleText: meta.styleText,
 			geometry: sanitizeForIpc(geom),
@@ -1062,7 +1086,7 @@ Draw.loadPlugin(function(ui)
 		};
 	}
 
-	function getEventConfigListsMap()
+	function getEventConfigListIds()
 	{
 		var map = {};
 		var cfg = state.eventConfig && state.eventConfig.events ? state.eventConfig.events : null;
@@ -1072,10 +1096,39 @@ Draw.loadPlugin(function(ui)
 			var list = lists[i];
 			if (list && typeof list.id === 'string')
 			{
-				map[list.id] = Array.isArray(list.prefixes) ? list.prefixes.slice() : [];
+				map[list.id] = true;
 			}
 		}
 		return map;
+	}
+
+	function escapeRegex(text)
+	{
+		return String(text || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	}
+
+	function matchSchemaPattern(schema, pattern)
+	{
+		var normalizedSchema = String(schema || '').trim();
+		var normalizedPattern = String(pattern || '').trim();
+		if (normalizedPattern.length === 0)
+		{
+			return {matched: false, matchType: 'none'};
+		}
+		if (normalizedPattern === 'all')
+		{
+			return {matched: true, matchType: 'all', score: 1};
+		}
+		if (normalizedPattern.indexOf('*') >= 0)
+		{
+			var wildcardRegex = new RegExp('^' + escapeRegex(normalizedPattern).replace(/\\\*/g, '.*') + '$');
+			return wildcardRegex.test(normalizedSchema) ? {matched: true, matchType: 'wildcard', score: 2} : {matched: false, matchType: 'wildcard'};
+		}
+		if (normalizedSchema === normalizedPattern)
+		{
+			return {matched: true, matchType: 'exact', score: 3};
+		}
+		return {matched: false, matchType: 'exact'};
 	}
 
 	function matchEventRoute(item)
@@ -1086,14 +1139,18 @@ Draw.loadPlugin(function(ui)
 			return {rule: null, reason: 'events_disabled'};
 		}
 		var schemaPrefix = (typeof cfg.schemaPrefix === 'string' && cfg.schemaPrefix.length > 0) ? cfg.schemaPrefix : 'seaf.';
-		var schema = item && typeof item.schema === 'string' ? item.schema : '';
+		var schema = item && typeof item.schema === 'string' ? item.schema.trim() : '';
+		if (schema.length === 0)
+		{
+			return {rule: null, reason: 'schema_missing'};
+		}
 		if (schema.indexOf(schemaPrefix) !== 0)
 		{
 			return {rule: null, reason: 'schema_prefix_mismatch', schema: schema, schemaPrefix: schemaPrefix};
 		}
-		var listsMap = getEventConfigListsMap();
+		var listsMap = getEventConfigListIds();
 		var rules = Array.isArray(cfg.rules) ? cfg.rules : [];
-		var fallbackRule = null;
+		var best = null;
 		for (var i = 0; i < rules.length; i++)
 		{
 			var rule = rules[i];
@@ -1101,39 +1158,50 @@ Draw.loadPlugin(function(ui)
 			{
 				continue;
 			}
-			if (rule.all === true)
-			{
-				fallbackRule = rule;
-				continue;
-			}
 			if (typeof rule.listId !== 'string' || rule.listId.trim().length === 0)
 			{
 				continue;
 			}
-			var prefixes = listsMap[rule.listId] || [];
-			for (var j = 0; j < prefixes.length; j++)
+			if (!listsMap[rule.listId.trim()])
 			{
-				var prefix = String(prefixes[j] || '');
-				if (prefix.length > 0 && schema.indexOf(prefix) === 0)
-				{
-					return {rule: rule, reason: 'specific_match', matchedPrefix: prefix};
-				}
+				continue;
+			}
+			var schemaPattern = (typeof rule.schema === 'string' && rule.schema.trim().length > 0) ?
+				rule.schema.trim() : (rule.all === true ? 'all' : '');
+			var match = matchSchemaPattern(schema, schemaPattern);
+			if (match.matched !== true)
+			{
+				continue;
+			}
+			if (!best || match.score > best.score)
+			{
+				best = {
+					rule: rule,
+					score: match.score,
+					matchType: match.matchType,
+					schemaPattern: schemaPattern
+				};
 			}
 		}
-		if (fallbackRule)
+		if (best)
 		{
-			return {rule: fallbackRule, reason: 'fallback_all'};
+			return {
+				rule: best.rule,
+				reason: 'rule_matched',
+				matchType: best.matchType,
+				schemaPattern: best.schemaPattern
+			};
 		}
 		return {rule: null, reason: 'no_rule_match'};
 	}
 
-	async function runStencilEventCommand(commandId, eventPayload)
+	function runStencilEventCommand(commandId, eventPayload)
 	{
 		if (typeof commandId !== 'string' || commandId.trim().length === 0)
 		{
-			return;
+			return Promise.resolve();
 		}
-		await requestAsync({
+		return requestAsync({
 			action: 'runSeafPluginCommand',
 			configPath: state.configPath,
 			commandId: commandId.trim(),
@@ -1206,10 +1274,14 @@ Draw.loadPlugin(function(ui)
 						itemId: item && item.id ? item.id : null,
 						operation: operation,
 						schema: item && item.schema ? item.schema : '',
+						schemaSource: item && item.schemaSource ? item.schemaSource : '',
 						ruleId: rule.id || '',
 						listId: rule.listId || '',
 						route: route && route.reason ? route.reason : 'matched',
-						commandId: handlerCmd.trim()
+						matchType: route && route.matchType ? route.matchType : '',
+						schemaPattern: route && route.schemaPattern ? route.schemaPattern : '',
+						commandId: handlerCmd.trim(),
+						execution: (typeof rule.execution === 'string' && rule.execution.trim().length > 0) ? rule.execution.trim() : 'sync'
 					});
 					var key = handlerCmd.trim() + '::' + operation + '::' + (rule.id || '');
 					if (!grouped[key])
@@ -1219,6 +1291,7 @@ Draw.loadPlugin(function(ui)
 							operation: operation,
 							ruleId: rule.id || '',
 							listId: rule.listId || '',
+							execution: (typeof rule.execution === 'string' && rule.execution.trim().length > 0) ? rule.execution.trim() : 'sync',
 							items: []
 						};
 					}
@@ -1240,27 +1313,71 @@ Draw.loadPlugin(function(ui)
 					var group = grouped[groupKey];
 					try
 					{
-						await runStencilEventCommand(group.commandId, {
-							eventType: group.operation,
-							txId: batch.txId,
-							timestamp: batch.timestamp,
-							page: batch.page,
-							ruleId: group.ruleId,
-							listId: group.listId,
-							items: group.items
-						});
-						await writeLog('debug', 'Stencil event batch dispatched', {
-							commandId: group.commandId,
-							eventType: group.operation,
-							txId: batch.txId,
-							items: group.items.length
-						});
-						await writeLog('debug', 'Stencil event batch handler completed', {
-							commandId: group.commandId,
-							eventType: group.operation,
-							txId: batch.txId,
-							message: 'python handler response received'
-						});
+						if (group.execution === 'async')
+						{
+							var asyncCommandId = group.commandId;
+							var asyncEventType = group.operation;
+							var asyncTxId = batch.txId;
+							runStencilEventCommand(group.commandId, {
+								eventType: group.operation,
+								txId: batch.txId,
+								timestamp: batch.timestamp,
+								page: batch.page,
+								ruleId: group.ruleId,
+								listId: group.listId,
+								items: group.items
+							}).then(function() {
+								writeLog('debug', 'Stencil event async handler completed', {
+									commandId: asyncCommandId,
+									eventType: asyncEventType,
+									txId: asyncTxId
+								});
+							}).catch(function(asyncErr) {
+								writeLog('error', 'Stencil event async dispatch failed', {
+									commandId: asyncCommandId,
+									eventType: asyncEventType,
+									txId: asyncTxId,
+									error: asyncErr && asyncErr.message ? asyncErr.message : String(asyncErr)
+								});
+							});
+							await writeLog('debug', 'Stencil event batch dispatched', {
+								commandId: group.commandId,
+								eventType: group.operation,
+								txId: batch.txId,
+								items: group.items.length,
+								execution: group.execution
+							});
+							await writeLog('debug', 'Stencil event async dispatch accepted', {
+								commandId: group.commandId,
+								eventType: group.operation,
+								txId: batch.txId
+							});
+						}
+						else
+						{
+							await runStencilEventCommand(group.commandId, {
+								eventType: group.operation,
+								txId: batch.txId,
+								timestamp: batch.timestamp,
+								page: batch.page,
+								ruleId: group.ruleId,
+								listId: group.listId,
+								items: group.items
+							});
+							await writeLog('debug', 'Stencil event batch dispatched', {
+								commandId: group.commandId,
+								eventType: group.operation,
+								txId: batch.txId,
+								items: group.items.length,
+								execution: group.execution
+							});
+							await writeLog('debug', 'Stencil event batch handler completed', {
+								commandId: group.commandId,
+								eventType: group.operation,
+								txId: batch.txId,
+								message: 'python handler response received'
+							});
+						}
 					}
 					catch (dispatchErr)
 					{

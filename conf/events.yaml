@@ -4,17 +4,26 @@ schemaPrefix: "seaf."
 defaultRuleId: "all"
 stencilLists:
   - id: SEAF_Р41
-    prefixes:
-      - "seaf.company."
+    title: "SEAF_Р41"
 rules:
-  - id: specific_r41
+  - id: exact_dc_azs
     listId: SEAF_Р41
+    schema: "seaf.company.ta.services.dc_azs"
+    execution: sync
     handlers:
       add: seafStencilSpecificAdd
       remove: seafStencilSpecificRemove
       modify: seafStencilSpecificModify
+  - id: wildcard_ta_services
+    listId: SEAF_Р41
+    schema: "seaf.company.ta.*"
+    execution: async
+    handlers:
+      add: seafStencilSpecificAdd
   - id: all
-    all: true
+    listId: SEAF_Р41
+    schema: all
+    execution: sync
     handlers:
       add: seafStencilAllAdd
       remove: seafStencilAllRemove

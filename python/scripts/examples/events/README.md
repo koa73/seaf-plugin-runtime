@@ -3,12 +3,12 @@
 Этот каталог содержит 6 тестовых Python-обработчиков для auto-event processor.
 
 Важно:
-- `event.yaml` хранит **handler id** (например, `seafStencilSpecificModify`), а не путь к `.py`.
-- Связка с файлами скриптов задается в `conf/plugin.yaml` через `commands[].id -> commands[].script`.
+- `events.yaml` хранит **handler id** (например, `seafStencilSpecificModify`), а не путь к `.py`.
+- Связка с файлами скриптов задается через `events.yaml -> commands[].id -> commands[].script`.
 
 ## Маршрутизация handler id -> script
 
-| Handler id (`event.yaml`) | Command id (`plugin.yaml`) | Script file |
+| Handler id (`events.yaml`) | Command id (`events.yaml`) | Script file |
 |---|---|---|
 | `seafStencilSpecificAdd` | `seafStencilSpecificAdd` | `specific_add.py` |
 | `seafStencilSpecificRemove` | `seafStencilSpecificRemove` | `specific_remove.py` |
@@ -45,7 +45,7 @@ Event processor передает события в поле `REQUEST.payload.eve
 
 Ожидаемые поля:
 - `eventType`: `add` | `remove` | `modify`
-- `ruleId`: id matched правила из `event.yaml`
+- `ruleId`: id matched правила из `events.yaml`
 - `listId`: id matched списка стенсилов
 - `txId`: id транзакции модели
 - `timestamp`: ISO datetime
@@ -90,9 +90,9 @@ Event processor передает события в поле `REQUEST.payload.eve
 
 1. `Stencil model change detected`  
 2. `Stencil event batch queued`  
-3. `Stencil event routing selected` с `commandId=seafStencilAllAdd` (или specific, если есть match)  
+3. `Stencil event routing selected` с `ruleId`, `matchType` (`exact|wildcard|all`) и `commandId`  
 4. `Stencil event batch dispatched`  
-5. `Stencil event batch handler completed`  
+5. `Stencil event batch handler completed` (для `sync`) или `Stencil event async dispatch accepted`/`Stencil event async handler completed` (для `async`)  
 
 Если событие не ушло в python, смотрите строки:
 - `Stencil event item filtered out` (причина в поле `reason`);
