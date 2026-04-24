@@ -12,7 +12,7 @@ def _log_items(handler: str, event: dict, items: list) -> None:
         data = item.get("data") or {}
         object_id = item.get("objectId") or item.get("id")
         debug_row = {
-            "handler": handler,
+            "handler____ZZZZZ": handler,
             "objectId": object_id,
             "pageId": page.get("id"),
             "pageName": page.get("name"),
