@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.3.4
+ * Runtime script version: 0.3.6
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -2217,6 +2217,168 @@ Draw.loadPlugin(function(ui)
 		ui.showDialog(container, dialogWidth, dialogHeight, true, true);
 	}
 
+	function findPageById(pageId)
+	{
+		var targetId = (typeof pageId === 'string') ? pageId.trim() : '';
+		if (!targetId || !Array.isArray(ui.pages))
+		{
+			return null;
+		}
+		for (var i = 0; i < ui.pages.length; i++)
+		{
+			var page = ui.pages[i];
+			if (page && typeof page.getId === 'function' && page.getId() === targetId)
+			{
+				return page;
+			}
+		}
+		return null;
+	}
+
+	function resolveCellForUpdate(graph, objectId)
+	{
+		if (!graph || !graph.model || typeof objectId !== 'string' || objectId.trim().length === 0)
+		{
+			return null;
+		}
+		return graph.model.getCell(objectId.trim());
+	}
+
+	function applyDataUpdateToCell(graph, cell, patchData, mode)
+	{
+		if (!graph || !graph.model || !cell || patchData == null || typeof patchData !== 'object' || Array.isArray(patchData))
+		{
+			return false;
+		}
+		var currentData = extractEditableDataFromCell(cell, graph);
+		var nextData = (mode === 'replace') ? Object.assign({}, patchData) : Object.assign({}, currentData, patchData);
+		var currentValue = (cell.value != null && typeof cell.value === 'object') ? cell.value : null;
+		var clonedValue = null;
+		if (currentValue != null && typeof currentValue.cloneNode === 'function')
+		{
+			clonedValue = currentValue.cloneNode(true);
+		}
+		else
+		{
+			var doc = mxUtils.createXmlDocument();
+			clonedValue = doc.createElement('object');
+			clonedValue.setAttribute('label', graph.convertValueToString(cell) || '');
+		}
+
+		var attrsToDelete = [];
+		if (mode === 'replace' && clonedValue.attributes)
+		{
+			for (var i = 0; i < clonedValue.attributes.length; i++)
+			{
+				var attrName = clonedValue.attributes[i] && clonedValue.attributes[i].nodeName ?
+					String(clonedValue.attributes[i].nodeName) : '';
+				if (!attrName || attrName === 'label' || attrName === 'schema' || attrName === 'placeholders')
+				{
+					continue;
+				}
+				attrsToDelete.push(attrName);
+			}
+		}
+		for (var d = 0; d < attrsToDelete.length; d++)
+		{
+			clonedValue.removeAttribute(attrsToDelete[d]);
+		}
+
+		for (var key in nextData)
+		{
+			if (!Object.prototype.hasOwnProperty.call(nextData, key) || key === 'placeholders')
+			{
+				continue;
+			}
+			var val = nextData[key];
+			if (val == null)
+			{
+				clonedValue.removeAttribute(key);
+			}
+			else
+			{
+				clonedValue.setAttribute(key, String(val));
+			}
+		}
+
+		graph.getModel().beginUpdate();
+		try
+		{
+			graph.getModel().setValue(cell, clonedValue);
+		}
+		finally
+		{
+			graph.getModel().endUpdate();
+		}
+		return true;
+	}
+
+	function findLayerByName(graph, layerName)
+	{
+		if (!graph || !graph.model || typeof layerName !== 'string' || layerName.trim().length === 0)
+		{
+			return null;
+		}
+		var model = graph.model;
+		var root = model.root;
+		var wanted = layerName.trim();
+		for (var i = 0; i < model.getChildCount(root); i++)
+		{
+			var candidate = model.getChildAt(root, i);
+			if (!candidate || (typeof model.isLayer === 'function' && !model.isLayer(candidate)))
+			{
+				continue;
+			}
+			var name = graph.convertValueToString(candidate);
+			if (String(name || '').trim() === wanted)
+			{
+				return candidate;
+			}
+		}
+		return null;
+	}
+
+	function ensureLayer(graph, layerName, makeVisible)
+	{
+		if (!graph || !graph.model)
+		{
+			return null;
+		}
+		var model = graph.model;
+		var normalizedName = String(layerName || '').trim();
+		if (!normalizedName)
+		{
+			return null;
+		}
+		var layer = findLayerByName(graph, normalizedName);
+		var status = 'existing';
+		if (!layer)
+		{
+			status = 'created';
+			var layerCell = new mxCell(normalizedName);
+			layer = graph.addCell(layerCell, model.root);
+		}
+
+		if (makeVisible === true && layer)
+		{
+			model.beginUpdate();
+			try
+			{
+				model.setVisible(layer, true);
+			}
+			finally
+			{
+				model.endUpdate();
+			}
+		}
+
+		return {
+			status: status,
+			layerId: layer && typeof layer.getId === 'function' ? layer.getId() : (layer ? layer.id : null),
+			layerName: normalizedName
+		};
+	}
+
 	var uiCommandHandlers = {
 		reloadDocument: function()
 		{
@@ -2262,6 +2424,110 @@ Draw.loadPlugin(function(ui)
 			{
 				showInfo(args.text);
 			}
+		},
+		ensureLayer: function(args)
+		{
+			var graph = ui && ui.editor ? ui.editor.graph : null;
+			if (!graph || !args || typeof args !== 'object')
+			{
+				return null;
+			}
+			var layerName = typeof args.layerName === 'string' ? args.layerName.trim() : '';
+			if (!layerName)
+			{
+				return null;
+			}
+			var originalPage = ui.currentPage || null;
+			var targetPage = findPageById(args.pageId);
+			var switchedPage = false;
+			try
+			{
+				if (targetPage != null && originalPage !== targetPage && typeof ui.selectPage === 'function')
+				{
+					ui.selectPage(targetPage);
+					switchedPage = true;
+				}
+				var result = ensureLayer(graph, layerName, args.makeVisible !== false);
+				if (result)
+				{
+					writeLog('info', 'ensureLayer completed', {
+						pageId: args.pageId || null,
+						layerName: result.layerName,
+						layerId: result.layerId,
+						status: result.status
+					});
+					graph.refresh();
+				}
+				return result;
+			}
+			finally
+			{
+				if (switchedPage && originalPage != null && ui.currentPage !== originalPage && typeof ui.selectPage === 'function')
+				{
+					ui.selectPage(originalPage);
+				}
+			}
+		},
+		updateStencilData: function(args)
+		{
+			var graph = ui && ui.editor ? ui.editor.graph : null;
+			if (!graph || !args || typeof args !== 'object')
+			{
+				return;
+			}
+			var objectId = (typeof args.objectId === 'string') ? args.objectId.trim() : '';
+			var mode = (typeof args.mode === 'string' && args.mode.trim().length > 0) ? args.mode.trim().toLowerCase() : 'merge';
+			var patchData = (args.data && typeof args.data === 'object' && !Array.isArray(args.data)) ? args.data : null;
+			if (!objectId || patchData == null)
+			{
+				return;
+			}
+
+			var originalPage = ui.currentPage || null;
+			var targetPage = findPageById(args.pageId);
+			var switchedPage = false;
+			try
+			{
+				if (targetPage != null && originalPage !== targetPage && typeof ui.selectPage === 'function')
+				{
+					ui.selectPage(targetPage);
+					switchedPage = true;
+				}
+
+				var targetCell = resolveCellForUpdate(graph, objectId);
+				if (targetCell == null && switchedPage && originalPage != null && typeof ui.selectPage === 'function')
+				{
+					ui.selectPage(originalPage);
+					switchedPage = false;
+					targetCell = resolveCellForUpdate(graph, objectId);
+				}
+				if (targetCell == null)
+				{
+					writeLog('warn', 'updateStencilData: target cell not found', {
+						objectId: objectId,
+						pageId: args.pageId || null
+					});
+					return;
+				}
+
+				var applied = applyDataUpdateToCell(graph, targetCell, patchData, mode === 'replace' ? 'replace' : 'merge');
+				if (applied)
+				{
+					graph.refresh();
+					writeLog('info', 'updateStencilData applied', {
+						objectId: objectId,
+						pageId: args.pageId || null,
+						mode: mode === 'replace' ? 'replace' : 'merge'
+					});
+				}
+			}
+			finally
+			{
+				if (switchedPage && originalPage != null && ui.currentPage !== originalPage && typeof ui.selectPage === 'function')
+				{
+					ui.selectPage(originalPage);
+				}
+			}
 		}
 	};
 
@@ -2271,23 +2537,44 @@ Draw.loadPlugin(function(ui)
 		var handler = uiCommandHandlers[cmd.name];
 		if (typeof handler === 'function')
 		{
-			handler(args);
-			return;
+			var value = handler(args);
+			if (value != null)
+			{
+				return {
+					name: cmd.name,
+					value: value
+				};
+			}
+			return null;
 		}
 		writeLog('warn', 'Unknown UI command ignored', {command: cmd});
+		return null;
 	}
 
 	function executeInteractiveCommands(result)
 	{
 		if (result == null || !Array.isArray(result.commands))
 		{
-			return;
+			return [];
 		}
-
+		var collected = [];
 		for (var i = 0; i < result.commands.length; i++)
 		{
-			runUiCommand(result.commands[i]);
+			var commandResult = runUiCommand(result.commands[i]);
+			if (commandResult != null)
+			{
+				collected.push(commandResult);
+			}
 		}
+		if (collected.length > 0)
+		{
+			if (result.payload == null || typeof result.payload !== 'object')
+			{
+				result.payload = {};
+			}
+			result.payload.uiCommandResults = collected;
+		}
+		return collected;
 	}
 
 	async function startManualIndicator(params)

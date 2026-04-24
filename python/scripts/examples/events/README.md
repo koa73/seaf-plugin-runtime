@@ -83,7 +83,10 @@ Event processor передает события в поле `REQUEST.payload.eve
 - `specific_modify.py`:
   - обрабатывает событие `modify` для specific-rule.
 - `all_add.py`:
-  - fallback-обработчик `add` для правила `all`.
+  - fallback-обработчик `add` для правила `all`;
+  - демонстрирует обратный канал Python -> draw.io через `commands[].name=updateStencilData`;
+  - пример: берет `item.data.OID`, формирует `OID + "1"` и отправляет partial update (`mode=merge`, `data={"OID": ...}`).
+  - дополнительно демонстрирует `commands[].name=ensureLayer` (`SEAF_AUTO_LAYER`) с `pageId` текущего события.
 - `all_remove.py`:
   - fallback-обработчик `remove` для правила `all`.
 - `all_modify.py`:
@@ -115,3 +118,25 @@ Event processor передает события в поле `REQUEST.payload.eve
 
 Main-process добавляет префикс вида `[PYTHON][script.py][ERROR|INFO]`.
 `INFO`-сообщения пишутся только при включенном `env.scriptLogLevel=info`.
+
+## Команда updateStencilData (из Response.commands)
+
+- Формат:
+  - `name: "updateStencilData"`
+  - `args.pageId` (optional)
+  - `args.objectId` (required)
+  - `args.mode: "merge" | "replace"` (default `merge`)
+  - `args.data: { ... }`
+- `merge`: обновляются только переданные поля.
+- `replace`: перезаписывается набор data-атрибутов объекта.
+
+## Команда ensureLayer (из Response.commands)
+
+- Формат:
+  - `name: "ensureLayer"`
+  - `args.pageId` (optional)
+  - `args.layerName` (required)
+  - `args.makeVisible` (optional, default `true`)
+- Поведение:
+  - если слой существует на странице, возвращается его `layerId` и статус `existing`;
+  - если слоя нет, он создается, делается видимым, возвращается `layerId` и статус `created`.

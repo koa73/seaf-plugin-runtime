@@ -62,11 +62,13 @@ args = payload.get("arguments") or {}
 | Поле | Формат | Назначение |
 |---|---:|---|
 | `id` | `string` | ID объекта (cell) в графе. Используется, например, чтобы вернуть `selectCells` с `cellIds`. |
+| `objectId` | `string` | Алиас `id` для унифицированного контракта event/context обработчиков. |
 | `isVertex` | `boolean` | Является ли объект вершиной. |
 | `isEdge` | `boolean` | Является ли объект ребром. |
 | `label` | `string` | Отображаемая подпись. |
 | `style` | `object` | Стиль объекта (ключи/значения). |
 | `geometry` | `object` | Геометрия (координаты/размеры). |
+| `data` | `object` | Атрибуты объекта в формате `Edit Data` (ключ/значение). |
 
 ### Config values from `env.yaml`
 
@@ -114,6 +116,14 @@ Runtime передает значения редактируемой конфи�
 | `reloadDocument` | `{}` | Перезагружает окно/документ (фактически `window.location.reload()`). |
 | `refreshGraph` | `{}` | Обновляет граф/перерисовку. |
 | `selectCells` | `{ "cellIds": ["id1", "id2"] }` | Выделяет объекты по их `id` в диаграмме. |
+| `updateStencilData` | `{ "pageId": "...", "objectId": "...", "mode": "merge|replace", "data": {...} }` | Обновляет `data` объекта через встроенный путь draw.io (`model.setValue`). |
+| `ensureLayer` | `{ "pageId": "...", "layerName": "...", "makeVisible": true }` | Находит или создает слой по имени и делает его видимым. |
+
+### Результат UI-команд
+
+- Renderer агрегирует возвращаемые значения UI-команд в `result.payload.uiCommandResults`.
+- Для `ensureLayer` возвращается объект вида:
+  - `{ "status": "created|existing", "layerId": "...", "layerName": "..." }`.
 
 ## 3) Разбор вашего примера `Response` (ошибка) и как поля используются
 

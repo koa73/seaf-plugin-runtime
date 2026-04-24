@@ -208,7 +208,7 @@ Compose-loader объединяет их в финальный `commands[]`.
 version: 1
 plugin:
   id: seaf_plugin
-  runtimeVersion: 0.3.4
+  runtimeVersion: 0.3.6
 events:
   configFile: events.yaml
 includes:
@@ -286,3 +286,26 @@ rules:
 - Команды контекстного меню получают те же ключевые поля в `payload.selection[]`:
   - `id`, `objectId`, `geometry`, `data`.
 - Это позволяет Python-скриптам использовать единый контракт для event и context сценариев.
+
+### Response.commands: updateStencilData
+
+- Поддерживается UI-команда `updateStencilData` для обратного канала Python -> draw.io.
+- Аргументы:
+  - `pageId` (optional),
+  - `objectId` (required),
+  - `mode`: `merge | replace`,
+  - `data`: словарь атрибутов.
+- `merge`: обновляются только переданные ключи `data`.
+- `replace`: перезаписывается набор data-атрибутов объекта (с сохранением базовых служебных полей `label/schema`).
+
+### Response.commands: ensureLayer
+
+- Поддерживается UI-команда `ensureLayer` для create-or-get слоя на странице.
+- Аргументы:
+  - `pageId` (optional),
+  - `layerName` (required),
+  - `makeVisible` (optional, default `true`).
+- Результат команды фиксируется в `result.payload.uiCommandResults[]`:
+  - `status: created|existing`,
+  - `layerId`,
+  - `layerName`.

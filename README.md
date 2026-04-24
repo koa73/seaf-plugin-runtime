@@ -119,6 +119,10 @@
 - Event payload для Python handlers обогащен полями `objectId`, `geometry(x,y,width,height)` и `data` (атрибуты объекта по модели `Edit Data`).
 - Для modify дополнительно передаются `valueBefore/valueAfter` и `dataBefore/dataAfter`.
 - В payload команд контекстного меню (`selection[]`) передаются те же ключевые поля: `objectId`, `geometry`, `data`.
+- В `Response.commands[]` поддержана команда `updateStencilData` для обновления атрибутов выбранного стенсила по `pageId/objectId`.
+- Команда поддерживает режимы `merge` (частичное обновление) и `replace` (полная перезапись data-словаря).
+- Добавлена команда `ensureLayer` (create-or-get): находит слой по имени на странице или создает новый, делает его видимым и возвращает `layerId`.
+- Возвращаемые значения UI-команд агрегируются в `result.payload.uiCommandResults`.
 - Примерные Python handlers логируют извлеченные поля через `stderr`; поддержан протокол `SEAF_ERROR`/`SEAF_INFO`/`SEAF_LOG`.
 - В `seaf-plugin.log` записи получают префикс `[PYTHON][script.py][ERROR|INFO]`; `INFO` пишется только при `env.scriptLogLevel=info`, `ERROR` — всегда.
 - Значения `handlers` в `events.yaml` (например `seafStencilSpecificModify`) — это command id composed config; реальные скрипты задаются в `python/scripts/examples/events/*.py` через скрытые commands в `events.yaml`.
