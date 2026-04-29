@@ -123,6 +123,7 @@
 - Команда поддерживает режимы `merge` (частичное обновление) и `replace` (полная перезапись data-словаря).
 - Добавлена команда `ensureLayer` (create-or-get): находит слой по имени на странице или создает новый, делает его видимым и возвращает `layerId`.
 - Возвращаемые значения UI-команд агрегируются в `result.payload.uiCommandResults`.
+- В event pipeline (`source=stencil_event_processor`) ответы Python handlers теперь также исполняют `Response.commands[]` через общий UI executor, поэтому `ensureLayer`/`updateStencilData` применяются не только в menu/system сценариях.
 - Примерные Python handlers логируют извлеченные поля через `stderr`; поддержан протокол `SEAF_ERROR`/`SEAF_INFO`/`SEAF_LOG`.
 - В `seaf-plugin.log` записи получают префикс `[PYTHON][script.py][ERROR|INFO]`; `INFO` пишется только при `env.scriptLogLevel=info`, `ERROR` — всегда.
 - Значения `handlers` в `events.yaml` (например `seafStencilSpecificModify`) — это command id composed config; реальные скрипты задаются в `python/scripts/examples/events/*.py` через скрытые commands в `events.yaml`.

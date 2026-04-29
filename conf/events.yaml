@@ -16,7 +16,7 @@ rules:
       modify: seafStencilSpecificModify
   - id: wildcard_ta_services
     listId: SEAF_Р41
-    schema: "seaf.company.ta.*"
+    schema: "seaf.company.ta.components.*"
     execution: async
     handlers:
       add: seafStencilSpecificAdd

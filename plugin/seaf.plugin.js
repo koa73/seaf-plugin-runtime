@@ -1300,13 +1300,13 @@ Draw.loadPlugin(function(ui)
 		return {rule: null, reason: 'no_rule_match'};
 	}
 
-	function runStencilEventCommand(commandId, eventPayload)
+	async function runStencilEventCommand(commandId, eventPayload)
 	{
 		if (typeof commandId !== 'string' || commandId.trim().length === 0)
 		{
-			return Promise.resolve();
+			return null;
 		}
-		return requestAsync({
+		var response = await requestAsync({
 			action: 'runSeafPluginCommand',
 			configPath: state.configPath,
 			commandId: commandId.trim(),
@@ -1323,6 +1323,27 @@ Draw.loadPlugin(function(ui)
 				}
 			}
 		});
+		var result = response && response.result ? response.result : {};
+		var uiResults = [];
+		try
+		{
+			uiResults = executeInteractiveCommands(result) || [];
+		}
+		catch (uiErr)
+		{
+			await writeLog('error', 'Stencil event UI command execution failed', {
+				commandId: commandId.trim(),
+				error: uiErr && uiErr.message ? uiErr.message : String(uiErr)
+			});
+		}
+		if (uiResults.length > 0)
+		{
+			await writeLog('info', 'Stencil event UI commands executed', {
+				commandId: commandId.trim(),
+				count: uiResults.length
+			});
+		}
+		return response;
 	}
 
 	async function flushStencilBatches()
