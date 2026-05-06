@@ -119,8 +119,14 @@
 - Event payload для Python handlers обогащен полями `objectId`, `geometry(x,y,width,height)` и `data` (атрибуты объекта по модели `Edit Data`).
 - Для modify дополнительно передаются `valueBefore/valueAfter` и `dataBefore/dataAfter`.
 - В payload команд контекстного меню (`selection[]`) передаются те же ключевые поля: `objectId`, `geometry`, `data`.
+- Для `add` событий по шаблону `seaf.company.ta.*` назначение `OID` выполняется через event handlers (`events.yaml`) и обратный канал `Response.commands[]`.
+- Формат OID: `<companyPrefix>.<schemaCode>.<sequence>`, где `companyPrefix` читается из `env.yaml`, `schemaCode` — две последние части `schema`, fallback: `unknown`.
+- Область уникальности OID — строго текущая диаграмма; при import-коллизиях выполняется информирование пользователя таблицей конфликтов (`cellId`, `OID`, `schema`, `conflictWithCellId`, `conflictWithSchema`) без автодедупликации.
+- В renderer добавлен in-memory индекс (`byObjectId`, `bySchema`, `byOid`) для выборок, валидации OID и групповых операций.
 - В `Response.commands[]` поддержана команда `updateStencilData` для обновления атрибутов выбранного стенсила по `pageId/objectId`.
 - Команда поддерживает режимы `merge` (частичное обновление) и `replace` (полная перезапись data-словаря).
+- Добавлена команда `updateStencilDataBulk` для пакетного обновления нескольких объектов в одной транзакции `beginUpdate/endUpdate`.
+- Добавлены batch API-команды `bulkUpdateByIds` и `bulkUpdateByCriteria` (поддержка `dryRun`, отчет `updated/skipped/errors/conflicts`).
 - Добавлена команда `ensureLayer` (create-or-get): находит слой по имени на странице или создает новый, делает его видимым и возвращает `layerId`.
 - Возвращаемые значения UI-команд агрегируются в `result.payload.uiCommandResults`.
 - В event pipeline (`source=stencil_event_processor`) ответы Python handlers теперь также исполняют `Response.commands[]` через общий UI executor, поэтому `ensureLayer`/`updateStencilData` применяются не только в menu/system сценариях.

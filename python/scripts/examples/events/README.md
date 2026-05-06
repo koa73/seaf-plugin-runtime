@@ -84,8 +84,10 @@ Event processor передает события в поле `REQUEST.payload.eve
   - обрабатывает событие `modify` для specific-rule.
 - `all_add.py`:
   - fallback-обработчик `add` для правила `all`;
-  - демонстрирует обратный канал Python -> draw.io через `commands[].name=updateStencilData`;
-  - пример: берет `item.data.OID`, формирует `OID + "1"` и отправляет partial update (`mode=merge`, `data={"OID": ...}`).
+  - назначает `OID` через event-механизм (правило wildcard `seaf.company.ta.*`);
+  - формат OID: `<companyPrefix>.<schemaCode>.<sequence>`, где `schemaCode` = две последние части `schema`, fallback `unknown`;
+  - для обновления нескольких элементов использует `commands[].name=updateStencilDataBulk`.
+  - проверяет коллизии при import и выводит информационную таблицу конфликтов без автодедупликации.
   - дополнительно демонстрирует `commands[].name=ensureLayer` (`SEAF_AUTO_LAYER`) с `pageId` текущего события.
 - `all_remove.py`:
   - fallback-обработчик `remove` для правила `all`.
@@ -129,6 +131,15 @@ Main-process добавляет префикс вида `[PYTHON][script.py][ERR
   - `args.data: { ... }`
 - `merge`: обновляются только переданные поля.
 - `replace`: перезаписывается набор data-атрибутов объекта.
+
+## Команда updateStencilDataBulk (из Response.commands)
+
+- Формат:
+  - `name: "updateStencilDataBulk"`
+  - `args.pageId` (optional)
+  - `args.updates` (required): массив `{objectId, mode, data}`
+- Поведение:
+  - пакетное применение изменений в одной транзакции модели.
 
 ## Команда ensureLayer (из Response.commands)
 

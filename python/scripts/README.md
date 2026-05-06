@@ -117,6 +117,7 @@ Runtime передает значения редактируемой конфи�
 | `refreshGraph` | `{}` | Обновляет граф/перерисовку. |
 | `selectCells` | `{ "cellIds": ["id1", "id2"] }` | Выделяет объекты по их `id` в диаграмме. |
 | `updateStencilData` | `{ "pageId": "...", "objectId": "...", "mode": "merge|replace", "data": {...} }` | Обновляет `data` объекта через встроенный путь draw.io (`model.setValue`). |
+| `updateStencilDataBulk` | `{ "pageId": "...", "updates": [{"objectId":"...","mode":"merge|replace","data":{...}}] }` | Пакетно обновляет данные объектов в одной транзакции. |
 | `ensureLayer` | `{ "pageId": "...", "layerName": "...", "makeVisible": true }` | Находит или создает слой по имени и делает его видимым. |
 
 ### Результат UI-команд
@@ -282,6 +283,7 @@ Auto-event processor передает event batch в Python handlers через 
 Это означает:
 - значения вроде `seafStencilSpecificModify` — это **command id**, а не Python/JS функция;
 - реальный файл скрипта определяется в `plugin.yaml` полем `commands[].script`.
+- для сценария OID используется `add`-маршрут с wildcard-правилом `seaf.company.ta.*`, а handler возвращает `updateStencilDataBulk`.
 
 Формат `REQUEST.payload.event`:
 

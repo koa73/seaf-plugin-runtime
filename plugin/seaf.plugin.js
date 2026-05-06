@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.3.6
+ * Runtime script version: 0.3.8
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -33,7 +33,15 @@ Draw.loadPlugin(function(ui)
 		stencilEventDispatchInFlight: false,
 		pendingStencilBatches: [],
 		editDataSessionActive: false,
-		editDataBeforeByCell: {}
+		editDataBeforeByCell: {},
+		stencilIndex: {
+			ready: false,
+			byObjectId: {},
+			bySchema: {},
+			byOid: {},
+			total: 0,
+			lastRebuildAt: null
+		}
 	};
 
 	function requestAsync(msg)
@@ -1159,6 +1167,218 @@ Draw.loadPlugin(function(ui)
 		};
 	}
 
+	function parseSchemaCode(schemaValue)
+	{
+		var schema = String(schemaValue || '').trim();
+		if (schema.length === 0)
+		{
+			return 'unknown';
+		}
+		var parts = schema.split('.');
+		var clean = [];
+		for (var i = 0; i < parts.length; i++)
+		{
+			var token = String(parts[i] || '').trim();
+			if (token.length > 0)
+			{
+				clean.push(token);
+			}
+		}
+		if (clean.length < 2)
+		{
+			return 'unknown';
+		}
+		return clean[clean.length - 2] + '.' + clean[clean.length - 1];
+	}
+
+	function getCompanyPrefix()
+	{
+		var env = state.envConfig && state.envConfig.env ? state.envConfig.env : {};
+		var prefix = env && typeof env.companyPrefix === 'string' ? env.companyPrefix.trim() : '';
+		return prefix.length > 0 ? prefix : 'company';
+	}
+
+	function getOidFromData(data)
+	{
+		if (!data || typeof data !== 'object')
+		{
+			return '';
+		}
+		var oid = data.OID != null ? String(data.OID).trim() : '';
+		return oid;
+	}
+
+	function buildIndexEntryFromCell(cell, graph)
+	{
+		if (!cell || !cell.id || !graph)
+		{
+			return null;
+		}
+		var data = extractEditableDataFromCell(cell, graph);
+		var schemaMeta = extractShapeSchema(cell, graph);
+		var schema = schemaMeta && typeof schemaMeta.schema === 'string' ? schemaMeta.schema.trim() : '';
+		var oid = getOidFromData(data);
+		return {
+			objectId: cell.id,
+			schema: schema,
+			schemaCode: parseSchemaCode(schema),
+			oid: oid,
+			data: sanitizeForIpc(data)
+		};
+	}
+
+	function clearStencilIndex()
+	{
+		state.stencilIndex.byObjectId = {};
+		state.stencilIndex.bySchema = {};
+		state.stencilIndex.byOid = {};
+		state.stencilIndex.total = 0;
+		state.stencilIndex.ready = false;
+		state.stencilIndex.lastRebuildAt = new Date().toISOString();
+	}
+
+	function addEntryToStencilIndex(entry)
+	{
+		if (!entry || !entry.objectId)
+		{
+			return;
+		}
+		var objectId = entry.objectId;
+		state.stencilIndex.byObjectId[objectId] = entry;
+		var schemaKey = entry.schema || 'unknown';
+		if (!state.stencilIndex.bySchema[schemaKey])
+		{
+			state.stencilIndex.bySchema[schemaKey] = {};
+		}
+		state.stencilIndex.bySchema[schemaKey][objectId] = true;
+		if (entry.oid)
+		{
+			if (!state.stencilIndex.byOid[entry.oid])
+			{
+				state.stencilIndex.byOid[entry.oid] = {};
+			}
+			state.stencilIndex.byOid[entry.oid][objectId] = true;
+		}
+	}
+
+	function removeEntryFromStencilIndex(objectId)
+	{
+		var id = String(objectId || '').trim();
+		if (!id)
+		{
+			return;
+		}
+		var prev = state.stencilIndex.byObjectId[id];
+		if (!prev)
+		{
+			return;
+		}
+		delete state.stencilIndex.byObjectId[id];
+		var schemaKey = prev.schema || 'unknown';
+		if (state.stencilIndex.bySchema[schemaKey])
+		{
+			delete state.stencilIndex.bySchema[schemaKey][id];
+			if (Object.keys(state.stencilIndex.bySchema[schemaKey]).length === 0)
+			{
+				delete state.stencilIndex.bySchema[schemaKey];
+			}
+		}
+		if (prev.oid && state.stencilIndex.byOid[prev.oid])
+		{
+			delete state.stencilIndex.byOid[prev.oid][id];
+			if (Object.keys(state.stencilIndex.byOid[prev.oid]).length === 0)
+			{
+				delete state.stencilIndex.byOid[prev.oid];
+			}
+		}
+	}
+
+	function upsertCellInStencilIndex(cell, graph)
+	{
+		if (!cell || !cell.id || !graph)
+		{
+			return;
+		}
+		removeEntryFromStencilIndex(cell.id);
+		var entry = buildIndexEntryFromCell(cell, graph);
+		if (entry)
+		{
+			addEntryToStencilIndex(entry);
+		}
+	}
+
+	function rebuildStencilIndex()
+	{
+		var graph = ui && ui.editor ? ui.editor.graph : null;
+		clearStencilIndex();
+		if (!graph || !graph.model)
+		{
+			return;
+		}
+		var model = graph.model;
+		var root = model.getRoot ? model.getRoot() : model.root;
+		var all = [];
+		if (typeof model.filterDescendants === 'function')
+		{
+			all = model.filterDescendants(function(cell)
+			{
+				return model.isVertex(cell) || model.isEdge(cell);
+			}, root) || [];
+		}
+		else if (typeof model.getDescendants === 'function')
+		{
+			all = model.getDescendants(root) || [];
+		}
+		for (var i = 0; i < all.length; i++)
+		{
+			var cell = all[i];
+			if (!cell || !cell.id)
+			{
+				continue;
+			}
+			if (!(model.isVertex(cell) || model.isEdge(cell)))
+			{
+				continue;
+			}
+			var entry = buildIndexEntryFromCell(cell, graph);
+			if (entry)
+			{
+				addEntryToStencilIndex(entry);
+			}
+		}
+		state.stencilIndex.total = Object.keys(state.stencilIndex.byObjectId).length;
+		state.stencilIndex.ready = true;
+		state.stencilIndex.lastRebuildAt = new Date().toISOString();
+	}
+
+	function makeStencilIndexSnapshot()
+	{
+		var bySchema = {};
+		for (var schema in state.stencilIndex.bySchema)
+		{
+			if (!Object.prototype.hasOwnProperty.call(state.stencilIndex.bySchema, schema))
+			{
+				continue;
+			}
+			var ids = Object.keys(state.stencilIndex.bySchema[schema]);
+			bySchema[schema] = ids;
+		}
+		var byOid = {};
+		for (var oid in state.stencilIndex.byOid)
+		{
+			if (!Object.prototype.hasOwnProperty.call(state.stencilIndex.byOid, oid))
+			{
+				continue;
+			}
+			byOid[oid] = Object.keys(state.stencilIndex.byOid[oid]);
+		}
+		return {
+			total: state.stencilIndex.total,
+			bySchema: bySchema,
+			byOid: byOid
+		};
+	}
+
 	function buildStencilItemSnapshot(cell, operation)
 	{
 		var graph = ui && ui.editor ? ui.editor.graph : null;
@@ -1176,6 +1396,7 @@ Draw.loadPlugin(function(ui)
 		{
 			geom = null;
 		}
+		var data = extractEditableDataFromCell(cell, graph);
 		return {
 			id: cell.id || null,
 			objectId: cell.id || null,
@@ -1186,7 +1407,10 @@ Draw.loadPlugin(function(ui)
 			style: sanitizeForIpc(graph.getCellStyle(cell)),
 			styleText: meta.styleText,
 			geometry: buildGeometryPayload(geom),
-			data: extractEditableDataFromCell(cell, graph),
+			data: data,
+			oid: getOidFromData(data),
+			companyPrefix: getCompanyPrefix(),
+			schemaCode: parseSchemaCode(meta.schema),
 			value: sanitizeForIpc(cell.value)
 		};
 	}
@@ -1319,7 +1543,8 @@ Draw.loadPlugin(function(ui)
 				arguments: {
 					eventType: eventPayload.eventType,
 					ruleId: eventPayload.ruleId || '',
-					listId: eventPayload.listId || ''
+					listId: eventPayload.listId || '',
+					companyPrefix: getCompanyPrefix()
 				}
 			}
 		});
@@ -1451,7 +1676,8 @@ Draw.loadPlugin(function(ui)
 								page: batch.page,
 								ruleId: group.ruleId,
 								listId: group.listId,
-								items: group.items
+								items: group.items,
+								index: makeStencilIndexSnapshot()
 							}).then(function() {
 								writeLog('debug', 'Stencil event async handler completed', {
 									commandId: asyncCommandId,
@@ -1488,7 +1714,8 @@ Draw.loadPlugin(function(ui)
 								page: batch.page,
 								ruleId: group.ruleId,
 								listId: group.listId,
-								items: group.items
+								items: group.items,
+								index: makeStencilIndexSnapshot()
 							});
 							await writeLog('debug', 'Stencil event batch dispatched', {
 								commandId: group.commandId,
@@ -1583,6 +1810,14 @@ Draw.loadPlugin(function(ui)
 				}
 				if (operation != null)
 				{
+					if (operation === 'remove')
+					{
+						removeEntryFromStencilIndex(change.child.id || '');
+					}
+					else
+					{
+						upsertCellInStencilIndex(change.child, graph);
+					}
 					var snapshot = buildStencilItemSnapshot(change.child, operation);
 					if (snapshot && snapshot.id)
 					{
@@ -1598,6 +1833,7 @@ Draw.loadPlugin(function(ui)
 
 			if (state.editDataSessionActive === true && change.cell && Object.prototype.hasOwnProperty.call(change, 'value'))
 			{
+				upsertCellInStencilIndex(change.cell, graph);
 				var beforeKey = change.cell.id || '';
 				var beforeState = state.editDataBeforeByCell[beforeKey];
 				var beforeValue = (beforeState && typeof beforeState === 'object' && Object.prototype.hasOwnProperty.call(beforeState, 'value')) ?
@@ -2265,7 +2501,7 @@ Draw.loadPlugin(function(ui)
 		return graph.model.getCell(objectId.trim());
 	}
 
-	function applyDataUpdateToCell(graph, cell, patchData, mode)
+	function applyDataUpdateToCell(graph, cell, patchData, mode, useTransaction)
 	{
 		if (!graph || !graph.model || !cell || patchData == null || typeof patchData !== 'object' || Array.isArray(patchData))
 		{
@@ -2322,15 +2558,23 @@ Draw.loadPlugin(function(ui)
 			}
 		}
 
-		graph.getModel().beginUpdate();
+		var ownTx = useTransaction !== false;
+		if (ownTx)
+		{
+			graph.getModel().beginUpdate();
+		}
 		try
 		{
 			graph.getModel().setValue(cell, clonedValue);
 		}
 		finally
 		{
-			graph.getModel().endUpdate();
+			if (ownTx)
+			{
+				graph.getModel().endUpdate();
+			}
 		}
+		upsertCellInStencilIndex(cell, graph);
 		return true;
 	}
 
@@ -2398,6 +2642,112 @@ Draw.loadPlugin(function(ui)
 			layerId: layer && typeof layer.getId === 'function' ? layer.getId() : (layer ? layer.id : null),
 			layerName: normalizedName
 		};
+	}
+
+	function cellMatchesCriteria(cell, graph, criteria)
+	{
+		var filter = (criteria && typeof criteria === 'object') ? criteria : {};
+		var data = extractEditableDataFromCell(cell, graph);
+		var schemaMeta = extractShapeSchema(cell, graph);
+		var schema = schemaMeta && schemaMeta.schema ? String(schemaMeta.schema).trim() : '';
+		if (typeof filter.schema === 'string' && filter.schema.trim().length > 0)
+		{
+			var schemaMatch = matchSchemaPattern(schema, filter.schema.trim());
+			if (schemaMatch.matched !== true)
+			{
+				return false;
+			}
+		}
+		var attrs = (filter.attributes && typeof filter.attributes === 'object' && !Array.isArray(filter.attributes)) ?
+			filter.attributes : {};
+		for (var key in attrs)
+		{
+			if (!Object.prototype.hasOwnProperty.call(attrs, key))
+			{
+				continue;
+			}
+			var expected = attrs[key];
+			var actual = Object.prototype.hasOwnProperty.call(data, key) ? data[key] : null;
+			if (expected == null)
+			{
+				if (actual != null && String(actual).length > 0)
+				{
+					return false;
+				}
+			}
+			else if (String(actual || '') !== String(expected))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	function getCellsByCriteria(graph, criteria)
+	{
+		if (!graph || !graph.model)
+		{
+			return [];
+		}
+		var model = graph.model;
+		var root = model.getRoot ? model.getRoot() : model.root;
+		var cells = [];
+		if (typeof model.filterDescendants === 'function')
+		{
+			cells = model.filterDescendants(function(cell)
+			{
+				if (!(model.isVertex(cell) || model.isEdge(cell)))
+				{
+					return false;
+				}
+				return cellMatchesCriteria(cell, graph, criteria);
+			}, root) || [];
+		}
+		return cells;
+	}
+
+	function detectOidConflicts(cells, graph, patchData)
+	{
+		var conflicts = [];
+		if (!patchData || typeof patchData !== 'object')
+		{
+			return conflicts;
+		}
+		if (!Object.prototype.hasOwnProperty.call(patchData, 'OID'))
+		{
+			return conflicts;
+		}
+		var targetOid = String(patchData.OID || '').trim();
+		if (!targetOid)
+		{
+			return conflicts;
+		}
+		var existing = state.stencilIndex.byOid[targetOid] || {};
+		for (var i = 0; i < cells.length; i++)
+		{
+			var cell = cells[i];
+			if (!cell || !cell.id)
+			{
+				continue;
+			}
+			for (var objectId in existing)
+			{
+				if (!Object.prototype.hasOwnProperty.call(existing, objectId) || objectId === cell.id)
+				{
+					continue;
+				}
+				var conflictCell = resolveCellForUpdate(graph, objectId);
+				var conflictSchema = conflictCell ? extractShapeSchema(conflictCell, graph).schema : '';
+				conflicts.push({
+					cellId: cell.id,
+					OID: targetOid,
+					schema: extractShapeSchema(cell, graph).schema,
+					conflictWithCellId: objectId,
+					conflictWithSchema: conflictSchema
+				});
+			}
+		}
+		return conflicts;
 	}
 
 	var uiCommandHandlers = {
@@ -2549,6 +2899,192 @@ Draw.loadPlugin(function(ui)
 					ui.selectPage(originalPage);
 				}
 			}
+		},
+		updateStencilDataBulk: function(args)
+		{
+			var graph = ui && ui.editor ? ui.editor.graph : null;
+			if (!graph || !args || typeof args !== 'object')
+			{
+				return {updated: 0, skipped: 0, errors: ['invalid_args']};
+			}
+			var updates = Array.isArray(args.updates) ? args.updates : [];
+			if (updates.length === 0)
+			{
+				return {updated: 0, skipped: 0, errors: []};
+			}
+			var originalPage = ui.currentPage || null;
+			var targetPage = findPageById(args.pageId);
+			var switchedPage = false;
+			var updated = 0;
+			var skipped = 0;
+			try
+			{
+				if (targetPage != null && originalPage !== targetPage && typeof ui.selectPage === 'function')
+				{
+					ui.selectPage(targetPage);
+					switchedPage = true;
+				}
+				graph.getModel().beginUpdate();
+				try
+				{
+					for (var i = 0; i < updates.length; i++)
+					{
+						var row = updates[i] || {};
+						var objectId = typeof row.objectId === 'string' ? row.objectId.trim() : '';
+						var patchData = (row.data && typeof row.data === 'object' && !Array.isArray(row.data)) ? row.data : null;
+						var mode = (typeof row.mode === 'string' && row.mode.trim().length > 0) ? row.mode.trim().toLowerCase() : 'merge';
+						if (!objectId || patchData == null)
+						{
+							skipped += 1;
+							continue;
+						}
+						var cell = resolveCellForUpdate(graph, objectId);
+						if (!cell)
+						{
+							skipped += 1;
+							continue;
+						}
+						if (applyDataUpdateToCell(graph, cell, patchData, mode === 'replace' ? 'replace' : 'merge', false))
+						{
+							updated += 1;
+						}
+						else
+						{
+							skipped += 1;
+						}
+					}
+				}
+				finally
+				{
+					graph.getModel().endUpdate();
+				}
+				graph.refresh();
+			}
+			finally
+			{
+				if (switchedPage && originalPage != null && ui.currentPage !== originalPage && typeof ui.selectPage === 'function')
+				{
+					ui.selectPage(originalPage);
+				}
+			}
+			return {updated: updated, skipped: skipped, errors: []};
+		},
+		bulkUpdateByIds: function(args)
+		{
+			var graph = ui && ui.editor ? ui.editor.graph : null;
+			if (!graph || !args || typeof args !== 'object')
+			{
+				return {updated: 0, skipped: 0, errors: ['invalid_args'], conflicts: []};
+			}
+			var ids = Array.isArray(args.objectIds) ? args.objectIds : [];
+			var patchData = (args.data && typeof args.data === 'object' && !Array.isArray(args.data)) ? args.data : null;
+			var mode = (typeof args.mode === 'string' && args.mode.trim().length > 0) ? args.mode.trim().toLowerCase() : 'merge';
+			if (!patchData || ids.length === 0)
+			{
+				return {updated: 0, skipped: ids.length, errors: ['empty_input'], conflicts: []};
+			}
+			var targetCells = [];
+			for (var i = 0; i < ids.length; i++)
+			{
+				var id = String(ids[i] || '').trim();
+				if (!id)
+				{
+					continue;
+				}
+				var cell = resolveCellForUpdate(graph, id);
+				if (cell != null)
+				{
+					targetCells.push(cell);
+				}
+			}
+			var conflicts = detectOidConflicts(targetCells, graph, patchData);
+			if (conflicts.length > 0)
+			{
+				return {updated: 0, skipped: targetCells.length, errors: ['oid_conflict'], conflicts: conflicts};
+			}
+			var dryRun = args.dryRun === true;
+			var updated = 0;
+			var skipped = ids.length - targetCells.length;
+			if (!dryRun)
+			{
+				graph.getModel().beginUpdate();
+				try
+				{
+					for (var j = 0; j < targetCells.length; j++)
+					{
+						if (applyDataUpdateToCell(graph, targetCells[j], patchData, mode === 'replace' ? 'replace' : 'merge', false))
+						{
+							updated += 1;
+						}
+						else
+						{
+							skipped += 1;
+						}
+					}
+				}
+				finally
+				{
+					graph.getModel().endUpdate();
+				}
+				graph.refresh();
+			}
+			return {updated: dryRun ? targetCells.length : updated, skipped: skipped, errors: [], conflicts: []};
+		},
+		bulkUpdateByCriteria: function(args)
+		{
+			var graph = ui && ui.editor ? ui.editor.graph : null;
+			if (!graph || !args || typeof args !== 'object')
+			{
+				return {updated: 0, skipped: 0, errors: ['invalid_args'], conflicts: []};
+			}
+			var criteria = (args.criteria && typeof args.criteria === 'object') ? args.criteria : {};
+			var cells = getCellsByCriteria(graph, criteria);
+			var objectIds = [];
+			for (var i = 0; i < cells.length; i++)
+			{
+				if (cells[i] && cells[i].id)
+				{
+					objectIds.push(cells[i].id);
+				}
+			}
+			return uiCommandHandlers.bulkUpdateByIds({
+				objectIds: objectIds,
+				data: args.data,
+				mode: args.mode,
+				dryRun: args.dryRun === true
+			});
+		},
+		findBySchema: function(args)
+		{
+			var schema = args && typeof args.schema === 'string' ? args.schema.trim() : '';
+			if (!schema)
+			{
+				return [];
+			}
+			var bySchema = state.stencilIndex.bySchema[schema] || {};
+			return Object.keys(bySchema);
+		},
+		findByAttributes: function(args)
+		{
+			var graph = ui && ui.editor ? ui.editor.graph : null;
+			if (!graph || !args || typeof args !== 'object')
+			{
+				return [];
+			}
+			var criteria = {
+				schema: typeof args.schema === 'string' ? args.schema : '',
+				attributes: (args.attributes && typeof args.attributes === 'object' && !Array.isArray(args.attributes)) ? args.attributes : {}
+			};
+			var cells = getCellsByCriteria(graph, criteria);
+			var out = [];
+			for (var i = 0; i < cells.length; i++)
+			{
+				if (cells[i] && cells[i].id)
+				{
+					out.push(cells[i].id);
+				}
+			}
+			return out;
 		}
 	};
 
@@ -3312,6 +3848,11 @@ Draw.loadPlugin(function(ui)
 			});
 			await runInitStep('python_env_auto', ensurePythonEnvironmentAuto, true);
 			await runInitStep('stencil_libraries_load', loadSeafStencilLibraries, false);
+			await runInitStep('stencil_index_rebuild', function()
+			{
+				rebuildStencilIndex();
+				return Promise.resolve();
+			}, false);
 			await runInitStep('install_stencil_model_listener', installStencilModelListener, false);
 			await runInitStep('install_edit_data_apply_hook', installEditDataApplyHook, false);
 

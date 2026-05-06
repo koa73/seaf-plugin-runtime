@@ -136,6 +136,7 @@ Compose-loader объединяет их в финальный `commands[]`.
 - `seaf.company.ta.services.dc_azs` — exact match только для одного schema.
 - `seaf.company.ta.*` — wildcard match для группы schema.
 - `all` — правило на все стенсилы выбранного `listId`.
+- Для auto-назначения `OID` при `add` следует использовать wildcard-правило `seaf.company.ta.*`.
 
 Приоритет матчинга внутри list:
 1. exact
@@ -297,6 +298,14 @@ rules:
   - `data`: словарь атрибутов.
 - `merge`: обновляются только переданные ключи `data`.
 - `replace`: перезаписывается набор data-атрибутов объекта (с сохранением базовых служебных полей `label/schema`).
+
+### Response.commands: updateStencilDataBulk
+
+- Поддерживается UI-команда `updateStencilDataBulk` для пакетного обновления нескольких объектов.
+- Аргументы:
+  - `pageId` (optional),
+  - `updates`: массив `{objectId, mode, data}`.
+- Обновления применяются в одной транзакции модели (`beginUpdate/endUpdate`).
 
 ### Response.commands: ensureLayer
 

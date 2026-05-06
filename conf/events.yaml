@@ -11,15 +11,15 @@ rules:
     schema: "seaf.company.ta.services.dc_azs"
     execution: sync
     handlers:
-      add: seafStencilSpecificAdd
+      add: seafStencilAllAdd
       remove: seafStencilSpecificRemove
       modify: seafStencilSpecificModify
   - id: wildcard_ta_services
     listId: SEAF_Р41
-    schema: "seaf.company.ta.components.*"
-    execution: async
+    schema: "seaf.company.ta.*"
+    execution: sync
     handlers:
-      add: seafStencilSpecificAdd
+      add: seafStencilAllAdd
   - id: all
     listId: SEAF_Р41
     schema: all
