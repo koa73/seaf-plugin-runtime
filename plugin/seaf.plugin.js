@@ -2501,6 +2501,29 @@ Draw.loadPlugin(function(ui)
 		return graph.model.getCell(objectId.trim());
 	}
 
+	function resolveCellsByObjectIds(graph, objectIds)
+	{
+		if (!graph || !Array.isArray(objectIds))
+		{
+			return [];
+		}
+		var out = [];
+		for (var i = 0; i < objectIds.length; i++)
+		{
+			var objectId = String(objectIds[i] || '').trim();
+			if (!objectId)
+			{
+				continue;
+			}
+			var cell = resolveCellForUpdate(graph, objectId);
+			if (cell != null)
+			{
+				out.push(cell);
+			}
+		}
+		return out;
+	}
+
 	function applyDataUpdateToCell(graph, cell, patchData, mode, useTransaction)
 	{
 		if (!graph || !graph.model || !cell || patchData == null || typeof patchData !== 'object' || Array.isArray(patchData))
@@ -2830,6 +2853,55 @@ Draw.loadPlugin(function(ui)
 					graph.refresh();
 				}
 				return result;
+			}
+			finally
+			{
+				if (switchedPage && originalPage != null && ui.currentPage !== originalPage && typeof ui.selectPage === 'function')
+				{
+					ui.selectPage(originalPage);
+				}
+			}
+		},
+		moveObjectsToLayer: function(args)
+		{
+			var graph = ui && ui.editor ? ui.editor.graph : null;
+			if (!graph || !args || typeof args !== 'object')
+			{
+				return null;
+			}
+			var layerName = typeof args.layerName === 'string' ? args.layerName.trim() : '';
+			if (!layerName)
+			{
+				layerName = 'unknown';
+			}
+			var originalPage = ui.currentPage || null;
+			var targetPage = findPageById(args.pageId);
+			var switchedPage = false;
+			try
+			{
+				if (targetPage != null && originalPage !== targetPage && typeof ui.selectPage === 'function')
+				{
+					ui.selectPage(targetPage);
+					switchedPage = true;
+				}
+				var layerResult = ensureLayer(graph, layerName, args.makeVisible !== false);
+				var targetLayer = findLayerByName(graph, layerName);
+				if (!targetLayer)
+				{
+					return {moved: 0, layerName: layerName, layerId: null};
+				}
+				var cells = resolveCellsByObjectIds(graph, args.objectIds || []);
+				if (cells.length > 0)
+				{
+					graph.moveCells(cells, 0, 0, false, targetLayer);
+					graph.refresh();
+				}
+				return {
+					moved: cells.length,
+					layerId: layerResult ? layerResult.layerId : null,
+					layerName: layerName,
+					status: layerResult ? layerResult.status : 'existing'
+				};
 			}
 			finally
 			{

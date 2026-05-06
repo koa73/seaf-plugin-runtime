@@ -4,6 +4,7 @@
     "w": 760,
     "h": 630,
     "aspect": "fixed",
+    "layer": true,
     "title": "Регион"
   },
   {
@@ -11,6 +12,7 @@
     "w": 360,
     "h": 260,
     "aspect": "fixed",
+    "layer": true,
     "title": "Зона доступности"
   },
   {
@@ -18,6 +20,7 @@
     "w": 120,
     "h": 80,
     "aspect": "fixed",
+    "layer": true,
     "title": "Офис"
   },
   {
@@ -25,6 +28,7 @@
     "w": 120,
     "h": 60,
     "aspect": "fixed",
+    "layer": true,
     "title": "ЦОД"
   },
   {
@@ -32,6 +36,7 @@
     "w": 180,
     "h": 800,
     "aspect": "fixed",
+    "layer": true,
     "title": "Интернет"
   },
   {
@@ -39,6 +44,7 @@
     "w": 200,
     "h": 20,
     "aspect": "fixed",
+    "layer": true,
     "title": "LAN"
   },
   {
@@ -46,6 +52,7 @@
     "w": 100,
     "h": 590,
     "aspect": "fixed",
+    "layer": true,
     "title": "WAN"
   },
   {
@@ -53,6 +60,7 @@
     "w": 110,
     "h": 60,
     "aspect": "fixed",
+    "layer": true,
     "title": "Провайдер"
   },
   {
@@ -66,6 +74,7 @@
     "xml": "&lt;mxGraphModel&gt;&lt;root&gt;&lt;mxCell id=\"0\" /&gt;&lt;mxCell id=\"1\" parent=\"0\" /&gt;&lt;object label=\"&amp;lt;font style=&amp;quot;color: light-dark(rgb(0, 0, 0), rgb(237, 237, 237)); line-height: 140%; font-size: 9px; &amp;quot;&amp;gt;&amp;amp;nbsp;--- WiFi ---&amp;amp;nbsp;&amp;lt;/font&amp;gt;\" title=\"\" description=\"\" realization_type=\"\" model=\"\" type=\"\" purpose=\"\" address=\"0.0.0.0\" OID=\"\" schema=\"seaf.company.ta.components.networks\" id=\"2\" app_components=\"\" auth_type=\"\" external_id=\"\" location=\"\" network_connection=\"\" segment=\"\" stand=\"\"&gt;&lt;mxCell style=\"shape=mxgraph.cisco.wireless.wlan_controller;sketch=0;html=1;pointerEvents=1;dashed=0;fillColor=#036897;strokeColor=#ffffff;strokeWidth=2;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;labelBackgroundColor=none;fontSize=9;fontColor=default;fontStyle=1;\" vertex=\"1\" parent=\"1\"&gt;&lt;mxGeometry width=\"38\" height=\"19\" as=\"geometry\" /&gt;&lt;/mxCell&gt;&lt;/object&gt;&lt;/root&gt;&lt;/mxGraphModel&gt;",
     "w": 38,
     "h": 19,
+    "layer": true,
     "title": "WiFi",
     "aspect": "fixed"
   },
@@ -73,6 +82,7 @@
     "xml": "&lt;mxGraphModel&gt;&lt;root&gt;&lt;mxCell id=\"0\" /&gt;&lt;mxCell id=\"1\" parent=\"0\" /&gt;&lt;object label=\"&amp;lt;font style=&amp;quot;color: light-dark(rgb(0, 0, 0), rgb(237, 237, 237)); line-height: 140%; font-size: 9px; &amp;quot;&amp;gt;&amp;amp;nbsp;--Switch--&amp;amp;nbsp;&amp;lt;/font&amp;gt;\" title=\"\" description=\"\" realization_type=\"\" model=\"\" type=\"Коммутатор\" purpose=\"\" address=\"\" OID=\"\" schema=\"seaf.company.ta.components.networks\" id=\"2\" app_components=\"\" auth_type=\"\" external_id=\"\" location=\"\" network_connection=\"\" segment=\"\" stand=\"\"&gt;&lt;mxCell style=\"shape=mxgraph.cisco.switches.workgroup_switch;sketch=0;html=1;pointerEvents=1;dashed=0;fillColor=#036897;strokeColor=#ffffff;strokeWidth=2;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;labelBackgroundColor=default;fontSize=12;fontColor=#FFFFFF;\" vertex=\"1\" parent=\"1\"&gt;&lt;mxGeometry width=\"50\" height=\"20\" as=\"geometry\" /&gt;&lt;/mxCell&gt;&lt;/object&gt;&lt;/root&gt;&lt;/mxGraphModel&gt;",
     "w": 50,
     "h": 20,
+    "layer": true,
     "title": "Switch",
     "aspect": "fixed"
   },

@@ -129,12 +129,13 @@
 - Добавлена команда `updateStencilDataBulk` для пакетного обновления нескольких объектов в одной транзакции `beginUpdate/endUpdate`.
 - Добавлены batch API-команды `bulkUpdateByIds` и `bulkUpdateByCriteria` (поддержка `dryRun`, отчет `updated/skipped/errors/conflicts`).
 - Добавлена команда `ensureLayer` (create-or-get): находит слой по имени на странице или создает новый, делает его видимым и возвращает `layerId`.
+- Добавлена команда `moveObjectsToLayer`: create-or-get слоя + перенос указанных объектов в слой через `graph.moveCells(...)`.
 - Возвращаемые значения UI-команд агрегируются в `result.payload.uiCommandResults`.
 - В event pipeline (`source=stencil_event_processor`) ответы Python handlers теперь также исполняют `Response.commands[]` через общий UI executor, поэтому `ensureLayer`/`updateStencilData` применяются не только в menu/system сценариях.
 - Примерные Python handlers логируют извлеченные поля через `stderr`; поддержан протокол `SEAF_ERROR`/`SEAF_INFO`/`SEAF_LOG`.
 - В `seaf-plugin.log` записи получают префикс `[PYTHON][script.py][ERROR|INFO]`; `INFO` пишется только при `pluginLogLevel in {info, debug, trace}` (из `REQUEST.payload.env/arguments`), `ERROR` — всегда.
 - Значения `handlers` в `events.yaml` (например `seafStencilSpecificModify`) — это command id composed config; реальные скрипты задаются в `python/scripts/examples/events/*.py` через скрытые commands в `events.yaml`.
-- Для `seafStencilAllAdd` используется production orchestrator `python/scripts/events/all_add.py`; OID-алгоритм вынесен в библиотеку `python/scripts/lib/oid/*`, сервисная event-логика — в `python/scripts/lib/events/*`, а проверка уровней и emit logging-сообщений (`SEAF_INFO/SEAF_ERROR`) централизованы в `python/scripts/lib/logging/*`.
+- Для `seafStencilAllAdd` используется production orchestrator `python/scripts/events/all_add.py`; OID-алгоритм вынесен в библиотеку `python/scripts/lib/oid/*`, сервисная event-логика (включая layer-policy `layer/title->layerName`) — в `python/scripts/lib/events/*`, а проверка уровней и emit logging-сообщений (`SEAF_INFO/SEAF_ERROR`) централизованы в `python/scripts/lib/logging/*`.
 - Детальная спецификация конфига и mapping `handler id -> command -> script` описаны в `conf/README.md`, а подробное поведение скриптов — в `python/scripts/examples/events/README.md`.
 
 ## Interactive terminal command

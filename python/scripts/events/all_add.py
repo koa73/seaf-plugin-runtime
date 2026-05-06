@@ -6,9 +6,11 @@ from typing import Any, Callable, Dict, List, Tuple
 from lib.io import read_request, write_response
 from lib.events import (
     build_collision_message,
-    build_ensure_auto_layer_command,
+    build_move_objects_to_layer_command,
     build_update_stencil_data_bulk_command,
+    is_layer_enabled_for_item,
     log_event_items,
+    resolve_item_layer_name,
     resolve_company_prefix,
 )
 from lib.logging import build_script_logger
@@ -43,12 +45,28 @@ def create_oid(payload: Dict, log_info: Callable[[Dict], None]) -> Tuple[List[Di
     return commands, updates
 
 
-def create_layer(page_id: Any) -> Dict:
-    """Create command that ensures auto layer exists and is visible."""
-    return build_ensure_auto_layer_command(page_id)
+def create_layer_commands(payload: Dict) -> List[Dict]:
+    """Build layer-routing commands for added items based on item metadata."""
+    event = payload.get("event") or {}
+    page = event.get("page") or {}
+    page_id = page.get("id")
+    items = event.get("items") or []
+
+    grouped: Dict[str, List[str]] = {}
+    for item in items:
+        object_id = str(item.get("objectId") or item.get("id") or "").strip()
+        if not object_id or not is_layer_enabled_for_item(item, default=True):
+            continue
+        layer_name = resolve_item_layer_name(item, fallback="unknown")
+        grouped.setdefault(layer_name, []).append(object_id)
+
+    commands: List[Dict] = []
+    for layer_name, object_ids in grouped.items():
+        commands.append(build_move_objects_to_layer_command(page_id, layer_name, object_ids))
+    return commands
 
 
-def build_commands(payload: Dict, log_info: Callable[[Dict], None]) -> List[Dict]:
+def build_commands(payload: Dict, log_info: Callable[[Dict], None] = lambda _payload: None) -> List[Dict]:
     """Build command list and keep explicit execution order."""
     event = payload.get("event") or {}
     page = event.get("page") or {}
@@ -60,7 +78,7 @@ def build_commands(payload: Dict, log_info: Callable[[Dict], None]) -> List[Dict
 
     if updates:
         commands.append(build_update_stencil_data_bulk_command(page_id, updates))
-        commands.append(create_layer(page_id))
+    commands.extend(create_layer_commands(payload))
 
     return commands
 

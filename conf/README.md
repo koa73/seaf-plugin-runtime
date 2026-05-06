@@ -318,3 +318,21 @@ rules:
   - `status: created|existing`,
   - `layerId`,
   - `layerName`.
+
+### Response.commands: moveObjectsToLayer
+
+- Поддерживается UI-команда `moveObjectsToLayer` для привязки объектов к слою.
+- Аргументы:
+  - `pageId` (optional),
+  - `layerName` (required, fallback `unknown` на стороне Python orchestration),
+  - `objectIds` (required): массив id объектов,
+  - `makeVisible` (optional, default `true`).
+- Поведение:
+  - слой создается/переиспользуется через create-or-get;
+  - объекты переносятся в слой стандартным draw.io API `graph.moveCells(cells, 0, 0, false, targetLayer)`.
+
+### Stencil metadata: layer
+
+- Для library items в `conf/stencils/Р41.xml` поддерживается ключ `layer: true|false`.
+- Значение определяет, участвует ли добавленный объект в layer-routing при `all_add`.
+- Если ключ отсутствует, применяется default `true`.

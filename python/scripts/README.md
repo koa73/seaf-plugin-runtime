@@ -22,9 +22,14 @@
 - `lib/events/*` — service helper-слой для event handlers (`SEAF_INFO/SEAF_ERROR` логирование, сообщения о коллизиях, резолв env/arguments параметров).
 - `lib/logging/*` — централизованный слой логирования runtime-скриптов (уровни и emit `SEAF_INFO/SEAF_ERROR`).
 
-Последовательность команд в `events/all_add.py` при наличии `updates`:
+Последовательность команд в `events/all_add.py`:
 1. `updateStencilDataBulk` (пакетное обновление `data` стенсилов).
-2. `ensureLayer` (гарантия наличия/видимости `SEAF_AUTO_LAYER`).
+2. `moveObjectsToLayer` (create-or-get слоя по `title` текущего объекта и перенос объекта в этот слой).
+
+Layer-routing правила:
+- источник управления: `layer` в metadata элемента библиотеки (и/или в `data.layer` объекта);
+- если `layer` отсутствует, используется default `true`;
+- имя слоя: `title`, при пустом/отсутствующем значении используется `unknown`.
 - `lib/io/__init__.py` — общий helper layer для чтения REQUEST, каноничного Response и `SEAF_PROGRESS`.
 
 ## 1) Структура `REQUEST` (stdin)
@@ -131,6 +136,7 @@ Runtime передает значения редактируемой конфи�
 | `updateStencilData` | `{ "pageId": "...", "objectId": "...", "mode": "merge|replace", "data": {...} }` | Обновляет `data` объекта через встроенный путь draw.io (`model.setValue`). |
 | `updateStencilDataBulk` | `{ "pageId": "...", "updates": [{"objectId":"...","mode":"merge|replace","data":{...}}] }` | Пакетно обновляет данные объектов в одной транзакции. |
 | `ensureLayer` | `{ "pageId": "...", "layerName": "...", "makeVisible": true }` | Находит или создает слой по имени и делает его видимым. |
+| `moveObjectsToLayer` | `{ "pageId": "...", "layerName": "...", "objectIds": ["id1"], "makeVisible": true }` | Находит/создает слой и переносит указанные объекты в него через `graph.moveCells(...)`. |
 
 ### Результат UI-команд
 
