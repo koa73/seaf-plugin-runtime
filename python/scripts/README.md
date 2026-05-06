@@ -17,6 +17,14 @@
 - `examples/interactive_terminal_demo.py` — пример интерактивного terminal-режима с `print(...)`, `input(...)` и симуляцией exception по подтверждению `Y/N`.
 - `examples/events/*.py` — примеры batch-обработчиков событий стенсилов (`specific` и `all` для `add/remove/modify`).
 - подробная документация по event handlers: [`examples/events/README.md`](examples/events/README.md).
+- `events/all_add.py` — production orchestrator для `add`-событий: собирает контекст, вызывает OID-библиотеку и формирует `Response.commands[]`.
+- `lib/oid/*` — модульная библиотека генерации/валидации OID и поиска конфликтов.
+- `lib/events/*` — service helper-слой для event handlers (`SEAF_INFO/SEAF_ERROR` логирование, сообщения о коллизиях, резолв env/arguments параметров).
+- `lib/logging/*` — централизованный слой логирования runtime-скриптов (уровни и emit `SEAF_INFO/SEAF_ERROR`).
+
+Последовательность команд в `events/all_add.py` при наличии `updates`:
+1. `updateStencilDataBulk` (пакетное обновление `data` стенсилов).
+2. `ensureLayer` (гарантия наличия/видимости `SEAF_AUTO_LAYER`).
 - `lib/io/__init__.py` — общий helper layer для чтения REQUEST, каноничного Response и `SEAF_PROGRESS`.
 
 ## 1) Структура `REQUEST` (stdin)
@@ -77,6 +85,10 @@ Runtime передает значения редактируемой конфи�
 - `REQUEST.payload.arguments` (merge поверх `input.arguments`)
 
 Это сделано для обратной совместимости скриптов.
+
+Для production handler `events/all_add.py` служебный `SEAF_INFO` лог включается только при
+`pluginLogLevel` в `REQUEST.payload.env/arguments` со значениями `info`, `debug` или `trace`.
+При `none`/пустом значении INFO-лог не выводится.
 
 Поддерживаемые методы редактирования в UI (`inputMethod`) для этих значений:
 - `text`

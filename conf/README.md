@@ -162,7 +162,7 @@ Compose-loader объединяет их в финальный `commands[]`.
 | `seafStencilSpecificAdd` | `examples/events/specific_add.py` |
 | `seafStencilSpecificRemove` | `examples/events/specific_remove.py` |
 | `seafStencilSpecificModify` | `examples/events/specific_modify.py` |
-| `seafStencilAllAdd` | `examples/events/all_add.py` |
+| `seafStencilAllAdd` | `events/all_add.py` |
 | `seafStencilAllRemove` | `examples/events/all_remove.py` |
 | `seafStencilAllModify` | `examples/events/all_modify.py` |
 

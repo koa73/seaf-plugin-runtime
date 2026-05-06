@@ -83,6 +83,7 @@ Event processor передает события в поле `REQUEST.payload.eve
 - `specific_modify.py`:
   - обрабатывает событие `modify` для specific-rule.
 - `all_add.py`:
+  - shim-обертка, проксирует выполнение в production handler `python/scripts/events/all_add.py`;
   - fallback-обработчик `add` для правила `all`;
   - назначает `OID` через event-механизм (правило wildcard `seaf.company.ta.*`);
   - формат OID: `<companyPrefix>.<schemaCode>.<sequence>`, где `schemaCode` = две последние части `schema`, fallback `unknown`;

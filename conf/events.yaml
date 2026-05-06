@@ -75,7 +75,7 @@ commands:
         enabled: false
       context:
         enabled: false
-    script: examples/events/all_add.py
+    script: events/all_add.py
     execution:
       mode: sync
       timeoutSec: 30
