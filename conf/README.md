@@ -289,6 +289,16 @@ rules:
   - `id`, `objectId`, `geometry`, `data`.
 - Это позволяет Python-скриптам использовать единый контракт для event и context сценариев.
 
+## Context menu scopes
+
+- Поддерживаются 2 типа контекстного меню через `menu.context.scope`:
+  - `canvas` — показывать пункт только при правом клике по пустому полю диаграммы;
+  - `stencil` — показывать пункт только при правом клике по стенсилу/ячейке.
+- Для `scope=stencil` можно задавать `menu.context.schemaPattern` (строка или список строк).
+- `schemaPattern` матчится тем же алгоритмом, что event rules:
+  - `exact`, `wildcard` (`*`) и `all`;
+  - при несовпадении schema пункт меню не отображается.
+
 ### Response.commands: updateStencilData
 
 - Поддерживается UI-команда `updateStencilData` для обратного канала Python -> draw.io.

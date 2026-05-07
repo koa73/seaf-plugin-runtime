@@ -3727,14 +3727,24 @@ Draw.loadPlugin(function(ui)
 		}
 	}
 
-	function contextMatches(command, graph)
+	function contextMatches(command, graph, cell)
 	{
 		var cfg = (command.menu && command.menu.context) ? command.menu.context : {};
 		var target = cfg.target || 'any';
 		var selection = graph.getSelectionCells();
-		var first = graph.getSelectionCell();
+		var first = cell || graph.getSelectionCell();
+		var scope = (typeof cfg.scope === 'string') ? cfg.scope.trim().toLowerCase() : '';
 
 		if (cfg.enabled === false)
+		{
+			return false;
+		}
+
+		if (scope === 'canvas' && first != null)
+		{
+			return false;
+		}
+		if (scope === 'stencil' && first == null)
 		{
 			return false;
 		}
@@ -3754,6 +3764,41 @@ Draw.loadPlugin(function(ui)
 		else if (target === 'edge')
 		{
 			return first != null && graph.model.isEdge(first);
+		}
+
+		var schemaPattern = cfg.schemaPattern;
+		if (schemaPattern != null)
+		{
+			if (first == null)
+			{
+				return false;
+			}
+			var schemaMeta = extractShapeSchema(first, graph);
+			var schema = schemaMeta && typeof schemaMeta.schema === 'string' ? schemaMeta.schema.trim() : '';
+			if (!schema)
+			{
+				return false;
+			}
+			var patterns = Array.isArray(schemaPattern) ? schemaPattern : [schemaPattern];
+			var matched = false;
+			for (var i = 0; i < patterns.length; i++)
+			{
+				var pattern = (typeof patterns[i] === 'string') ? patterns[i].trim() : '';
+				if (!pattern)
+				{
+					continue;
+				}
+				var match = matchSchemaPattern(schema, pattern);
+				if (match && match.matched === true)
+				{
+					matched = true;
+					break;
+				}
+			}
+			if (!matched)
+			{
+				return false;
+			}
 		}
 
 		return true;
@@ -3909,7 +3954,7 @@ Draw.loadPlugin(function(ui)
 
 			for (var i = 0; i < commands.length; i++)
 			{
-				if (contextMatches(commands[i], graph))
+				if (contextMatches(commands[i], graph, cell))
 				{
 					if (!inserted)
 					{

@@ -8,28 +8,34 @@ commands:
   - id: seafInteractiveTerminalDemo
     menu:
       context:
-        enabled: false
+        enabled: true
+        scope: canvas
         target: any
   - id: seafReloadDocument
     menu:
       context:
-        enabled: true
+        enabled: false
         target: selection_non_empty
   - id: seafValidateSelection
     menu:
       context:
-        enabled: true
+        enabled: false
         target: selection_non_empty
   - id: seafAsyncBackground
     menu:
       context:
-        enabled: true
+        enabled: false
         target: any
   - id: seafFailureDemo
+    title: Создать страницу
     menu:
       context:
         enabled: true
-        target: any
+        scope: stencil
+        target: selection_single
+        schemaPattern:
+          - seaf.company.ta.services.dc_offices
+          - seaf.company.ta.services.dcs
   - id: seafTimeoutDemo
     menu:
       context:
