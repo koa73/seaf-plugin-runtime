@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.3.29
+ * Runtime script version: 0.3.30
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -852,6 +852,24 @@ Draw.loadPlugin(function(ui)
 		{
 			return rawValue;
 		}
+		if (rawValue == null)
+		{
+			return '';
+		}
+		if (Array.isArray(rawValue))
+		{
+			try
+			{
+				if (typeof Buffer !== 'undefined' && typeof Buffer.from === 'function')
+				{
+					return Buffer.from(rawValue).toString('utf8');
+				}
+			}
+			catch (eArr)
+			{
+				// fall through
+			}
+		}
 		// Node/Electron Buffer payload can arrive as plain object through IPC serialization.
 		// Example: {type: 'Buffer', data: [..bytes..]}
 		if (rawValue != null && typeof rawValue === 'object' &&
@@ -867,6 +885,49 @@ Draw.loadPlugin(function(ui)
 			catch (eBuf)
 			{
 				// fall through
+			}
+		}
+		if (rawValue != null && typeof rawValue === 'object')
+		{
+			if (typeof rawValue.text === 'string')
+			{
+				return rawValue.text;
+			}
+			if (typeof rawValue.data === 'string')
+			{
+				return rawValue.data;
+			}
+			if (typeof rawValue.value === 'string')
+			{
+				return rawValue.value;
+			}
+			if (typeof rawValue.length === 'number' && rawValue.length > 0)
+			{
+				try
+				{
+					var bytes = [];
+					for (var i = 0; i < rawValue.length; i++)
+					{
+						var bv = rawValue[i];
+						if (typeof bv !== 'number') { bytes = null; break; }
+						bytes.push(bv & 255);
+					}
+					if (bytes != null && bytes.length > 0)
+					{
+						if (typeof Buffer !== 'undefined' && typeof Buffer.from === 'function')
+						{
+							return Buffer.from(bytes).toString('utf8');
+						}
+						if (typeof TextDecoder !== 'undefined')
+						{
+							return new TextDecoder('utf-8').decode(new Uint8Array(bytes));
+						}
+					}
+				}
+				catch (eLike)
+				{
+					// fall through
+				}
 			}
 		}
 		if (typeof ArrayBuffer !== 'undefined' && rawValue instanceof ArrayBuffer)
@@ -938,6 +999,22 @@ Draw.loadPlugin(function(ui)
 				schemas: schemaKeys.length,
 				sample: sample
 			});
+			if (schemaKeys.length === 0)
+			{
+				var rawType = (rawText == null) ? 'null' :
+					(Array.isArray(rawText) ? 'array' : typeof rawText);
+				var rawKeys = [];
+				if (rawText != null && typeof rawText === 'object')
+				{
+					try { rawKeys = Object.keys(rawText).slice(0, 8); } catch (eKeys) { rawKeys = []; }
+				}
+				await writeLog('warn', 'Stencils layer config parsed empty', {
+					rawType: rawType,
+					rawKeys: rawKeys,
+					normalizedLength: normalizedText.length,
+					normalizedHead: normalizedText.substring(0, 80)
+				});
+			}
 		}
 		catch (e)
 		{
