@@ -318,6 +318,9 @@ Auto-event processor передает event batch в Python handlers через 
 `items[]` обычно содержит:
 - `id`, `operation`, `label`, `schema`, `style`, `styleText`, `geometry`, `value`.
 
+Примечание для grouped stencils:
+- если root group-ячейка добавления не содержит `schema`, runtime извлекает `add`-items из дочерних ячеек с валидным `schema`, чтобы `all_add` корректно формировал `moveObjectsToLayer`.
+
 Для `eventType=modify` добавляются:
 - `dataBefore`, `dataAfter`.
 

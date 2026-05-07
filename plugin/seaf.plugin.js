@@ -1415,6 +1415,47 @@ Draw.loadPlugin(function(ui)
 		};
 	}
 
+	function collectAddSnapshotTargets(cell, graph)
+	{
+		var out = [];
+		if (!cell || !graph || !graph.model)
+		{
+			return out;
+		}
+		var model = graph.model;
+		var queue = [cell];
+		var seen = {};
+		while (queue.length > 0)
+		{
+			var current = queue.shift();
+			if (!current || !current.id || Object.prototype.hasOwnProperty.call(seen, current.id))
+			{
+				continue;
+			}
+			seen[current.id] = true;
+			var schemaMeta = extractShapeSchema(current, graph);
+			var schema = schemaMeta && typeof schemaMeta.schema === 'string' ? schemaMeta.schema.trim() : '';
+			if (schema.length > 0)
+			{
+				out.push(current);
+			}
+			var childCount = (typeof model.getChildCount === 'function') ? model.getChildCount(current) : 0;
+			for (var i = 0; i < childCount; i++)
+			{
+				var child = (typeof model.getChildAt === 'function') ? model.getChildAt(current, i) : null;
+				if (child)
+				{
+					queue.push(child);
+				}
+			}
+		}
+		if (out.length === 0)
+		{
+			out.push(cell);
+		}
+		return out;
+	}
+
 	function getEventConfigListIds()
 	{
 		var map = {};
@@ -1810,22 +1851,27 @@ Draw.loadPlugin(function(ui)
 				}
 				if (operation != null)
 				{
-					if (operation === 'remove')
+					var targets = (operation === 'add') ? collectAddSnapshotTargets(change.child, graph) : [change.child];
+					for (var t = 0; t < targets.length; t++)
 					{
-						removeEntryFromStencilIndex(change.child.id || '');
-					}
-					else
-					{
-						upsertCellInStencilIndex(change.child, graph);
-					}
-					var snapshot = buildStencilItemSnapshot(change.child, operation);
-					if (snapshot && snapshot.id)
-					{
-						var key = operation + ':' + snapshot.id;
-						if (!Object.prototype.hasOwnProperty.call(seen, key))
+						var targetCell = targets[t];
+						if (operation === 'remove')
 						{
-							seen[key] = true;
-							result.push(snapshot);
+							removeEntryFromStencilIndex(targetCell && targetCell.id ? targetCell.id : '');
+						}
+						else
+						{
+							upsertCellInStencilIndex(targetCell, graph);
+						}
+						var snapshot = buildStencilItemSnapshot(targetCell, operation);
+						if (snapshot && snapshot.id)
+						{
+							var key = operation + ':' + snapshot.id;
+							if (!Object.prototype.hasOwnProperty.call(seen, key))
+							{
+								seen[key] = true;
+								result.push(snapshot);
+							}
 						}
 					}
 				}

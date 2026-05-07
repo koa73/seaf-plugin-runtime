@@ -59,6 +59,7 @@ def create_layer_commands(payload: Dict, log_info: Callable[[Dict], None]) -> Li
             continue
         schema = str(item.get("schema") or (item.get("data") or {}).get("schema") or "").strip()
         if not schema:
+            log_info({"handler": "all_add", "action": "layer_skip_schema_missing", "objectId": object_id})
             continue
         layer_name, has_multiple = resolve_layer_name(schema, layer_config)
         if has_multiple:

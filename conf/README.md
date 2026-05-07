@@ -260,6 +260,7 @@ rules:
 - `item.objectId` дублирует `item.id` для унифицированного контракта Python handlers.
 - `item.geometry` передается в нормализованном виде: `x`, `y`, `width`, `height`.
 - Если `schema` пустой, событие фильтруется с reason `schema_missing`.
+- Для `add` изменений в групповых stencil-элементах processor дополнительно обходит дочерние ячейки и строит события по узлам, где реально присутствует `schema` (устраняет false `schema_missing` для group-root без schema).
 - Для wildcard используйте `*`, например `seaf.company.ta.*`.
 
 ### Порядок роутинга

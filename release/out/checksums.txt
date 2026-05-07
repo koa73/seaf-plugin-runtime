@@ -1,1 +1,1 @@
-1c759e3671db64f7e5845948eec470958fb8dffbb9bbda6282102e35fcb08c6f  /home/oleg/Drawio_poject/seaf-plugin-runtime/release/out/seaf-plugin-runtime.tar.gz
+a069c4bc9c33e5cf4836921ad00c78d46410181aeae2c93dbb974d291790951d  /home/oleg/Drawio_poject/seaf-plugin-runtime/release/out/seaf-plugin-runtime.tar.gz
