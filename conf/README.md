@@ -360,14 +360,21 @@ rules:
 
 | Параметр | Тип | Назначение | Default |
 |---|---|---|---|
-| `schemas.<schema>.edit_data` | `string` | Режим Edit Data: `seaf` \| `standard` \| `both` | `seaf` если schema в config; `standard` если не указана |
-| `schemas.<schema>.data_lock` | `array<string>` | Имена атрибутов, защищённых от edit/remove/add-with-same-name | `[OID, schema]` |
+| `schemas.<schema>.edit_data` | `string` | Режим Edit Data: `seaf` \| `standard` \| `both` | `seaf`, если schema присутствует в config или её ключ начинается на `seaf.`; иначе `standard` |
+| `schemas.<schema>.data_lock` | `array<string>` | Имена атрибутов, защищённых от edit/remove/add-with-same-name | `[OID, schema]` для всех seaf-схем (включая prefix-fallback) |
 
 Семантика `edit_data`:
 
-- `seaf` — штатный пункт «Edit Data» в context menu скрыт, везде (Right-click, Ctrl+M, Format panel) открывается SEAF-диалог `SeafEditDataDialog` с поддержкой `data_lock`.
+- `seaf` — штатный пункт «Edit Data» в context menu скрыт, в контекстное меню добавляется отдельный пункт «Редактировать данные (SEAF)…» (action `seafEditData`); Right-click, Ctrl+M и Format panel открывают SEAF-диалог `SeafEditDataDialog` с поддержкой `data_lock`.
 - `standard` — штатный диалог draw.io без вмешательства; `data_lock` игнорируется (для совместимости).
-- `both` — в context menu доступны оба пункта (штатный raw + SEAF), Ctrl+M / Format panel ведут на SEAF-диалог.
+- `both` — в context menu доступны оба пункта (штатный + «Редактировать данные (SEAF)…»); Ctrl+M / Format panel ведут на SEAF-диалог.
+
+Точка маршрутизации диалога: plugin переопределяет `EditorUi.prototype.showDataDialog` (`installEditDataDialogRouter`), что покрывает Right-click → штатный `editData`, Format panel и Ctrl+M единообразно. Action `seafEditData` гарантирует видимый кастомный пункт RMB даже если штатный по какой-то причине не скрылся.
+
+Fallback policy (когда `conf/stencils/config.yaml` не загрузился или схема не описана):
+
+- Любая схема, начинающаяся на `seaf.` (например `seaf.company.ta.services.dc_regions`), всё равно резолвится в `mode=seaf` и `data_lock=[OID, schema]`. Это защищает SEAF-объекты даже при сбоях загрузки конфига.
+- Не-`seaf.` схемы по-прежнему получают `mode=standard` и `data_lock=[]`.
 
 Семантика `data_lock`:
 
@@ -376,7 +383,9 @@ rules:
   - кнопка «X» удаления отсутствует, удалить атрибут невозможно;
   - попытка добавить новый атрибут с этим же именем блокируется alert'ом.
 - Если ключ `data_lock` отсутствует у schema, перечисленной в config, по умолчанию защищаются `OID` и `schema`.
-- Schemas, отсутствующие в `config.yaml`, не получают защиты вообще (`mode=standard`, `data_lock=[]`).
+- Schemas, отсутствующие в `config.yaml`:
+  - имена с префиксом `seaf.` -> `data_lock=[OID, schema]` (prefix fallback);
+  - прочие -> `data_lock=[]` (`mode=standard`).
 
 ### Stencil metadata: fields (зарезервировано, Phase 2)
 

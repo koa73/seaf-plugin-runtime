@@ -147,13 +147,17 @@
 ## SEAF Edit Data dialog (data_lock)
 
 - Для P41-стенсилов штатный диалог draw.io «Edit Data» заменяется собственным `SeafEditDataDialog`, реализованным в `plugin/seaf.plugin.js`.
-- Подмена универсальная: покрыты context menu, Format panel «Edit Data» и Ctrl+M.
+- Каноническая точка маршрутизации — переопределение `EditorUi.prototype.showDataDialog` (`installEditDataDialogRouter`). Это покрывает все пути одинаково: правое меню → штатный action `editData`, кнопка «Edit Data» в Format panel и горячая клавиша Ctrl+M.
+- Контекстное меню получает отдельный явный пункт «Редактировать данные (SEAF)…» (action `seafEditData`):
+  - `mode=seaf` — штатный `editData` скрыт через `Menus.hiddenMenuItems` (только на время `createPopupMenu`), показывается только SEAF-пункт;
+  - `mode=both` — оба пункта остаются доступны (штатный raw + SEAF);
+  - `mode=standard` — поведение draw.io не меняется.
 - Конфигурация — `conf/stencils/config.yaml`: `schemas.<schema>.edit_data` (`seaf|standard|both`) и `schemas.<schema>.data_lock` (список защищённых атрибутов).
-- В режиме `seaf` штатный пункт «Edit Data» в context menu прячется через `Menus.hiddenMenuItems` динамически (только на время `createPopupMenu`); в Format panel и в основном меню штатный пункт остаётся доступен пользователю, но action-функция всё равно перенаправляется на SEAF-диалог.
-- Защита `data_lock` (по умолчанию `[OID, schema]` для каждой schema, перечисленной в config) — поле дизейблится, кнопка «X» удаления отсутствует, добавление атрибута с защищённым именем блокируется alert'ом.
-- Для не-P41 стенсилов (schema не указана в `config.yaml`) работает штатный диалог draw.io без вмешательства.
+- Fallback policy: если `conf/stencils/config.yaml` не загрузился (битый файл, отсутствует, ошибка IPC) или схема не описана в config, для любой schema, начинающейся на `seaf.`, plugin всё равно использует `mode=seaf` и `data_lock=[OID, schema]`. Не-`seaf.` схемы по-прежнему получают штатный диалог.
+- Защита `data_lock` (по умолчанию `[OID, schema]` для каждой schema, перечисленной в config или попавшей под seaf-prefix fallback) — поле дизейблится, кнопка «X» удаления отсутствует, добавление атрибута с защищённым именем блокируется alert'ом.
 - Apply SEAF-диалога вызывает `graph.getModel().setValue(cell, clonedXml)`, поэтому существующий event processor (`collectStencilEventsFromModelChange`) ловит `modify`-события без изменений.
-- Phase 2 (зарезервировано): `schemas.<schema>.fields.<attr>.widget` (`text|textarea|combo|radio|checkbox`) — rich-виджеты внутри того же диалога без изменений в action/menu hooks.
+- Диагностика: при загрузке `stencils/config.yaml`, установке router'а и вставке пункта `seafEditData` пишутся `info`/`debug`-сообщения в `seaf-plugin.log` (включён `output: both`), что упрощает воспроизводство проблем у пользователя.
+- Phase 2 (зарезервировано): `schemas.<schema>.fields.<attr>.widget` (`text|textarea|combo|radio|checkbox`) — rich-виджеты внутри того же диалога без изменений в маршрутизации/menu hooks.
 
 ## Interactive terminal command
 

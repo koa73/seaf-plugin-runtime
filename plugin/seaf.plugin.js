@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.3.23
+ * Runtime script version: 0.3.24
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -34,7 +34,8 @@ Draw.loadPlugin(function(ui)
 		pendingStencilBatches: [],
 		editDataSessionActive: false,
 		editDataBeforeByCell: {},
-		editDataActionWrapped: false,
+		editDataDialogRouterInstalled: false,
+		originalShowDataDialog: null,
 		stencilsLayerConfig: null,
 		stencilIndex: {
 			ready: false,
@@ -850,6 +851,7 @@ Draw.loadPlugin(function(ui)
 		if (path == null)
 		{
 			state.stencilsLayerConfig = {schemas: {}};
+			await writeLog('warn', 'Stencils layer config path not resolved; SEAF prefix fallback in effect', {});
 			return;
 		}
 		try
@@ -869,15 +871,27 @@ Draw.loadPlugin(function(ui)
 				parsed.schemas = {};
 			}
 			state.stencilsLayerConfig = parsed;
+			var schemaKeys = Object.keys(parsed.schemas);
+			var sampleKey = schemaKeys.length > 0 ? schemaKeys[0] : null;
+			var sample = null;
+			if (sampleKey != null)
+			{
+				sample = {
+					schema: sampleKey,
+					mode: getEditDataModeForSchema(sampleKey),
+					lock: getDataLockForSchema(sampleKey)
+				};
+			}
 			await writeLog('info', 'Stencils layer config loaded', {
 				path: path,
-				schemas: Object.keys(parsed.schemas).length
+				schemas: schemaKeys.length,
+				sample: sample
 			});
 		}
 		catch (e)
 		{
 			state.stencilsLayerConfig = {schemas: {}};
-			await writeLog('warn', 'Stencils layer config load failed', {
+			await writeLog('error', 'Stencils layer config load failed; SEAF prefix fallback in effect', {
 				path: path,
 				error: e && e.message ? e.message : String(e)
 			});
@@ -894,12 +908,24 @@ Draw.loadPlugin(function(ui)
 		return (entry != null && typeof entry === 'object' && !Array.isArray(entry)) ? entry : null;
 	}
 
+	// True if schema key looks like a SEAF-managed schema (must start with seaf.<companyPrefix>.).
+	// Used as a safe fallback when stencils/config.yaml could not be loaded or the schema is missing
+	// from the config: we still want SEAF behavior for clearly-SEAF schemas instead of silently
+	// degrading to the standard dialog.
+	function isSeafPrefixedSchema(schema)
+	{
+		if (typeof schema !== 'string') return false;
+		var key = schema.trim();
+		if (key.length === 0) return false;
+		return key.indexOf('seaf.') === 0;
+	}
+
 	function getEditDataModeForSchema(schema)
 	{
 		var entry = getSchemaConfigEntry(schema);
 		if (entry == null)
 		{
-			return 'standard';
+			return isSeafPrefixedSchema(schema) ? 'seaf' : 'standard';
 		}
 		var raw = entry.edit_data;
 		if (typeof raw === 'string')
@@ -918,7 +944,7 @@ Draw.loadPlugin(function(ui)
 		var entry = getSchemaConfigEntry(schema);
 		if (entry == null)
 		{
-			return [];
+			return isSeafPrefixedSchema(schema) ? ['OID', 'schema'] : [];
 		}
 		var raw = entry.data_lock;
 		if (Array.isArray(raw))
@@ -2863,43 +2889,48 @@ Draw.loadPlugin(function(ui)
 		}
 	}
 
-	function installEditDataActionWrap()
+	// Canonical router for "Edit Data" entry-points.
+	// Draw.io invokes ui.showDataDialog(cell) from the editData action, the Format panel and Ctrl+M;
+	// overriding it here covers all paths uniformly without depending on action.funct internals.
+	function installEditDataDialogRouter()
 	{
-		var action = ui && ui.actions ? ui.actions.get('editData') : null;
-		if (!action || typeof action.funct !== 'function')
+		if (state.editDataDialogRouterInstalled === true)
 		{
 			return;
 		}
-		if (action._seafEditDataHookInstalled === true || state.editDataActionWrapped === true)
+		if (ui == null || typeof ui.showDataDialog !== 'function')
 		{
+			writeLog('warn', 'showDataDialog override skipped: ui.showDataDialog unavailable', {});
 			return;
 		}
-		var original = action.funct;
-		action.funct = function()
+		var originalShowDataDialog = ui.showDataDialog.bind(ui);
+		state.originalShowDataDialog = originalShowDataDialog;
+		ui.showDataDialog = function(cell)
 		{
 			try
 			{
 				var graph = ui && ui.editor ? ui.editor.graph : null;
-				var cell = graph ? (graph.getSelectionCell() || (graph.getModel ? graph.getModel().getRoot() : null)) : null;
 				if (cell != null && isSeafEditDataModeForCell(cell, graph))
 				{
+					writeLog('debug', 'showDataDialog routed to SEAF dialog', {
+						cellId: (cell && cell.id) ? String(cell.id) : null
+					});
 					showSeafEditDataDialog(cell);
 					return;
 				}
 			}
 			catch (e)
 			{
-				writeLog('error', 'editData wrap dispatch failed; falling back to standard dialog', {
+				writeLog('error', 'showDataDialog router failed; falling back to standard dialog', {
 					error: e && e.message ? e.message : String(e)
 				});
 			}
-			// Standard fallback: snapshot + original
 			state.editDataSessionActive = true;
 			state.editDataBeforeByCell = captureEditDataBeforeSnapshots(ui && ui.editor ? ui.editor.graph : null);
-			return original.apply(this, arguments);
+			return originalShowDataDialog(cell);
 		};
-		action._seafEditDataHookInstalled = true;
-		state.editDataActionWrapped = true;
+		state.editDataDialogRouterInstalled = true;
+		writeLog('info', 'showDataDialog router installed', {});
 	}
 
 	function buildPayload(command)
@@ -4868,34 +4899,45 @@ Draw.loadPlugin(function(ui)
 		ui.menus.createPopupMenu = function(menu, cell, evt)
 		{
 			var graph = ui.editor.graph;
-			// Hide standard "Edit Data" item only for cells whose schema is in seaf-mode.
-			// Restored after the base call so other entry points (Format panel, Edit menu) are unaffected.
-			var prevHiddenItems = ui.menus.hiddenMenuItems;
-			var hiddenOverridden = false;
+			// Resolve edit-data mode for the right-clicked cell (used both for hiding standard item
+			// and for inserting SEAF replacement entry).
+			var resolvedMode = 'standard';
 			try
 			{
 				if (cell != null)
 				{
 					var schemaMeta = extractShapeSchema(cell, graph);
 					var schemaKey = schemaMeta && typeof schemaMeta.schema === 'string' ? schemaMeta.schema : '';
-					var mode = getEditDataModeForSchema(schemaKey);
-					if (mode === 'seaf')
+					resolvedMode = getEditDataModeForSchema(schemaKey);
+				}
+			}
+			catch (eMode)
+			{
+				resolvedMode = 'standard';
+			}
+
+			// In seaf-mode hide the standard "Edit Data" before the base call assembles the menu.
+			// Restored after the base call so other entry points (Edit menu, etc.) are unaffected.
+			var prevHiddenItems = ui.menus.hiddenMenuItems;
+			var hiddenOverridden = false;
+			try
+			{
+				if (resolvedMode === 'seaf')
+				{
+					var merged = {};
+					if (prevHiddenItems != null && typeof prevHiddenItems === 'object')
 					{
-						var merged = {};
-						if (prevHiddenItems != null && typeof prevHiddenItems === 'object')
+						for (var hk in prevHiddenItems)
 						{
-							for (var hk in prevHiddenItems)
+							if (Object.prototype.hasOwnProperty.call(prevHiddenItems, hk))
 							{
-								if (Object.prototype.hasOwnProperty.call(prevHiddenItems, hk))
-								{
-									merged[hk] = prevHiddenItems[hk];
-								}
+								merged[hk] = prevHiddenItems[hk];
 							}
 						}
-						merged.editData = true;
-						ui.menus.hiddenMenuItems = merged;
-						hiddenOverridden = true;
 					}
+					merged.editData = true;
+					ui.menus.hiddenMenuItems = merged;
+					hiddenOverridden = true;
 				}
 			}
 			catch (eHide)
@@ -4913,6 +4955,26 @@ Draw.loadPlugin(function(ui)
 					ui.menus.hiddenMenuItems = prevHiddenItems;
 				}
 			}
+
+			// Insert explicit SEAF Edit Data entry for seaf/both modes immediately after the base items.
+			if (cell != null && (resolvedMode === 'seaf' || resolvedMode === 'both'))
+			{
+				try
+				{
+					this.addMenuItems(menu, ['seafEditData'], null, evt);
+					writeLog('debug', 'seafEditData menu item inserted', {
+						mode: resolvedMode,
+						cellId: (cell && cell.id) ? String(cell.id) : null
+					});
+				}
+				catch (eInsert)
+				{
+					writeLog('error', 'seafEditData menu item insertion failed', {
+						error: eInsert && eInsert.message ? eInsert.message : String(eInsert)
+					});
+				}
+			}
+
 			var inserted = false;
 			var commands = state.config.commands || [];
 			var contextCommands = [];
@@ -4956,6 +5018,31 @@ Draw.loadPlugin(function(ui)
 			ui.actions.addAction('seafSystemUpdatePlugin', function()
 			{
 				executeSystemUpdate('menu');
+			});
+		}
+
+		// SEAF Edit Data action: explicit entry-point for the SEAF dialog (used in context menu and elsewhere).
+		mxResources.parse('seafEditData=Редактировать данные (SEAF)…');
+		if (ui.actions.get('seafEditData') == null)
+		{
+			ui.actions.addAction('seafEditData', function()
+			{
+				try
+				{
+					var graph = ui && ui.editor ? ui.editor.graph : null;
+					var cell = graph ? (graph.getSelectionCell() ||
+						(graph.getModel ? graph.getModel().getRoot() : null)) : null;
+					if (cell != null)
+					{
+						showSeafEditDataDialog(cell);
+					}
+				}
+				catch (e)
+				{
+					writeLog('error', 'seafEditData action failed', {
+						error: e && e.message ? e.message : String(e)
+					});
+				}
 			});
 		}
 
@@ -5056,9 +5143,9 @@ Draw.loadPlugin(function(ui)
 				return Promise.resolve();
 			}, false);
 			await runInitStep('install_stencil_model_listener', installStencilModelListener, false);
-			await runInitStep('wrap_edit_data_action', function()
+			await runInitStep('install_edit_data_dialog_router', function()
 			{
-				installEditDataActionWrap();
+				installEditDataDialogRouter();
 				return Promise.resolve();
 			}, false);
 
