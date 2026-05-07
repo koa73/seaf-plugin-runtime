@@ -367,8 +367,8 @@ rules:
 Семантика `edit_data`:
 
 - `seaf` — штатный пункт «Edit Data» в context menu скрыт, в контекстное меню добавляется отдельный пункт «Редактировать данные (SEAF)…» (action `seafEditData`); Right-click, Ctrl+M и Format panel открывают SEAF-диалог `SeafEditDataDialog` с поддержкой `data_lock`.
-- `standard` — штатный диалог draw.io без вмешательства; `data_lock` игнорируется (для совместимости).
-- `both` — в context menu доступны оба пункта (штатный + «Редактировать данные (SEAF)…»); Ctrl+M / Format panel ведут на SEAF-диалог.
+- `standard` — в context menu показывается только штатный `Edit Data`; если базовый пункт не был добавлен draw.io из-за внутреннего состояния ячейки, plugin добавляет fallback-пункт вручную; `data_lock` игнорируется (для совместимости).
+- `both` — в context menu доступны оба пункта (штатный + «Редактировать данные (SEAF)…»); если штатный пункт не был добавлен draw.io, plugin добавляет fallback-пункт стандартного `Edit Data`; Ctrl+M / Format panel ведут на SEAF-диалог.
 - Для grouped stencil-элементов при RMB mode/target определяются по ближайшему родителю со `schema`, если клик пришелся в дочерний служебный `mxCell` без schema.
 
 Точка маршрутизации диалога: plugin переопределяет `EditorUi.prototype.showDataDialog` (`installEditDataDialogRouter`), что покрывает Right-click → штатный `editData`, Format panel и Ctrl+M единообразно. Action `seafEditData` гарантирует видимый кастомный пункт RMB даже если штатный по какой-то причине не скрылся.
@@ -377,6 +377,11 @@ Fallback policy (когда `conf/stencils/config.yaml` не загрузилс�
 
 - Любая схема, начинающаяся на `seaf.` (например `seaf.company.ta.services.dc_regions`), всё равно резолвится в `mode=seaf` и `data_lock=[OID, schema]`. Это защищает SEAF-объекты даже при сбоях загрузки конфига.
 - Не-`seaf.` схемы по-прежнему получают `mode=standard` и `data_lock=[]`.
+
+Диагностика RMB:
+
+- Для расследования кейсов `standard/both` включайте `pluginLogLevel: info|debug` в `conf/env.yaml`.
+- При `pluginLogLevel: none` debug/info записи о резолве режима/ячейки в лог не попадают.
 
 Семантика `data_lock`:
 

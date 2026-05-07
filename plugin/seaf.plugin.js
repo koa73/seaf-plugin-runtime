@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.3.25
+ * Runtime script version: 0.3.26
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -4948,22 +4948,90 @@ Draw.loadPlugin(function(ui)
 		{
 			return;
 		}
+
+		function popupMenuHasItemLabel(menuObj, labelText)
+		{
+			try
+			{
+				if (menuObj == null || menuObj.tbody == null || typeof labelText !== 'string')
+				{
+					return false;
+				}
+				var expected = labelText.trim();
+				if (expected.length === 0)
+				{
+					return false;
+				}
+				var rows = menuObj.tbody.getElementsByTagName('tr');
+				for (var ri = 0; ri < rows.length; ri++)
+				{
+					var cols = rows[ri].getElementsByTagName('td');
+					if (cols != null && cols.length > 1)
+					{
+						var current = String(cols[1].textContent || '').trim();
+						if (current === expected)
+						{
+							return true;
+						}
+					}
+				}
+			}
+			catch (e)
+			{
+				return false;
+			}
+
+			return false;
+		}
+
+		function addStandardEditDataMenuItem(menuObj, targetCell, evt)
+		{
+			var standardLabel = mxResources.get('editData');
+			menuObj.addItem(standardLabel, null, function()
+			{
+				try
+				{
+					ui.showDataDialog(targetCell);
+				}
+				catch (e)
+				{
+					writeLog('error', 'standard editData menu item execution failed', {
+						error: e && e.message ? e.message : String(e)
+					});
+				}
+			}, null, null, true);
+		}
+
+		function addSeafEditDataMenuItem(menuObj, evt)
+		{
+			var seafLabel = mxResources.get('seafEditData');
+			menuObj.addItem(seafLabel, null, function()
+			{
+				var action = ui.actions.get('seafEditData');
+				if (action != null && typeof action.funct === 'function')
+				{
+					action.funct(evt);
+				}
+			}, null, null, true);
+		}
+
 		state.contextMenuBaseCreatePopupMenu = ui.menus.createPopupMenu;
 		ui.menus.createPopupMenu = function(menu, cell, evt)
 		{
 			var graph = ui.editor.graph;
-		state.contextMenuLastCell = cell || null;
+			state.contextMenuLastCell = cell || null;
 			// Resolve edit-data mode for the right-clicked cell (used both for hiding standard item
 			// and for inserting SEAF replacement entry).
 			var resolvedMode = 'standard';
-		var resolvedCell = cell;
+			var resolvedCell = cell;
+			var schemaKey = '';
 			try
 			{
 				if (cell != null)
 				{
-				var target = resolveEditDataTarget(cell, graph);
-				resolvedCell = target && target.cell ? target.cell : cell;
-				var schemaKey = target && typeof target.schema === 'string' ? target.schema : '';
+					var target = resolveEditDataTarget(cell, graph);
+					resolvedCell = target && target.cell ? target.cell : cell;
+					schemaKey = target && typeof target.schema === 'string' ? target.schema : '';
 					resolvedMode = getEditDataModeForSchema(schemaKey);
 				}
 			}
@@ -5012,31 +5080,83 @@ Draw.loadPlugin(function(ui)
 				}
 			}
 
-			// Insert explicit SEAF Edit Data entry for seaf/both modes immediately after the base items.
-		if (resolvedCell != null && (resolvedMode === 'seaf' || resolvedMode === 'both'))
+			var standardLabel = mxResources.get('editData');
+			var hasStandardItem = popupMenuHasItemLabel(menu, standardLabel);
+			var selectionCount = 0;
+			var statePresent = false;
+			var isEditable = false;
+			try
 			{
-				try
+				selectionCount = (graph && typeof graph.getSelectionCount === 'function') ? graph.getSelectionCount() : 0;
+				statePresent = (graph && graph.view && typeof graph.view.getState === 'function') ?
+					(graph.view.getState(resolvedCell) != null) : false;
+				isEditable = (graph && typeof graph.isCellEditable === 'function') ?
+					graph.isCellEditable(resolvedCell) : false;
+			}
+			catch (eMenuState)
+			{
+				selectionCount = 0;
+				statePresent = false;
+				isEditable = false;
+			}
+			writeLog('debug', 'context menu edit_data mode resolved', {
+				clickedCellId: (cell && cell.id) ? String(cell.id) : null,
+				resolvedCellId: (resolvedCell && resolvedCell.id) ? String(resolvedCell.id) : null,
+				schema: schemaKey,
+				mode: resolvedMode,
+				baseHasEditData: hasStandardItem,
+				selectionCount: selectionCount,
+				statePresent: statePresent,
+				isEditable: isEditable
+			});
+
+			// Make context menu deterministic per mode:
+			// - seaf: only seaf entry
+			// - both: standard + seaf
+			// - standard: only standard
+			try
+			{
+				if (resolvedCell != null)
 				{
-				var seafLabel = mxResources.get('seafEditData');
-				menu.addItem(seafLabel, null, function()
-				{
-					var action = ui.actions.get('seafEditData');
-					if (action != null && typeof action.funct === 'function')
+					if (resolvedMode === 'seaf')
 					{
-						action.funct(evt);
+						addSeafEditDataMenuItem(menu, evt);
+						writeLog('debug', 'seafEditData menu item inserted', {
+							mode: resolvedMode,
+							cellId: (resolvedCell && resolvedCell.id) ? String(resolvedCell.id) : null
+						});
 					}
-				}, null, null, true);
-					writeLog('debug', 'seafEditData menu item inserted', {
-						mode: resolvedMode,
-					cellId: (resolvedCell && resolvedCell.id) ? String(resolvedCell.id) : null
-					});
+					else if (resolvedMode === 'both')
+					{
+						if (!hasStandardItem)
+						{
+							addStandardEditDataMenuItem(menu, resolvedCell, evt);
+							writeLog('debug', 'standard editData menu item inserted (fallback)', {
+								mode: resolvedMode,
+								cellId: (resolvedCell && resolvedCell.id) ? String(resolvedCell.id) : null
+							});
+						}
+						addSeafEditDataMenuItem(menu, evt);
+						writeLog('debug', 'seafEditData menu item inserted', {
+							mode: resolvedMode,
+							cellId: (resolvedCell && resolvedCell.id) ? String(resolvedCell.id) : null
+						});
+					}
+					else if (resolvedMode === 'standard' && !hasStandardItem)
+					{
+						addStandardEditDataMenuItem(menu, resolvedCell, evt);
+						writeLog('debug', 'standard editData menu item inserted (fallback)', {
+							mode: resolvedMode,
+							cellId: (resolvedCell && resolvedCell.id) ? String(resolvedCell.id) : null
+						});
+					}
 				}
-				catch (eInsert)
-				{
-					writeLog('error', 'seafEditData menu item insertion failed', {
-						error: eInsert && eInsert.message ? eInsert.message : String(eInsert)
-					});
-				}
+			}
+			catch (eInsert)
+			{
+				writeLog('error', 'editData menu item insertion failed', {
+					error: eInsert && eInsert.message ? eInsert.message : String(eInsert)
+				});
 			}
 
 			var inserted = false;
