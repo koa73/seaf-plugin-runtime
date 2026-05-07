@@ -122,6 +122,7 @@
 - Для modify дополнительно передаются `valueBefore/valueAfter` и `dataBefore/dataAfter`.
 - В payload команд контекстного меню (`selection[]`) передаются те же ключевые поля: `objectId`, `geometry`, `data`.
 - Контекстное меню поддерживает 2 scope-режима: `canvas` (клик по полю) и `stencil` (клик по стенсилу).
+- В context menu попадают только команды с явным `menu.context.enabled: true`; main-only команды без context-конфига не отображаются.
 - Для stencil-режима поддержан `schemaPattern` с event-совместимым matching (`exact|wildcard|all`); фильтрация работает как `scope AND target AND schemaPattern`.
 - Для `add` событий по шаблону `seaf.company.ta.*` назначение `OID` выполняется через event handlers (`events.yaml`) и обратный канал `Response.commands[]`.
 - Формат OID: `<companyPrefix>.<schemaCode>.<sequence>`, где `companyPrefix` читается из `env.yaml`, `schemaCode` — две последние части `schema`, fallback: `unknown`.

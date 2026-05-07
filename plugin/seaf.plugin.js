@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.3.21
+ * Runtime script version: 0.3.22
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -3729,17 +3729,17 @@ Draw.loadPlugin(function(ui)
 
 	function contextMatches(command, graph, cell)
 	{
-		var cfg = (command.menu && command.menu.context) ? command.menu.context : {};
+		var cfg = (command && command.menu && command.menu.context && typeof command.menu.context === 'object') ?
+			command.menu.context : null;
+		if (cfg == null || cfg.enabled !== true)
+		{
+			return false;
+		}
 		var target = cfg.target || 'any';
 		var selection = graph.getSelectionCells();
 		var first = cell || graph.getSelectionCell();
 		var scope = (typeof cfg.scope === 'string') ? cfg.scope.trim().toLowerCase() : '';
 		var targetMatched = true;
-
-		if (cfg.enabled === false)
-		{
-			return false;
-		}
 
 		if (scope === 'canvas' && first != null)
 		{
@@ -3966,10 +3966,21 @@ Draw.loadPlugin(function(ui)
 			var graph = ui.editor.graph;
 			var inserted = false;
 			var commands = state.config.commands || [];
+			var contextCommands = [];
 
-			for (var i = 0; i < commands.length; i++)
+			for (var c = 0; c < commands.length; c++)
 			{
-				if (contextMatches(commands[i], graph, cell))
+				var contextCfg = (commands[c] && commands[c].menu && commands[c].menu.context &&
+					typeof commands[c].menu.context === 'object') ? commands[c].menu.context : null;
+				if (contextCfg != null && contextCfg.enabled === true)
+				{
+					contextCommands.push(commands[c]);
+				}
+			}
+
+			for (var i = 0; i < contextCommands.length; i++)
+			{
+				if (contextMatches(contextCommands[i], graph, cell))
 				{
 					if (!inserted)
 					{
@@ -3977,7 +3988,7 @@ Draw.loadPlugin(function(ui)
 						inserted = true;
 					}
 
-					this.addMenuItems(menu, [commands[i].id], null, evt);
+					this.addMenuItems(menu, [contextCommands[i].id], null, evt);
 				}
 			}
 		};
