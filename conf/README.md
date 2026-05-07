@@ -333,6 +333,7 @@ rules:
 
 ### Stencil metadata: layer
 
-- Для library items в `conf/stencils/Р41.xml` поддерживается ключ `layer: true|false`.
-- Значение определяет, участвует ли добавленный объект в layer-routing при `all_add`.
-- Если ключ отсутствует, применяется default `true`.
+- Layer-routing настраивается отдельным файлом `conf/stencils/config.yaml`.
+- Формат: `schemas.<schema>.layer`.
+- `layer` может быть строкой или списком строк (для конфликтов/ручного разруливания).
+- Если `layer` отсутствует или пустой, слой не создается и объект не переносится.

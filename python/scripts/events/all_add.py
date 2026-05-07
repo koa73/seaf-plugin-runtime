@@ -3,14 +3,13 @@
 
 from typing import Any, Callable, Dict, List, Tuple
 
+from lib.config import load_stencil_layer_config, resolve_layer_name
 from lib.io import read_request, write_response
 from lib.events import (
     build_collision_message,
     build_move_objects_to_layer_command,
     build_update_stencil_data_bulk_command,
-    is_layer_enabled_for_item,
     log_event_items,
-    resolve_item_layer_name,
     resolve_company_prefix,
 )
 from lib.logging import build_script_logger
@@ -45,19 +44,34 @@ def create_oid(payload: Dict, log_info: Callable[[Dict], None]) -> Tuple[List[Di
     return commands, updates
 
 
-def create_layer_commands(payload: Dict) -> List[Dict]:
-    """Build layer-routing commands for added items based on item metadata."""
+def create_layer_commands(payload: Dict, log_info: Callable[[Dict], None]) -> List[Dict]:
+    """Build layer-routing commands for added items using schema config."""
     event = payload.get("event") or {}
     page = event.get("page") or {}
     page_id = page.get("id")
     items = event.get("items") or []
+    layer_config = load_stencil_layer_config()
 
     grouped: Dict[str, List[str]] = {}
     for item in items:
         object_id = str(item.get("objectId") or item.get("id") or "").strip()
-        if not object_id or not is_layer_enabled_for_item(item, default=True):
+        if not object_id:
             continue
-        layer_name = resolve_item_layer_name(item, fallback="unknown")
+        schema = str(item.get("schema") or (item.get("data") or {}).get("schema") or "").strip()
+        if not schema:
+            continue
+        layer_name, has_multiple = resolve_layer_name(schema, layer_config)
+        if has_multiple:
+            log_info(
+                {
+                    "handler": "all_add",
+                    "action": "layer_config_multiple_values",
+                    "schema": schema,
+                    "selectedLayer": layer_name,
+                }
+            )
+        if not layer_name:
+            continue
         grouped.setdefault(layer_name, []).append(object_id)
 
     commands: List[Dict] = []
@@ -78,7 +92,7 @@ def build_commands(payload: Dict, log_info: Callable[[Dict], None] = lambda _pay
 
     if updates:
         commands.append(build_update_stencil_data_bulk_command(page_id, updates))
-    commands.extend(create_layer_commands(payload))
+    commands.extend(create_layer_commands(payload, log_info))
 
     return commands
 

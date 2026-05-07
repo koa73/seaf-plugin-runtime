@@ -24,12 +24,12 @@
 
 Последовательность команд в `events/all_add.py`:
 1. `updateStencilDataBulk` (пакетное обновление `data` стенсилов).
-2. `moveObjectsToLayer` (create-or-get слоя по `title` текущего объекта и перенос объекта в этот слой).
+2. `moveObjectsToLayer` (create-or-get слоя по `schema -> layer` из `conf/stencils/config.yaml` и перенос объекта в этот слой).
 
 Layer-routing правила:
-- источник управления: `layer` в metadata элемента библиотеки (и/или в `data.layer` объекта);
-- если `layer` отсутствует, используется default `true`;
-- имя слоя: `title`, при пустом/отсутствующем значении используется `unknown`.
+- источник управления: `conf/stencils/config.yaml`, секция `schemas.<schema>.layer`;
+- если `layer` отсутствует или пустой, слой не создается и объект не переносится;
+- если `layer` — список, используется первый непустой элемент (для ручного разруливания конфликтов).
 - `lib/io/__init__.py` — общий helper layer для чтения REQUEST, каноничного Response и `SEAF_PROGRESS`.
 
 ## 1) Структура `REQUEST` (stdin)
