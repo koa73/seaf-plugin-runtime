@@ -1418,6 +1418,7 @@ Draw.loadPlugin(function(ui)
 	function collectAddSnapshotTargets(cell, graph)
 	{
 		var out = [];
+		var strictOut = [];
 		if (!cell || !graph || !graph.model)
 		{
 			return out;
@@ -1438,6 +1439,10 @@ Draw.loadPlugin(function(ui)
 			if (schema.length > 0)
 			{
 				out.push(current);
+				if (schemaMeta && schemaMeta.schemaSource === 'cell.value.schema')
+				{
+					strictOut.push(current);
+				}
 			}
 			var childCount = (typeof model.getChildCount === 'function') ? model.getChildCount(current) : 0;
 			for (var i = 0; i < childCount; i++)
@@ -1448,6 +1453,10 @@ Draw.loadPlugin(function(ui)
 					queue.push(child);
 				}
 			}
+		}
+		if (strictOut.length > 0)
+		{
+			return strictOut;
 		}
 		if (out.length === 0)
 		{
