@@ -370,6 +370,7 @@ rules:
 - `standard` — в context menu показывается только штатный `Edit Data`; если базовый пункт не был добавлен draw.io из-за внутреннего состояния ячейки, plugin добавляет fallback-пункт вручную; `data_lock` игнорируется (для совместимости).
 - `both` — в context menu доступны оба пункта (штатный + «Редактировать данные (SEAF)…»); если штатный пункт не был добавлен draw.io, plugin добавляет fallback-пункт стандартного `Edit Data`; Ctrl+M / Format panel ведут на SEAF-диалог.
 - Для grouped stencil-элементов при RMB mode/target определяются по ближайшему родителю со `schema`, если клик пришелся в дочерний служебный `mxCell` без schema.
+- Lookup schema в `config.yaml` устойчив к шуму формата (`;`, `,`, `#` в конце, дополнительные префиксы перед `seaf.`), чтобы избежать ложного fallback в `mode=seaf`.
 
 Точка маршрутизации диалога: plugin переопределяет `EditorUi.prototype.showDataDialog` (`installEditDataDialogRouter`), что покрывает Right-click → штатный `editData`, Format panel и Ctrl+M единообразно. Action `seafEditData` гарантирует видимый кастомный пункт RMB даже если штатный по какой-то причине не скрылся.
 

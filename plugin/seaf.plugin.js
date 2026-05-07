@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.3.26
+ * Runtime script version: 0.3.27
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -905,8 +905,46 @@ Draw.loadPlugin(function(ui)
 		if (key.length === 0) return null;
 		var cfg = state.stencilsLayerConfig;
 		if (cfg == null || cfg.schemas == null || typeof cfg.schemas !== 'object') return null;
-		var entry = cfg.schemas[key];
-		return (entry != null && typeof entry === 'object' && !Array.isArray(entry)) ? entry : null;
+
+		var candidates = [];
+		var seen = {};
+		function addCandidate(raw)
+		{
+			var v = (typeof raw === 'string') ? raw.trim() : '';
+			if (v.length === 0 || seen[v] === true) return;
+			seen[v] = true;
+			candidates.push(v);
+		}
+
+		addCandidate(key);
+		addCandidate(key.replace(/[;,#\s]+$/g, ''));
+		var stopChars = [';', ',', '#'];
+		for (var si = 0; si < stopChars.length; si++)
+		{
+			var p = key.indexOf(stopChars[si]);
+			if (p > 0)
+			{
+				addCandidate(key.substring(0, p));
+			}
+		}
+
+		// Some shape/style payloads can prepend namespaced shape families.
+		var marker = 'seaf.';
+		var idx = key.indexOf(marker);
+		if (idx > 0)
+		{
+			addCandidate(key.substring(idx));
+		}
+
+		for (var i = 0; i < candidates.length; i++)
+		{
+			var entry = cfg.schemas[candidates[i]];
+			if (entry != null && typeof entry === 'object' && !Array.isArray(entry))
+			{
+				return entry;
+			}
+		}
+		return null;
 	}
 
 	// True if schema key looks like a SEAF-managed schema (must start with seaf.<companyPrefix>.).
