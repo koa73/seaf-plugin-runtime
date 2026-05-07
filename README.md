@@ -158,6 +158,7 @@
 - Защита `data_lock` (по умолчанию `[OID, schema]` для каждой schema, перечисленной в config или попавшей под seaf-prefix fallback) — поле дизейблится, кнопка «X» удаления отсутствует, добавление атрибута с защищённым именем блокируется alert'ом.
 - Apply SEAF-диалога вызывает `graph.getModel().setValue(cell, clonedXml)`, поэтому существующий event processor (`collectStencilEventsFromModelChange`) ловит `modify`-события без изменений.
 - Диагностика: при загрузке `stencils/config.yaml`, установке router'а и формировании RMB (`resolvedMode`, `resolvedCell`, `statePresent`, `isEditable`) пишутся `info`/`debug`-сообщения в `seaf-plugin.log` (при `pluginLogLevel=info|debug`; при `pluginLogLevel=none` эти записи не выводятся).
+- Технически `stencils/config.yaml` читается через отдельный trusted IPC action `readSeafPluginFile` (main-process `seafPluginService`), а не через общий `readFile` draw.io, чтобы YAML не блокировался фильтром `Invalid file data`.
 - Phase 2 (зарезервировано): `schemas.<schema>.fields.<attr>.widget` (`text|textarea|combo|radio|checkbox`) — rich-виджеты внутри того же диалога без изменений в маршрутизации/menu hooks.
 
 ## Interactive terminal command

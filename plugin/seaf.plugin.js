@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.3.27
+ * Runtime script version: 0.3.28
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -858,8 +858,9 @@ Draw.loadPlugin(function(ui)
 		try
 		{
 			var rawText = await requestAsync({
-				action: 'readFile',
-				filename: path,
+				action: 'readSeafPluginFile',
+				configPath: state.configPath,
+				relativePath: 'stencils/config.yaml',
 				encoding: 'utf8'
 			});
 			var parsed = parseStencilsConfigYaml(typeof rawText === 'string' ? rawText : '');
