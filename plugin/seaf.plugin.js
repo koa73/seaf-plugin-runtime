@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.3.22
+ * Runtime script version: 0.3.23
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -34,6 +34,8 @@ Draw.loadPlugin(function(ui)
 		pendingStencilBatches: [],
 		editDataSessionActive: false,
 		editDataBeforeByCell: {},
+		editDataActionWrapped: false,
+		stencilsLayerConfig: null,
 		stencilIndex: {
 			ready: false,
 			byObjectId: {},
@@ -555,6 +557,22 @@ Draw.loadPlugin(function(ui)
 		return joinPathFragments(runtimeRoot, 'conf', 'stencils', 'libraries.json');
 	}
 
+	function getStencilsLayerConfigPath()
+	{
+		if (typeof state.configPath !== 'string' || state.configPath.length === 0)
+		{
+			return null;
+		}
+		var normalized = state.configPath.replace(/\\/g, '/');
+		var suffix = '/conf/plugin.yaml';
+		if (normalized.length <= suffix.length || normalized.slice(-suffix.length) !== suffix)
+		{
+			return null;
+		}
+		var runtimeRoot = normalized.slice(0, normalized.length - suffix.length);
+		return joinPathFragments(runtimeRoot, 'conf', 'stencils', 'config.yaml');
+	}
+
 	function parseLibrariesConfig(rawText)
 	{
 		var raw = (typeof rawText === 'string') ? rawText.trim() : '';
@@ -620,6 +638,348 @@ Draw.loadPlugin(function(ui)
 			throw new Error('Library data must be an array');
 		}
 		return parsed;
+	}
+
+	// Inline mini YAML parser tuned for stencils/config.yaml shape:
+	// - top-level objects, nested objects with 2-space indent
+	// - lists ("- item" lines)
+	// - scalars (string/bool/number/null), with optional double or single quotes
+	// - "#" comments stripped (outside quotes)
+	function stencilsYaml_stripComment(line)
+	{
+		var quote = null;
+		for (var i = 0; i < line.length; i++)
+		{
+			var ch = line[i];
+			if ((ch === '"' || ch === "'") && (i === 0 || line[i - 1] !== '\\'))
+			{
+				if (quote === ch)
+				{
+					quote = null;
+				}
+				else if (quote == null)
+				{
+					quote = ch;
+				}
+			}
+			else if (ch === '#' && quote == null)
+			{
+				return line.substring(0, i);
+			}
+		}
+		return line;
+	}
+
+	function stencilsYaml_parseScalar(raw)
+	{
+		var text = String(raw == null ? '' : raw);
+		if (text === 'true') return true;
+		if (text === 'false') return false;
+		if (text === 'null' || text === '~') return null;
+		if (/^-?\d+$/.test(text)) return parseInt(text, 10);
+		if (/^-?\d+\.\d+$/.test(text)) return parseFloat(text);
+		if (text.length >= 2 &&
+			((text.charAt(0) === '"' && text.charAt(text.length - 1) === '"') ||
+			 (text.charAt(0) === "'" && text.charAt(text.length - 1) === "'")))
+		{
+			return text.substring(1, text.length - 1);
+		}
+		// Inline list: "[a, b]"
+		if (text.length >= 2 && text.charAt(0) === '[' && text.charAt(text.length - 1) === ']')
+		{
+			var inner = text.substring(1, text.length - 1).trim();
+			if (inner.length === 0) return [];
+			var parts = inner.split(',');
+			var arr = [];
+			for (var i = 0; i < parts.length; i++)
+			{
+				arr.push(stencilsYaml_parseScalar(parts[i].trim()));
+			}
+			return arr;
+		}
+		return text;
+	}
+
+	function stencilsYaml_preprocess(text)
+	{
+		var lines = text.split(/\r?\n/);
+		var out = [];
+		for (var i = 0; i < lines.length; i++)
+		{
+			var cleaned = stencilsYaml_stripComment(lines[i]).replace(/\t/g, '    ');
+			if (cleaned.replace(/\s+$/, '').length === 0)
+			{
+				continue;
+			}
+			var indentMatch = /^ */.exec(cleaned);
+			var indent = indentMatch ? indentMatch[0].length : 0;
+			var content = cleaned.replace(/\s+$/, '').trim();
+			out.push({indent: indent, content: content});
+		}
+		return out;
+	}
+
+	function stencilsYaml_parseCollection(lines, startIdx, baseIndent)
+	{
+		var idx = startIdx;
+		var mode = null;
+		var obj = {};
+		var arr = [];
+		while (idx < lines.length)
+		{
+			var line = lines[idx];
+			if (line.indent < baseIndent)
+			{
+				break;
+			}
+			if (line.indent > baseIndent)
+			{
+				throw new Error('Invalid indentation near: ' + line.content);
+			}
+			var isList = line.content.indexOf('- ') === 0 || line.content === '-';
+			if (mode == null)
+			{
+				mode = isList ? 'array' : 'object';
+			}
+			else if ((mode === 'array' && !isList) || (mode === 'object' && isList))
+			{
+				break;
+			}
+			if (mode === 'array')
+			{
+				var item = (line.content === '-') ? '' : line.content.substring(2).trim();
+				if (item.length === 0)
+				{
+					var nestedEmpty = stencilsYaml_parseCollection(lines, idx + 1, baseIndent + 2);
+					arr.push(nestedEmpty.value);
+					idx = nestedEmpty.nextIdx;
+				}
+				else
+				{
+					var inlineColon = item.indexOf(':');
+					if (inlineColon > 0 && (inlineColon === item.length - 1 || item.charAt(inlineColon + 1) === ' '))
+					{
+						var key = item.substring(0, inlineColon).trim();
+						var rest = item.substring(inlineColon + 1).trim();
+						var seed = {};
+						if (rest.length > 0)
+						{
+							seed[key] = stencilsYaml_parseScalar(rest);
+							idx++;
+							var nestedInline = stencilsYaml_parseCollection(lines, idx, baseIndent + 4);
+							if (nestedInline.nextIdx > idx && nestedInline.value && typeof nestedInline.value === 'object' && !Array.isArray(nestedInline.value))
+							{
+								for (var k1 in nestedInline.value)
+								{
+									if (Object.prototype.hasOwnProperty.call(nestedInline.value, k1))
+									{
+										seed[k1] = nestedInline.value[k1];
+									}
+								}
+								idx = nestedInline.nextIdx;
+							}
+						}
+						else
+						{
+							var nested2 = stencilsYaml_parseCollection(lines, idx + 1, baseIndent + 4);
+							seed[key] = nested2.value;
+							idx = nested2.nextIdx;
+						}
+						arr.push(seed);
+					}
+					else
+					{
+						arr.push(stencilsYaml_parseScalar(item));
+						idx++;
+					}
+				}
+			}
+			else
+			{
+				var colonIdx = line.content.indexOf(':');
+				if (colonIdx < 0)
+				{
+					throw new Error('Missing ":" in: ' + line.content);
+				}
+				var keyObj = line.content.substring(0, colonIdx).trim();
+				var restObj = line.content.substring(colonIdx + 1).trim();
+				if (restObj.length > 0)
+				{
+					obj[keyObj] = stencilsYaml_parseScalar(restObj);
+					idx++;
+				}
+				else
+				{
+					var nestedObj = stencilsYaml_parseCollection(lines, idx + 1, baseIndent + 2);
+					obj[keyObj] = nestedObj.value;
+					idx = nestedObj.nextIdx;
+				}
+			}
+		}
+		return {value: mode === 'array' ? arr : obj, nextIdx: idx};
+	}
+
+	function parseStencilsConfigYaml(text)
+	{
+		if (typeof text !== 'string')
+		{
+			return {};
+		}
+		var trimmed = text.trim();
+		if (trimmed.length === 0)
+		{
+			return {};
+		}
+		// JSON shortcut
+		if (trimmed.charAt(0) === '{' || trimmed.charAt(0) === '[')
+		{
+			try { return JSON.parse(trimmed); } catch (e) { /* fall through */ }
+		}
+		var lines = stencilsYaml_preprocess(text);
+		if (lines.length === 0)
+		{
+			return {};
+		}
+		var parsed = stencilsYaml_parseCollection(lines, 0, lines[0].indent);
+		return parsed.value || {};
+	}
+
+	async function loadStencilsLayerConfig()
+	{
+		var path = getStencilsLayerConfigPath();
+		if (path == null)
+		{
+			state.stencilsLayerConfig = {schemas: {}};
+			return;
+		}
+		try
+		{
+			var rawText = await requestAsync({
+				action: 'readFile',
+				filename: path,
+				encoding: 'utf8'
+			});
+			var parsed = parseStencilsConfigYaml(typeof rawText === 'string' ? rawText : '');
+			if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed))
+			{
+				parsed = {};
+			}
+			if (parsed.schemas == null || typeof parsed.schemas !== 'object' || Array.isArray(parsed.schemas))
+			{
+				parsed.schemas = {};
+			}
+			state.stencilsLayerConfig = parsed;
+			await writeLog('info', 'Stencils layer config loaded', {
+				path: path,
+				schemas: Object.keys(parsed.schemas).length
+			});
+		}
+		catch (e)
+		{
+			state.stencilsLayerConfig = {schemas: {}};
+			await writeLog('warn', 'Stencils layer config load failed', {
+				path: path,
+				error: e && e.message ? e.message : String(e)
+			});
+		}
+	}
+
+	function getSchemaConfigEntry(schema)
+	{
+		var key = (typeof schema === 'string') ? schema.trim() : '';
+		if (key.length === 0) return null;
+		var cfg = state.stencilsLayerConfig;
+		if (cfg == null || cfg.schemas == null || typeof cfg.schemas !== 'object') return null;
+		var entry = cfg.schemas[key];
+		return (entry != null && typeof entry === 'object' && !Array.isArray(entry)) ? entry : null;
+	}
+
+	function getEditDataModeForSchema(schema)
+	{
+		var entry = getSchemaConfigEntry(schema);
+		if (entry == null)
+		{
+			return 'standard';
+		}
+		var raw = entry.edit_data;
+		if (typeof raw === 'string')
+		{
+			var v = raw.trim().toLowerCase();
+			if (v === 'standard' || v === 'seaf' || v === 'both')
+			{
+				return v;
+			}
+		}
+		return 'seaf';
+	}
+
+	function getDataLockForSchema(schema)
+	{
+		var entry = getSchemaConfigEntry(schema);
+		if (entry == null)
+		{
+			return [];
+		}
+		var raw = entry.data_lock;
+		if (Array.isArray(raw))
+		{
+			var out = [];
+			for (var i = 0; i < raw.length; i++)
+			{
+				var name = (raw[i] == null) ? '' : String(raw[i]).trim();
+				if (name.length > 0 && out.indexOf(name) < 0)
+				{
+					out.push(name);
+				}
+			}
+			return out;
+		}
+		return ['OID', 'schema'];
+	}
+
+	function isSeafEditDataModeForCell(cell, graph)
+	{
+		if (cell == null)
+		{
+			return false;
+		}
+		try
+		{
+			var meta = extractShapeSchema(cell, graph);
+			var schema = (meta && typeof meta.schema === 'string') ? meta.schema : '';
+			var mode = getEditDataModeForSchema(schema);
+			return mode === 'seaf' || mode === 'both';
+		}
+		catch (e)
+		{
+			return false;
+		}
+	}
+
+	function captureEditDataBeforeSnapshots(graph)
+	{
+		var map = {};
+		try
+		{
+			if (!graph) return map;
+			var selected = graph.getSelectionCells() || [];
+			for (var i = 0; i < selected.length; i++)
+			{
+				var cell = selected[i];
+				if (cell && cell.id)
+				{
+					map[cell.id] = {
+						value: sanitizeForIpc(cell.value),
+						data: extractEditableDataFromCell(cell, graph)
+					};
+				}
+			}
+		}
+		catch (e)
+		{
+			// ignore pre-snapshot errors
+		}
+		return map;
 	}
 
 	function normalizeLocalizedResource(value, fallback)
@@ -1960,41 +2320,586 @@ Draw.loadPlugin(function(ui)
 		state.stencilModelListenerInstalled = true;
 	}
 
-	function installEditDataApplyHook()
+	function ensureSeafEditDataResources()
+	{
+		if (typeof mxResources !== 'undefined' && typeof mxResources.parse === 'function')
+		{
+			mxResources.parse('seafEditDataLockTooltip=Поле защищено data_lock и недоступно для изменения или удаления');
+			mxResources.parse('seafEditDataLockedAddAlert=Имя свойства защищено data_lock и не может быть добавлено');
+		}
+	}
+
+	function getSeafEditDataLockTooltip()
+	{
+		try
+		{
+			if (typeof mxResources !== 'undefined' && typeof mxResources.get === 'function')
+			{
+				var s = mxResources.get('seafEditDataLockTooltip');
+				if (typeof s === 'string' && s.length > 0 && s !== 'seafEditDataLockTooltip')
+				{
+					return s;
+				}
+			}
+		}
+		catch (e)
+		{
+			// fall through
+		}
+		return 'Поле защищено data_lock и недоступно для изменения или удаления';
+	}
+
+	function getSeafEditDataLockedAddAlert()
+	{
+		try
+		{
+			if (typeof mxResources !== 'undefined' && typeof mxResources.get === 'function')
+			{
+				var s = mxResources.get('seafEditDataLockedAddAlert');
+				if (typeof s === 'string' && s.length > 0 && s !== 'seafEditDataLockedAddAlert')
+				{
+					return s;
+				}
+			}
+		}
+		catch (e)
+		{
+			// fall through
+		}
+		return 'Имя свойства защищено data_lock и не может быть добавлено';
+	}
+
+	// SEAF Edit Data dialog. Mirrors the standard EditDataDialog UX (XML object node attributes,
+	// Apply/Cancel/Export, optional placeholders checkbox), but with first-class support for:
+	//   - data_lock list per schema (locked rows are disabled and have no remove button)
+	//   - blocking add of properties whose name is in data_lock
+	//   - Phase 2 hook: schemas.<x>.fields.<attr>.widget (combo/radio/...) - currently fallback to textarea
+	function SeafEditDataDialog(uiRef, cell, optionalGraph)
+	{
+		ensureSeafEditDataResources();
+		var graph = optionalGraph || (uiRef && uiRef.editor ? uiRef.editor.graph : null);
+		var model = graph ? graph.getModel() : null;
+		var rawValue = (model && typeof model.getValue === 'function') ? model.getValue(cell) : (cell ? cell.value : null);
+		// Convert plain string/null values to an XML object node, like the standard dialog does.
+		var value;
+		if (mxUtils.isNode(rawValue))
+		{
+			value = rawValue;
+		}
+		else
+		{
+			var doc = mxUtils.createXmlDocument();
+			value = doc.createElement('object');
+			value.setAttribute('label', (rawValue == null ? '' : String(rawValue)));
+		}
+
+		var schemaMeta = extractShapeSchema(cell, graph);
+		var schemaKey = schemaMeta && typeof schemaMeta.schema === 'string' ? schemaMeta.schema : '';
+		var lockList = getDataLockForSchema(schemaKey);
+		var lockSet = {};
+		for (var li = 0; li < lockList.length; li++) { lockSet[lockList[li]] = true; }
+
+		var div = document.createElement('div');
+		var top = document.createElement('div');
+		top.style.position = 'absolute';
+		top.style.top = '30px';
+		top.style.left = '30px';
+		top.style.right = '30px';
+		top.style.bottom = '80px';
+		top.style.overflowY = 'auto';
+
+		var form = new mxForm('properties');
+		form.table.style.width = '100%';
+
+		var rowState = []; // [{name, locked, input, removed, removeBtn, row}]
+		var isLayer = false;
+		try
+		{
+			isLayer = !!(model && typeof model.isLayer === 'function' && cell && model.isLayer(cell));
+		}
+		catch (eIsLayer) { isLayer = false; }
+		var styleMap = {};
+		try
+		{
+			styleMap = (graph && typeof graph.getCurrentCellStyle === 'function' && cell) ? (graph.getCurrentCellStyle(cell) || {}) : {};
+		}
+		catch (eStyle) { styleMap = {}; }
+		var allowLabel = (String(styleMap.metaEdit || '') === '1') ||
+			(typeof Graph !== 'undefined' && Graph != null && Graph.translateDiagram === true) ||
+			isLayer;
+
+		// id row (read-only) for non-root cells, mirrors EditDataDialog.getDisplayIdForCell()
+		var idText = null;
+		try
+		{
+			if (typeof EditDataDialog !== 'undefined' && typeof EditDataDialog.getDisplayIdForCell === 'function')
+			{
+				idText = EditDataDialog.getDisplayIdForCell(uiRef, cell, optionalGraph);
+			}
+			else if (cell && typeof cell.getId === 'function' && model && typeof model.getParent === 'function' && model.getParent(cell) != null)
+			{
+				idText = cell.getId();
+			}
+		}
+		catch (eId) { idText = null; }
+		if (idText != null)
+		{
+			var idDiv = document.createElement('div');
+			idDiv.style.width = '100%';
+			idDiv.style.fontSize = '11px';
+			idDiv.style.textAlign = 'center';
+			mxUtils.write(idDiv, idText);
+			form.addField(mxResources.get('id') + ':', idDiv);
+		}
+
+		// Build sorted attribute list
+		var temp = [];
+		var attrs = (value && value.attributes) ? value.attributes : [];
+		for (var ai = 0; ai < attrs.length; ai++)
+		{
+			var a = attrs[ai];
+			var nm = a && typeof a.nodeName === 'string' ? a.nodeName : '';
+			if (!nm || nm === 'placeholders') continue;
+			if (nm === 'label' && !allowLabel) continue;
+			temp.push({name: nm, value: (a.nodeValue == null ? '' : String(a.nodeValue))});
+		}
+		temp.sort(function(a, b)
+		{
+			if (a.name === 'label') return 1;
+			if (b.name === 'label') return -1;
+			if (a.name < b.name) return -1;
+			if (a.name > b.name) return 1;
+			return 0;
+		});
+
+		function addPropertyRow(name, val)
+		{
+			var locked = !!lockSet[name];
+			// Phase 1: always textarea; Phase 2 will branch on schemas.<x>.fields.<name>.widget
+			var input = form.addTextarea(name + ':', val, 2);
+			input.style.width = '100%';
+			if (val.indexOf('\n') > 0)
+			{
+				input.setAttribute('rows', '2');
+			}
+			var rowEl = input.parentNode ? input.parentNode.parentNode : null; // td.parent === tr
+			var removeBtn = null;
+
+			// Wrap textarea + (optional) remove button into a flex container
+			var wrapper = document.createElement('div');
+			wrapper.style.position = 'relative';
+			wrapper.style.display = 'flex';
+			wrapper.style.alignItems = 'center';
+			wrapper.style.boxSizing = 'border-box';
+			wrapper.style.width = '100%';
+			var textParent = input.parentNode;
+			if (textParent != null)
+			{
+				textParent.appendChild(wrapper);
+				wrapper.appendChild(input);
+			}
+
+			var entry = {name: name, locked: locked, input: input, removed: false, removeBtn: null, row: rowEl};
+			if (locked)
+			{
+				try
+				{
+					input.setAttribute('disabled', 'disabled');
+					input.title = getSeafEditDataLockTooltip();
+				}
+				catch (e) { /* ignore */ }
+			}
+			else
+			{
+				removeBtn = document.createElement('a');
+				try
+				{
+					var img = mxUtils.createImage(Dialog.prototype.closeImage);
+					img.style.height = '9px';
+					img.style.fontSize = '9px';
+					removeBtn.appendChild(img);
+				}
+				catch (eImg)
+				{
+					mxUtils.write(removeBtn, 'X');
+				}
+				removeBtn.className = 'geButton';
+				removeBtn.setAttribute('title', mxResources.get('delete'));
+				removeBtn.style.marginLeft = '8px';
+				removeBtn.style.cursor = 'pointer';
+				wrapper.appendChild(removeBtn);
+				entry.removeBtn = removeBtn;
+				mxEvent.addListener(removeBtn, 'click', function()
+				{
+					entry.removed = true;
+					if (entry.row && entry.row.parentNode)
+					{
+						entry.row.parentNode.removeChild(entry.row);
+					}
+				});
+			}
+			rowState.push(entry);
+			return entry;
+		}
+
+		for (var ti = 0; ti < temp.length; ti++)
+		{
+			addPropertyRow(temp[ti].name, temp[ti].value);
+		}
+		top.appendChild(form.table);
+
+		// Add Property block
+		var newProp = document.createElement('div');
+		newProp.style.display = 'flex';
+		newProp.style.alignItems = 'center';
+		newProp.style.boxSizing = 'border-box';
+		newProp.style.paddingRight = '160px';
+		newProp.style.whiteSpace = 'nowrap';
+		newProp.style.marginTop = '6px';
+		newProp.style.width = '100%';
+
+		var nameInput = document.createElement('input');
+		nameInput.setAttribute('placeholder', mxResources.get('enterPropertyName'));
+		nameInput.setAttribute('type', 'text');
+		nameInput.setAttribute('size', '40');
+		nameInput.style.boxSizing = 'border-box';
+		nameInput.style.borderWidth = '1px';
+		nameInput.style.borderStyle = 'solid';
+		nameInput.style.marginLeft = '2px';
+		nameInput.style.padding = '4px';
+		nameInput.style.width = '100%';
+		newProp.appendChild(nameInput);
+		top.appendChild(newProp);
+		div.appendChild(top);
+
+		var addBtn = mxUtils.button(mxResources.get('addProperty'), function()
+		{
+			var name = (nameInput.value == null ? '' : String(nameInput.value)).trim();
+			if (name.length === 0 || name === 'label' || name === 'id' || name === 'placeholders' || name.indexOf(':') >= 0)
+			{
+				mxUtils.alert(mxResources.get('invalidName'));
+				return;
+			}
+			if (lockSet[name] === true)
+			{
+				mxUtils.alert(getSeafEditDataLockedAddAlert());
+				return;
+			}
+			// If property with this name already exists in current state, focus it
+			for (var j = 0; j < rowState.length; j++)
+			{
+				if (rowState[j].name === name && !rowState[j].removed && rowState[j].input)
+				{
+					try { rowState[j].input.focus(); } catch (e) { /* ignore */ }
+					addBtn.setAttribute('disabled', 'disabled');
+					nameInput.value = '';
+					return;
+				}
+			}
+			// Validate via clone (catches XML-illegal names)
+			try
+			{
+				var clone = value.cloneNode(false);
+				clone.setAttribute(name, '');
+			}
+			catch (e)
+			{
+				mxUtils.alert(e && e.message ? e.message : String(e));
+				return;
+			}
+			var entry = addPropertyRow(name, '');
+			try { entry.input.focus(); } catch (e2) { /* ignore */ }
+			addBtn.setAttribute('disabled', 'disabled');
+			nameInput.value = '';
+		});
+		addBtn.setAttribute('title', mxResources.get('addProperty'));
+		addBtn.setAttribute('disabled', 'disabled');
+		addBtn.style.textOverflow = 'ellipsis';
+		addBtn.style.position = 'absolute';
+		addBtn.style.overflow = 'hidden';
+		addBtn.style.width = '144px';
+		addBtn.style.right = '0px';
+		addBtn.className = 'geBtn';
+		newProp.appendChild(addBtn);
+
+		mxEvent.addListener(nameInput, 'keypress', function(e)
+		{
+			if (e.keyCode === 13)
+			{
+				addBtn.click();
+			}
+		});
+		function updateAddBtn()
+		{
+			if (nameInput.value.length > 0)
+			{
+				addBtn.removeAttribute('disabled');
+			}
+			else
+			{
+				addBtn.setAttribute('disabled', 'disabled');
+			}
+		}
+		mxEvent.addListener(nameInput, 'keyup', updateAddBtn);
+		mxEvent.addListener(nameInput, 'change', updateAddBtn);
+
+		// Buttons row
+		var buttons = document.createElement('div');
+		buttons.style.display = 'flex';
+		buttons.style.justifyContent = 'flex-end';
+		buttons.style.alignItems = 'center';
+		buttons.style.position = 'absolute';
+		buttons.style.left = '30px';
+		buttons.style.right = '30px';
+		buttons.style.bottom = '30px';
+		buttons.style.height = '40px';
+
+		// Placeholders checkbox (parity with standard dialog)
+		var hasPlaceholders = false;
+		try
+		{
+			hasPlaceholders = !!(model && typeof model.isVertex === 'function' && (model.isVertex(cell) || model.isEdge(cell)));
+		}
+		catch (eP) { hasPlaceholders = false; }
+		var placeholdersInput = null;
+		if (hasPlaceholders)
+		{
+			var replaceSpan = document.createElement('span');
+			replaceSpan.style.marginRight = '10px';
+			replaceSpan.style.justifyContent = 'flex-end';
+			replaceSpan.style.alignItems = 'center';
+			replaceSpan.style.display = 'flex';
+			replaceSpan.style.whiteSpace = 'nowrap';
+			placeholdersInput = document.createElement('input');
+			placeholdersInput.setAttribute('type', 'checkbox');
+			placeholdersInput.style.marginRight = '6px';
+			if (value.getAttribute && value.getAttribute('placeholders') === '1')
+			{
+				placeholdersInput.setAttribute('checked', 'checked');
+				placeholdersInput.defaultChecked = true;
+			}
+			replaceSpan.appendChild(placeholdersInput);
+			mxUtils.write(replaceSpan, mxResources.get('placeholders'));
+			buttons.appendChild(replaceSpan);
+		}
+
+		var cancelBtn = mxUtils.button(mxResources.get('cancel'), function()
+		{
+			uiRef.hideDialog.apply(uiRef, arguments);
+		});
+		cancelBtn.setAttribute('title', 'Escape');
+		cancelBtn.className = 'geBtn';
+
+		var exportBtn = mxUtils.button(mxResources.get('export'), function()
+		{
+			try
+			{
+				var exportData = (typeof graph.getDataForCells === 'function') ? graph.getDataForCells([cell], true) : null;
+				if (typeof EmbedDialog === 'function')
+				{
+					var dlg = new EmbedDialog(uiRef, JSON.stringify(exportData, null, 2), null, null, function()
+					{
+						try { console.log(exportData); } catch (e) { /* ignore */ }
+						uiRef.alert('Written to Console (Dev Tools)');
+					}, mxResources.get('export'), null, 'Console', 'data.json');
+					uiRef.showDialog(dlg.container, 450, 270, true, true, null, false, null, new mxRectangle(0, 0, 400, 250));
+					if (typeof dlg.init === 'function') dlg.init();
+				}
+			}
+			catch (e)
+			{
+				mxUtils.alert(e && e.message ? e.message : String(e));
+			}
+		});
+		exportBtn.setAttribute('title', mxResources.get('export'));
+		exportBtn.className = 'geBtn';
+
+		var applyBtn = mxUtils.button(mxResources.get('apply'), function()
+		{
+			try
+			{
+				uiRef.hideDialog.apply(uiRef, arguments);
+
+				var clone = value.cloneNode(true);
+				var removeLabel = false;
+				var seenNames = {};
+
+				// First, write/keep all rowState entries
+				for (var i = 0; i < rowState.length; i++)
+				{
+					var f = rowState[i];
+					seenNames[f.name] = true;
+					if (f.removed)
+					{
+						clone.removeAttribute(f.name);
+						continue;
+					}
+					if (f.locked)
+					{
+						// Preserve original value verbatim
+						continue;
+					}
+					var v = (f.input && f.input.value != null) ? String(f.input.value) : '';
+					clone.setAttribute(f.name, v);
+					if (f.name === 'placeholder' && clone.getAttribute('placeholders') === '1')
+					{
+						removeLabel = true;
+					}
+				}
+
+				// Drop any attributes from clone that user removed but were not in rowState (defensive)
+				if (clone.attributes && typeof clone.removeAttribute === 'function')
+				{
+					var toRemove = [];
+					for (var k = 0; k < clone.attributes.length; k++)
+					{
+						var an = clone.attributes[k] && clone.attributes[k].nodeName ? clone.attributes[k].nodeName : '';
+						if (!an || an === 'label' || an === 'placeholders' || an === 'id') continue;
+						if (lockSet[an] === true) continue;
+						if (!seenNames[an])
+						{
+							toRemove.push(an);
+						}
+					}
+					for (var k2 = 0; k2 < toRemove.length; k2++)
+					{
+						clone.removeAttribute(toRemove[k2]);
+					}
+				}
+
+				if (placeholdersInput != null)
+				{
+					if (placeholdersInput.checked)
+					{
+						clone.setAttribute('placeholders', '1');
+					}
+					else
+					{
+						clone.removeAttribute('placeholders');
+					}
+				}
+				if (removeLabel)
+				{
+					clone.removeAttribute('label');
+				}
+
+				// Snapshot before-state so existing event processor sees a "modify" for this set
+				try
+				{
+					state.editDataSessionActive = true;
+					state.editDataBeforeByCell = captureEditDataBeforeSnapshots(graph);
+				}
+				catch (eSnap) { /* ignore */ }
+
+				if (model && typeof model.setValue === 'function')
+				{
+					model.setValue(cell, clone);
+				}
+			}
+			catch (e)
+			{
+				mxUtils.alert(e && e.message ? e.message : String(e));
+			}
+		});
+		applyBtn.setAttribute('title', 'Ctrl+Enter');
+		applyBtn.className = 'geBtn gePrimaryBtn';
+
+		mxEvent.addListener(div, 'keydown', function(e)
+		{
+			if (e.keyCode === 13 && mxEvent.isControlDown(e))
+			{
+				applyBtn.click();
+			}
+		});
+
+		if (uiRef.editor && uiRef.editor.cancelFirst)
+		{
+			buttons.appendChild(cancelBtn);
+			buttons.appendChild(exportBtn);
+			buttons.appendChild(applyBtn);
+		}
+		else
+		{
+			buttons.appendChild(exportBtn);
+			buttons.appendChild(applyBtn);
+			buttons.appendChild(cancelBtn);
+		}
+		div.appendChild(buttons);
+
+		this.container = div;
+		this.init = function()
+		{
+			for (var fi = 0; fi < rowState.length; fi++)
+			{
+				if (!rowState[fi].locked && rowState[fi].input && typeof rowState[fi].input.focus === 'function')
+				{
+					try { rowState[fi].input.focus(); return; } catch (e) { /* ignore */ }
+				}
+			}
+			try { nameInput.focus(); } catch (e2) { /* ignore */ }
+		};
+	}
+
+	function showSeafEditDataDialog(cell)
+	{
+		try
+		{
+			var graph = ui && ui.editor ? ui.editor.graph : null;
+			state.editDataSessionActive = true;
+			state.editDataBeforeByCell = captureEditDataBeforeSnapshots(graph);
+			var dlg = new SeafEditDataDialog(ui, cell, graph);
+			ui.showDialog(dlg.container, 480, 420, true, false, null,
+				false, null, new mxRectangle(0, 0, 440, 220));
+			if (typeof dlg.init === 'function')
+			{
+				dlg.init();
+			}
+		}
+		catch (e)
+		{
+			writeLog('error', 'Failed to open SEAF edit data dialog', {
+				error: e && e.message ? e.message : String(e)
+			});
+		}
+	}
+
+	function installEditDataActionWrap()
 	{
 		var action = ui && ui.actions ? ui.actions.get('editData') : null;
-		if (!action || typeof action.funct !== 'function' || action._seafEditDataHookInstalled === true)
+		if (!action || typeof action.funct !== 'function')
+		{
+			return;
+		}
+		if (action._seafEditDataHookInstalled === true || state.editDataActionWrapped === true)
 		{
 			return;
 		}
 		var original = action.funct;
 		action.funct = function()
 		{
-			state.editDataSessionActive = true;
-			state.editDataBeforeByCell = {};
 			try
 			{
 				var graph = ui && ui.editor ? ui.editor.graph : null;
-				var selected = graph ? graph.getSelectionCells() : [];
-				for (var i = 0; i < selected.length; i++)
+				var cell = graph ? (graph.getSelectionCell() || (graph.getModel ? graph.getModel().getRoot() : null)) : null;
+				if (cell != null && isSeafEditDataModeForCell(cell, graph))
 				{
-					var cell = selected[i];
-					if (cell && cell.id)
-					{
-						state.editDataBeforeByCell[cell.id] = {
-							value: sanitizeForIpc(cell.value),
-							data: extractEditableDataFromCell(cell, graph)
-						};
-					}
+					showSeafEditDataDialog(cell);
+					return;
 				}
 			}
 			catch (e)
 			{
-				// ignore pre-snapshot errors
+				writeLog('error', 'editData wrap dispatch failed; falling back to standard dialog', {
+					error: e && e.message ? e.message : String(e)
+				});
 			}
+			// Standard fallback: snapshot + original
+			state.editDataSessionActive = true;
+			state.editDataBeforeByCell = captureEditDataBeforeSnapshots(ui && ui.editor ? ui.editor.graph : null);
 			return original.apply(this, arguments);
 		};
 		action._seafEditDataHookInstalled = true;
+		state.editDataActionWrapped = true;
 	}
 
 	function buildPayload(command)
@@ -3962,8 +4867,52 @@ Draw.loadPlugin(function(ui)
 		state.contextMenuBaseCreatePopupMenu = ui.menus.createPopupMenu;
 		ui.menus.createPopupMenu = function(menu, cell, evt)
 		{
-			state.contextMenuBaseCreatePopupMenu.apply(this, arguments);
 			var graph = ui.editor.graph;
+			// Hide standard "Edit Data" item only for cells whose schema is in seaf-mode.
+			// Restored after the base call so other entry points (Format panel, Edit menu) are unaffected.
+			var prevHiddenItems = ui.menus.hiddenMenuItems;
+			var hiddenOverridden = false;
+			try
+			{
+				if (cell != null)
+				{
+					var schemaMeta = extractShapeSchema(cell, graph);
+					var schemaKey = schemaMeta && typeof schemaMeta.schema === 'string' ? schemaMeta.schema : '';
+					var mode = getEditDataModeForSchema(schemaKey);
+					if (mode === 'seaf')
+					{
+						var merged = {};
+						if (prevHiddenItems != null && typeof prevHiddenItems === 'object')
+						{
+							for (var hk in prevHiddenItems)
+							{
+								if (Object.prototype.hasOwnProperty.call(prevHiddenItems, hk))
+								{
+									merged[hk] = prevHiddenItems[hk];
+								}
+							}
+						}
+						merged.editData = true;
+						ui.menus.hiddenMenuItems = merged;
+						hiddenOverridden = true;
+					}
+				}
+			}
+			catch (eHide)
+			{
+				hiddenOverridden = false;
+			}
+			try
+			{
+				state.contextMenuBaseCreatePopupMenu.apply(this, arguments);
+			}
+			finally
+			{
+				if (hiddenOverridden)
+				{
+					ui.menus.hiddenMenuItems = prevHiddenItems;
+				}
+			}
 			var inserted = false;
 			var commands = state.config.commands || [];
 			var contextCommands = [];
@@ -4100,13 +5049,18 @@ Draw.loadPlugin(function(ui)
 			});
 			await runInitStep('python_env_auto', ensurePythonEnvironmentAuto, true);
 			await runInitStep('stencil_libraries_load', loadSeafStencilLibraries, false);
+			await runInitStep('load_stencils_layer_config', loadStencilsLayerConfig, false);
 			await runInitStep('stencil_index_rebuild', function()
 			{
 				rebuildStencilIndex();
 				return Promise.resolve();
 			}, false);
 			await runInitStep('install_stencil_model_listener', installStencilModelListener, false);
-			await runInitStep('install_edit_data_apply_hook', installEditDataApplyHook, false);
+			await runInitStep('wrap_edit_data_action', function()
+			{
+				installEditDataActionWrap();
+				return Promise.resolve();
+			}, false);
 
 			ensureInteractiveSessionListener();
 			registerActions();

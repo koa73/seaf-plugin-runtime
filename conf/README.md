@@ -349,3 +349,53 @@ rules:
 - Формат: `schemas.<schema>.layer`.
 - `layer` может быть строкой или списком строк (для конфликтов/ручного разруливания).
 - Если `layer` отсутствует или пустой, слой не создается и объект не переносится.
+
+### Stencil metadata: edit_data + data_lock
+
+В том же файле `conf/stencils/config.yaml` для каждой schema можно описать поведение
+диалога «Редактировать данные» (Edit Data). Используется plugin'ом для P41-стенсилов;
+парсер на стороне renderer (минимальный inline YAML, поддерживает скаляры/объекты/списки).
+
+Поля:
+
+| Параметр | Тип | Назначение | Default |
+|---|---|---|---|
+| `schemas.<schema>.edit_data` | `string` | Режим Edit Data: `seaf` \| `standard` \| `both` | `seaf` если schema в config; `standard` если не указана |
+| `schemas.<schema>.data_lock` | `array<string>` | Имена атрибутов, защищённых от edit/remove/add-with-same-name | `[OID, schema]` |
+
+Семантика `edit_data`:
+
+- `seaf` — штатный пункт «Edit Data» в context menu скрыт, везде (Right-click, Ctrl+M, Format panel) открывается SEAF-диалог `SeafEditDataDialog` с поддержкой `data_lock`.
+- `standard` — штатный диалог draw.io без вмешательства; `data_lock` игнорируется (для совместимости).
+- `both` — в context menu доступны оба пункта (штатный raw + SEAF), Ctrl+M / Format panel ведут на SEAF-диалог.
+
+Семантика `data_lock`:
+
+- Список имён атрибутов (строки). Для каждого защищённого имени:
+  - textarea/input в SEAF-диалоге дизейблен (`disabled`), нельзя изменить значение;
+  - кнопка «X» удаления отсутствует, удалить атрибут невозможно;
+  - попытка добавить новый атрибут с этим же именем блокируется alert'ом.
+- Если ключ `data_lock` отсутствует у schema, перечисленной в config, по умолчанию защищаются `OID` и `schema`.
+- Schemas, отсутствующие в `config.yaml`, не получают защиты вообще (`mode=standard`, `data_lock=[]`).
+
+### Stencil metadata: fields (зарезервировано, Phase 2)
+
+В Phase 2 поле `schemas.<schema>.fields.<attr>` будет описывать widget диалога:
+
+```yaml
+schemas:
+  seaf.company.ta.services.dc_regions:
+    layer: "Регион"
+    edit_data: seaf
+    data_lock: [OID, schema]
+    fields:
+      stand:
+        widget: combo            # text | textarea | combo | radio | checkbox
+        options: [PROD, DEV, TEST]
+        required: true
+      external_id:
+        widget: text
+        pattern: "^[A-Z0-9_-]+$"
+```
+
+В Phase 1 ключ `fields` plugin'ом не читается; неуказанные атрибуты рендерятся как `textarea`.

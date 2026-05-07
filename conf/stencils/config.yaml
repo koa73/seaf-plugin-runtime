@@ -1,31 +1,96 @@
 schemas:
   seaf.company.ta.services.dc_regions:
     layer: "Регион"
+    edit_data: seaf
+    data_lock:
+      - OID
+      - schema
+    # fields:                  # Phase 2 (рендер пока fallback'ом на text/textarea).
+    #   stand:
+    #     widget: combo         # text | textarea | combo | radio | checkbox
+    #     options: [PROD, DEV, TEST]
+    #     required: true
   seaf.company.ta.services.dc_azs:
     layer: "Зона доступности"
+    edit_data: seaf
+    data_lock:
+      - OID
+      - schema
   seaf.company.ta.services.dc_offices:
     layer: "Офис"
+    edit_data: seaf
+    data_lock:
+      - OID
+      - schema
   seaf.company.ta.services.dcs:
     layer: "ЦОД"
+    edit_data: seaf
+    data_lock:
+      - OID
+      - schema
   seaf.company.ta.services.network_segments:
     layer: "Зоны безопасности"
+    edit_data: seaf
+    data_lock:
+      - OID
+      - schema
   seaf.company.ta.services.networks:
     layer: "Услуги связи"
+    edit_data: seaf
+    data_lock:
+      - OID
+      - schema
   seaf.company.ta.components.networks:
     layer: "Сетевое оборудование"
+    edit_data: seaf
+    data_lock:
+      - OID
+      - schema
   seaf.company.ta.services.kbs:
     layer: "Сервисы КБ"
+    edit_data: seaf
+    data_lock:
+      - OID
+      - schema
   seaf.company.ta.services.clusters:
     layer: "Сервисы ТА кластер"
+    edit_data: seaf
+    data_lock:
+      - OID
+      - schema
   seaf.company.ta.services.compute_services:
     layer: "Сервисы ТА"
+    edit_data: seaf
+    data_lock:
+      - OID
+      - schema
   seaf.company.ta.services.monitorings:
     layer: "Мониторинг"
+    edit_data: seaf
+    data_lock:
+      - OID
+      - schema
   seaf.company.ta.services.backups:
     layer: "BackUp"
+    edit_data: seaf
+    data_lock:
+      - OID
+      - schema
   seaf.company.ta.services.cluster_virtualizations:
     layer: "VM"
+    edit_data: seaf
+    data_lock:
+      - OID
+      - schema
   seaf.company.ta.services.k8s:
     layer: "K8S"
+    edit_data: seaf
+    data_lock:
+      - OID
+      - schema
   seaf.company.ta.components.user_devices:
     layer: "User Devices"
+    edit_data: seaf
+    data_lock:
+      - OID
+      - schema

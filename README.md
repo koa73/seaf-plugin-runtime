@@ -28,7 +28,7 @@
 - `conf/events.yaml` - конфигурация auto-event processor (правила add/remove/modify + скрытые event handlers).
 - `conf/stencils/libraries.json` - JSON-конфиг секций/библиотек фигур для окна `More Shapes`.
 - `conf/stencils/*.xml` - файлы библиотек фигур в формате `mxlibrary`.
-- `conf/stencils/config.yaml` - schema-based конфиг layer-routing для auto add handlers.
+- `conf/stencils/config.yaml` - schema-based конфиг: layer-routing для auto add handlers, режим `edit_data` (`seaf|standard|both`), список `data_lock` защищённых атрибутов и зарезервированный ключ `fields` для Phase 2 rich-виджетов.
 - `conf/README.md` - документация формата `plugin.yaml`.
 - `python/scripts/examples/*.py` - Python entrypoint-скрипты команд full runtime (демо/примеры).
 - `python/scripts/events/*.py` - production event handlers (оркестраторы event-логики).
@@ -143,6 +143,17 @@
 - Значения `handlers` в `events.yaml` (например `seafStencilSpecificModify`) — это command id composed config; реальные скрипты задаются в `python/scripts/examples/events/*.py` через скрытые commands в `events.yaml`.
 - Для `seafStencilAllAdd` используется production orchestrator `python/scripts/events/all_add.py`; OID-алгоритм вынесен в библиотеку `python/scripts/lib/oid/*`, layer-routing работает по `conf/stencils/config.yaml` (`schema -> layer`), сервисная event-логика — в `python/scripts/lib/events/*`, а проверка уровней и emit logging-сообщений (`SEAF_INFO/SEAF_ERROR`) централизованы в `python/scripts/lib/logging/*`.
 - Детальная спецификация конфига и mapping `handler id -> command -> script` описаны в `conf/README.md`, а подробное поведение скриптов — в `python/scripts/examples/events/README.md`.
+
+## SEAF Edit Data dialog (data_lock)
+
+- Для P41-стенсилов штатный диалог draw.io «Edit Data» заменяется собственным `SeafEditDataDialog`, реализованным в `plugin/seaf.plugin.js`.
+- Подмена универсальная: покрыты context menu, Format panel «Edit Data» и Ctrl+M.
+- Конфигурация — `conf/stencils/config.yaml`: `schemas.<schema>.edit_data` (`seaf|standard|both`) и `schemas.<schema>.data_lock` (список защищённых атрибутов).
+- В режиме `seaf` штатный пункт «Edit Data» в context menu прячется через `Menus.hiddenMenuItems` динамически (только на время `createPopupMenu`); в Format panel и в основном меню штатный пункт остаётся доступен пользователю, но action-функция всё равно перенаправляется на SEAF-диалог.
+- Защита `data_lock` (по умолчанию `[OID, schema]` для каждой schema, перечисленной в config) — поле дизейблится, кнопка «X» удаления отсутствует, добавление атрибута с защищённым именем блокируется alert'ом.
+- Для не-P41 стенсилов (schema не указана в `config.yaml`) работает штатный диалог draw.io без вмешательства.
+- Apply SEAF-диалога вызывает `graph.getModel().setValue(cell, clonedXml)`, поэтому существующий event processor (`collectStencilEventsFromModelChange`) ловит `modify`-события без изменений.
+- Phase 2 (зарезервировано): `schemas.<schema>.fields.<attr>.widget` (`text|textarea|combo|radio|checkbox`) — rich-виджеты внутри того же диалога без изменений в action/menu hooks.
 
 ## Interactive terminal command
 
