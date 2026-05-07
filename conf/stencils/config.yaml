@@ -1,0 +1,31 @@
+schemas:
+  seaf.company.ta.services.dc_regions:
+    layer: "Регион"
+  seaf.company.ta.services.dc_azs:
+    layer: "Зона доступности"
+  seaf.company.ta.services.dc_offices:
+    layer: "Офис"
+  seaf.company.ta.services.dcs:
+    layer: "ЦОД"
+  seaf.company.ta.services.network_segments:
+    layer: "Зоны безопасности"
+  seaf.company.ta.services.networks:
+    layer: "Услуги связи"
+  seaf.company.ta.components.networks:
+    layer: "Сетевое оборудование"
+  seaf.company.ta.services.kbs:
+    layer: "Сервисы КБ"
+  seaf.company.ta.services.clusters:
+    layer: "Сервисы ТА кластер"
+  seaf.company.ta.services.compute_services:
+    layer: "Сервисы ТА"
+  seaf.company.ta.services.monitorings:
+    layer: "Мониторинг"
+  seaf.company.ta.services.backups:
+    layer: "BackUp"
+  seaf.company.ta.services.cluster_virtualizations:
+    layer: "VM"
+  seaf.company.ta.services.k8s:
+    layer: "K8S"
+  seaf.company.ta.components.user_devices:
+    layer: "User Devices"
