@@ -1,7 +1,7 @@
 schemas:
   seaf.company.ta.services.dc_regions:
     layer: "Регион"
-    edit_data: seaf
+    edit_data: both
     data_lock:
       - OID
       - schema
@@ -12,7 +12,7 @@ schemas:
     #     required: true
   seaf.company.ta.services.dc_azs:
     layer: "Зона доступности"
-    edit_data: seaf
+    edit_data: standard
     data_lock:
       - OID
       - schema

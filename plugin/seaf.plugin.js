@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.3.28
+ * Runtime script version: 0.3.29
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -846,6 +846,54 @@ Draw.loadPlugin(function(ui)
 		return parsed.value || {};
 	}
 
+	function normalizeIpcTextPayload(rawValue)
+	{
+		if (typeof rawValue === 'string')
+		{
+			return rawValue;
+		}
+		// Node/Electron Buffer payload can arrive as plain object through IPC serialization.
+		// Example: {type: 'Buffer', data: [..bytes..]}
+		if (rawValue != null && typeof rawValue === 'object' &&
+			rawValue.type === 'Buffer' && Array.isArray(rawValue.data))
+		{
+			try
+			{
+				if (typeof Buffer !== 'undefined' && typeof Buffer.from === 'function')
+				{
+					return Buffer.from(rawValue.data).toString('utf8');
+				}
+			}
+			catch (eBuf)
+			{
+				// fall through
+			}
+		}
+		if (typeof ArrayBuffer !== 'undefined' && rawValue instanceof ArrayBuffer)
+		{
+			try
+			{
+				return new TextDecoder('utf-8').decode(new Uint8Array(rawValue));
+			}
+			catch (eAb)
+			{
+				// fall through
+			}
+		}
+		if (typeof Uint8Array !== 'undefined' && rawValue instanceof Uint8Array)
+		{
+			try
+			{
+				return new TextDecoder('utf-8').decode(rawValue);
+			}
+			catch (eUa)
+			{
+				// fall through
+			}
+		}
+		return '';
+	}
+
 	async function loadStencilsLayerConfig()
 	{
 		var path = getStencilsLayerConfigPath();
@@ -863,7 +911,8 @@ Draw.loadPlugin(function(ui)
 				relativePath: 'stencils/config.yaml',
 				encoding: 'utf8'
 			});
-			var parsed = parseStencilsConfigYaml(typeof rawText === 'string' ? rawText : '');
+			var normalizedText = normalizeIpcTextPayload(rawText);
+			var parsed = parseStencilsConfigYaml(normalizedText);
 			if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed))
 			{
 				parsed = {};
