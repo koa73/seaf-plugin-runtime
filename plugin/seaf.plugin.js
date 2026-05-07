@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.3.9
+ * Runtime script version: 0.3.21
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -3734,6 +3734,7 @@ Draw.loadPlugin(function(ui)
 		var selection = graph.getSelectionCells();
 		var first = cell || graph.getSelectionCell();
 		var scope = (typeof cfg.scope === 'string') ? cfg.scope.trim().toLowerCase() : '';
+		var targetMatched = true;
 
 		if (cfg.enabled === false)
 		{
@@ -3751,19 +3752,24 @@ Draw.loadPlugin(function(ui)
 
 		if (target === 'selection_non_empty')
 		{
-			return selection.length > 0;
+			targetMatched = selection.length > 0;
 		}
 		else if (target === 'selection_single')
 		{
-			return selection.length === 1;
+			targetMatched = selection.length === 1;
 		}
 		else if (target === 'vertex')
 		{
-			return first != null && graph.model.isVertex(first);
+			targetMatched = first != null && graph.model.isVertex(first);
 		}
 		else if (target === 'edge')
 		{
-			return first != null && graph.model.isEdge(first);
+			targetMatched = first != null && graph.model.isEdge(first);
+		}
+
+		if (!targetMatched)
+		{
+			return false;
 		}
 
 		var schemaPattern = cfg.schemaPattern;
@@ -3780,14 +3786,23 @@ Draw.loadPlugin(function(ui)
 				return false;
 			}
 			var patterns = Array.isArray(schemaPattern) ? schemaPattern : [schemaPattern];
-			var matched = false;
-			for (var i = 0; i < patterns.length; i++)
+			var normalizedPatterns = [];
+			for (var p = 0; p < patterns.length; p++)
 			{
-				var pattern = (typeof patterns[i] === 'string') ? patterns[i].trim() : '';
-				if (!pattern)
+				var normalizedPattern = (typeof patterns[p] === 'string') ? patterns[p].trim() : '';
+				if (normalizedPattern)
 				{
-					continue;
+					normalizedPatterns.push(normalizedPattern);
 				}
+			}
+			if (normalizedPatterns.length === 0)
+			{
+				return false;
+			}
+			var matched = false;
+			for (var i = 0; i < normalizedPatterns.length; i++)
+			{
+				var pattern = normalizedPatterns[i];
 				var match = matchSchemaPattern(schema, pattern);
 				if (match && match.matched === true)
 				{

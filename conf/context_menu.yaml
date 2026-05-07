@@ -1,10 +1,5 @@
 version: 1
 commands:
-  - id: seafEditConfig
-    menu:
-      context:
-        enabled: false
-        target: any
   - id: seafInteractiveTerminalDemo
     menu:
       context:
@@ -16,16 +11,6 @@ commands:
       context:
         enabled: false
         target: selection_non_empty
-  - id: seafValidateSelection
-    menu:
-      context:
-        enabled: false
-        target: selection_non_empty
-  - id: seafAsyncBackground
-    menu:
-      context:
-        enabled: false
-        target: any
   - id: seafFailureDemo
     title: Создать страницу
     menu:
@@ -36,7 +21,3 @@ commands:
         schemaPattern:
           - seaf.company.ta.services.dc_offices
           - seaf.company.ta.services.dcs
-  - id: seafTimeoutDemo
-    menu:
-      context:
-        enabled: false
