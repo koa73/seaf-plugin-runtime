@@ -2579,6 +2579,60 @@ Draw.loadPlugin(function(ui)
 		return out;
 	}
 
+	function resolveMoveTargetCell(cell, graph)
+	{
+		if (!cell || !graph || !graph.model)
+		{
+			return cell || null;
+		}
+		var model = graph.model;
+		var root = (typeof model.getRoot === 'function') ? model.getRoot() : model.root;
+		var current = cell;
+		var guard = 0;
+		while (current && guard < 128)
+		{
+			guard++;
+			var parent = (typeof model.getParent === 'function') ? model.getParent(current) : current.parent;
+			if (!parent || parent === root || (typeof model.isLayer === 'function' && model.isLayer(parent)))
+			{
+				return current;
+			}
+			current = parent;
+		}
+		return cell;
+	}
+
+	function resolveMoveTargetsByObjectIds(graph, objectIds)
+	{
+		if (!graph || !Array.isArray(objectIds))
+		{
+			return [];
+		}
+		var out = [];
+		var seen = {};
+		for (var i = 0; i < objectIds.length; i++)
+		{
+			var objectId = String(objectIds[i] || '').trim();
+			if (!objectId)
+			{
+				continue;
+			}
+			var cell = resolveCellForUpdate(graph, objectId);
+			if (!cell)
+			{
+				continue;
+			}
+			var target = resolveMoveTargetCell(cell, graph);
+			if (!target || !target.id || Object.prototype.hasOwnProperty.call(seen, target.id))
+			{
+				continue;
+			}
+			seen[target.id] = true;
+			out.push(target);
+		}
+		return out;
+	}
+
 	function applyDataUpdateToCell(graph, cell, patchData, mode, useTransaction)
 	{
 		if (!graph || !graph.model || !cell || patchData == null || typeof patchData !== 'object' || Array.isArray(patchData))
@@ -2945,7 +2999,7 @@ Draw.loadPlugin(function(ui)
 				{
 					return {moved: 0, layerName: layerName, layerId: null};
 				}
-				var cells = resolveCellsByObjectIds(graph, args.objectIds || []);
+				var cells = resolveMoveTargetsByObjectIds(graph, args.objectIds || []);
 				if (cells.length > 0)
 				{
 					graph.moveCells(cells, 0, 0, false, targetLayer);

@@ -320,6 +320,7 @@ Auto-event processor передает event batch в Python handlers через 
 
 Примечание для grouped stencils:
 - если root group-ячейка добавления не содержит `schema`, runtime извлекает `add`-items из дочерних ячеек с валидным `schema`, чтобы `all_add` корректно формировал `moveObjectsToLayer`.
+- при исполнении `moveObjectsToLayer` runtime поднимает цель переноса до контейнера компонента (group-root), чтобы связанный stencil переносился целиком и не нарушался порядок внутренних элементов.
 
 Для `eventType=modify` добавляются:
 - `dataBefore`, `dataAfter`.

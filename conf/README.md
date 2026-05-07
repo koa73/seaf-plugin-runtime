@@ -330,7 +330,8 @@ rules:
   - `makeVisible` (optional, default `true`).
 - Поведение:
   - слой создается/переиспользуется через create-or-get;
-  - объекты переносятся в слой стандартным draw.io API `graph.moveCells(cells, 0, 0, false, targetLayer)`.
+  - для grouped stencil переносится целевой контейнер компонента (group-root), чтобы не разрывать внутренние `mxCell` по разным parent;
+  - объекты/контейнеры переносятся в слой стандартным draw.io API `graph.moveCells(cells, 0, 0, false, targetLayer)`.
 
 ### Stencil metadata: layer
 
