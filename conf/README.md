@@ -11,6 +11,7 @@
 | `main_menu.yaml` | Описание команд/пунктов главного меню |
 | `context_menu.yaml` | Описание правил контекстного меню |
 | `events.yaml` | Правила event processor и скрытые event handlers (`add/remove/modify`) |
+| `stencils/config.yaml` | Метаданные стенсилов: `layer`, `edit_data`, `data_lock` (и резерв `fields`) |
 
 ---
 
@@ -368,6 +369,7 @@ rules:
 - `seaf` — штатный пункт «Edit Data» в context menu скрыт, в контекстное меню добавляется отдельный пункт «Редактировать данные (SEAF)…» (action `seafEditData`); Right-click, Ctrl+M и Format panel открывают SEAF-диалог `SeafEditDataDialog` с поддержкой `data_lock`.
 - `standard` — штатный диалог draw.io без вмешательства; `data_lock` игнорируется (для совместимости).
 - `both` — в context menu доступны оба пункта (штатный + «Редактировать данные (SEAF)…»); Ctrl+M / Format panel ведут на SEAF-диалог.
+- Для grouped stencil-элементов при RMB mode/target определяются по ближайшему родителю со `schema`, если клик пришелся в дочерний служебный `mxCell` без schema.
 
 Точка маршрутизации диалога: plugin переопределяет `EditorUi.prototype.showDataDialog` (`installEditDataDialogRouter`), что покрывает Right-click → штатный `editData`, Format panel и Ctrl+M единообразно. Action `seafEditData` гарантирует видимый кастомный пункт RMB даже если штатный по какой-то причине не скрылся.
 
@@ -408,3 +410,55 @@ schemas:
 ```
 
 В Phase 1 ключ `fields` plugin'ом не читается; неуказанные атрибуты рендерятся как `textarea`.
+
+---
+
+## 9) `stencils/config.yaml`
+
+Файл `conf/stencils/config.yaml` хранит **метаданные по schema** для P41-стенсилов.
+Он используется renderer-плагином для:
+
+- маршрутизации объектов по слоям (`layer`);
+- поведения диалога Edit Data (`edit_data`);
+- блокировки редактирования/удаления критичных атрибутов (`data_lock`).
+
+### Структура
+
+```yaml
+schemas:
+  <schema-name>:
+    layer: "<layer-name>"        # string | array<string>
+    edit_data: seaf              # seaf | standard | both
+    data_lock: [OID, schema]     # array<string>
+    # fields: ...                # резерв под Phase 2
+```
+
+### Поля и поведение
+
+| Поле | Тип | Назначение | Значение по умолчанию |
+|---|---|---|---|
+| `schemas.<schema>.layer` | `string` \| `array<string>` | Целевой слой для `ensureLayer/moveObjectsToLayer` | отсутствует (слой не назначается) |
+| `schemas.<schema>.edit_data` | `string` | Режим Edit Data: `seaf` \| `standard` \| `both` | `seaf` для `seaf.*`, иначе `standard` |
+| `schemas.<schema>.data_lock` | `array<string>` | Имена атрибутов, запрещённых для редактирования/удаления в SEAF-диалоге | `[OID, schema]` для `seaf.*`, иначе `[]` |
+| `schemas.<schema>.fields` | `object` | Будущая схема rich-виджетов (`combo/radio/checkbox`) | не используется в Phase 1 |
+
+### Минимальный пример
+
+```yaml
+schemas:
+  seaf.company.ta.services.dc_regions:
+    layer: "Регион"
+    edit_data: seaf
+    data_lock:
+      - OID
+      - schema
+```
+
+### Практические правила
+
+- Для всех `seaf.*` схем рекомендуется явно задавать `data_lock: [OID, schema]`.
+- Если `data_lock` содержит имя поля, в SEAF Edit Data:
+  - поле становится read-only;
+  - кнопка удаления для него скрыта;
+  - добавление нового поля с тем же именем блокируется.
+- Для схем без префикса `seaf.` по умолчанию используется штатный режим `standard`.

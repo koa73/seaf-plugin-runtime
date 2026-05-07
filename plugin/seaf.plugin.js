@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.3.24
+ * Runtime script version: 0.3.25
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -36,6 +36,7 @@ Draw.loadPlugin(function(ui)
 		editDataBeforeByCell: {},
 		editDataDialogRouterInstalled: false,
 		originalShowDataDialog: null,
+		contextMenuLastCell: null,
 		stencilsLayerConfig: null,
 		stencilIndex: {
 			ready: false,
@@ -971,8 +972,8 @@ Draw.loadPlugin(function(ui)
 		}
 		try
 		{
-			var meta = extractShapeSchema(cell, graph);
-			var schema = (meta && typeof meta.schema === 'string') ? meta.schema : '';
+		var resolved = resolveEditDataTarget(cell, graph);
+		var schema = (resolved && typeof resolved.schema === 'string') ? resolved.schema : '';
 			var mode = getEditDataModeForSchema(schema);
 			return mode === 'seaf' || mode === 'both';
 		}
@@ -1551,6 +1552,53 @@ Draw.loadPlugin(function(ui)
 			styleText: styleText,
 			schemaSource: schemaSource
 		};
+	}
+
+	function resolveEditDataTarget(cell, graph)
+	{
+		var fallbackMeta = extractShapeSchema(cell, graph);
+		var fallbackSchema = (fallbackMeta && typeof fallbackMeta.schema === 'string') ? fallbackMeta.schema.trim() : '';
+		var resolvedCell = cell;
+		var resolvedSchema = fallbackSchema;
+
+		try
+		{
+			if (cell == null || graph == null || graph.model == null)
+			{
+				return {cell: resolvedCell, schema: resolvedSchema};
+			}
+			if (resolvedSchema.length > 0)
+			{
+				return {cell: resolvedCell, schema: resolvedSchema};
+			}
+
+			var model = graph.model;
+			var root = (typeof model.getRoot === 'function') ? model.getRoot() : model.root;
+			var current = cell;
+			var guard = 0;
+			while (current != null && guard < 80)
+			{
+				guard++;
+				var parent = (typeof model.getParent === 'function') ? model.getParent(current) : current.parent;
+				if (parent == null || parent === root || (typeof model.isLayer === 'function' && model.isLayer(parent)))
+				{
+					break;
+				}
+				var parentMeta = extractShapeSchema(parent, graph);
+				var parentSchema = (parentMeta && typeof parentMeta.schema === 'string') ? parentMeta.schema.trim() : '';
+				if (parentSchema.length > 0)
+				{
+					return {cell: parent, schema: parentSchema};
+				}
+				current = parent;
+			}
+		}
+		catch (e)
+		{
+			// fallback to original cell below
+		}
+
+		return {cell: resolvedCell, schema: resolvedSchema};
 	}
 
 	function parseSchemaCode(schemaValue)
@@ -2910,12 +2958,17 @@ Draw.loadPlugin(function(ui)
 			try
 			{
 				var graph = ui && ui.editor ? ui.editor.graph : null;
-				if (cell != null && isSeafEditDataModeForCell(cell, graph))
+			var resolved = resolveEditDataTarget(cell, graph);
+			var targetCell = (resolved && resolved.cell) ? resolved.cell : cell;
+			var targetSchema = (resolved && typeof resolved.schema === 'string') ? resolved.schema : '';
+			var targetMode = getEditDataModeForSchema(targetSchema);
+			if (targetCell != null && (targetMode === 'seaf' || targetMode === 'both'))
 				{
 					writeLog('debug', 'showDataDialog routed to SEAF dialog', {
-						cellId: (cell && cell.id) ? String(cell.id) : null
+					cellId: (targetCell && targetCell.id) ? String(targetCell.id) : null,
+					mode: targetMode
 					});
-					showSeafEditDataDialog(cell);
+				showSeafEditDataDialog(targetCell);
 					return;
 				}
 			}
@@ -4899,15 +4952,18 @@ Draw.loadPlugin(function(ui)
 		ui.menus.createPopupMenu = function(menu, cell, evt)
 		{
 			var graph = ui.editor.graph;
+		state.contextMenuLastCell = cell || null;
 			// Resolve edit-data mode for the right-clicked cell (used both for hiding standard item
 			// and for inserting SEAF replacement entry).
 			var resolvedMode = 'standard';
+		var resolvedCell = cell;
 			try
 			{
 				if (cell != null)
 				{
-					var schemaMeta = extractShapeSchema(cell, graph);
-					var schemaKey = schemaMeta && typeof schemaMeta.schema === 'string' ? schemaMeta.schema : '';
+				var target = resolveEditDataTarget(cell, graph);
+				resolvedCell = target && target.cell ? target.cell : cell;
+				var schemaKey = target && typeof target.schema === 'string' ? target.schema : '';
 					resolvedMode = getEditDataModeForSchema(schemaKey);
 				}
 			}
@@ -4957,14 +5013,22 @@ Draw.loadPlugin(function(ui)
 			}
 
 			// Insert explicit SEAF Edit Data entry for seaf/both modes immediately after the base items.
-			if (cell != null && (resolvedMode === 'seaf' || resolvedMode === 'both'))
+		if (resolvedCell != null && (resolvedMode === 'seaf' || resolvedMode === 'both'))
 			{
 				try
 				{
-					this.addMenuItems(menu, ['seafEditData'], null, evt);
+				var seafLabel = mxResources.get('seafEditData');
+				menu.addItem(seafLabel, null, function()
+				{
+					var action = ui.actions.get('seafEditData');
+					if (action != null && typeof action.funct === 'function')
+					{
+						action.funct(evt);
+					}
+				}, null, null, true);
 					writeLog('debug', 'seafEditData menu item inserted', {
 						mode: resolvedMode,
-						cellId: (cell && cell.id) ? String(cell.id) : null
+					cellId: (resolvedCell && resolvedCell.id) ? String(resolvedCell.id) : null
 					});
 				}
 				catch (eInsert)
@@ -5030,8 +5094,10 @@ Draw.loadPlugin(function(ui)
 				try
 				{
 					var graph = ui && ui.editor ? ui.editor.graph : null;
-					var cell = graph ? (graph.getSelectionCell() ||
-						(graph.getModel ? graph.getModel().getRoot() : null)) : null;
+				var sourceCell = graph ? (graph.getSelectionCell() || state.contextMenuLastCell ||
+					(graph.getModel ? graph.getModel().getRoot() : null)) : null;
+				var target = resolveEditDataTarget(sourceCell, graph);
+				var cell = target && target.cell ? target.cell : sourceCell;
 					if (cell != null)
 					{
 						showSeafEditDataDialog(cell);

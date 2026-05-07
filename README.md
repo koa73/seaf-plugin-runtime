@@ -152,6 +152,7 @@
   - `mode=seaf` — штатный `editData` скрыт через `Menus.hiddenMenuItems` (только на время `createPopupMenu`), показывается только SEAF-пункт;
   - `mode=both` — оба пункта остаются доступны (штатный raw + SEAF);
   - `mode=standard` — поведение draw.io не меняется.
+- Для grouped stencil-элементов mode для RMB/`seafEditData` теперь вычисляется не только по кликнутой дочерней ячейке, но и по ближайшему родителю со `schema`; это устраняет ситуацию, когда пункт SEAF не показывался из-за клика в служебный внутренний `mxCell`.
 - Конфигурация — `conf/stencils/config.yaml`: `schemas.<schema>.edit_data` (`seaf|standard|both`) и `schemas.<schema>.data_lock` (список защищённых атрибутов).
 - Fallback policy: если `conf/stencils/config.yaml` не загрузился (битый файл, отсутствует, ошибка IPC) или схема не описана в config, для любой schema, начинающейся на `seaf.`, plugin всё равно использует `mode=seaf` и `data_lock=[OID, schema]`. Не-`seaf.` схемы по-прежнему получают штатный диалог.
 - Защита `data_lock` (по умолчанию `[OID, schema]` для каждой schema, перечисленной в config или попавшей под seaf-prefix fallback) — поле дизейблится, кнопка «X» удаления отсутствует, добавление атрибута с защищённым именем блокируется alert'ом.
