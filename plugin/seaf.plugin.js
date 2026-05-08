@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.7
+ * Runtime script version: 0.5.8
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -4659,6 +4659,7 @@ Draw.loadPlugin(function(ui)
 				{
 					return {status: 'error', reason: 'insert_failed', mirrorTitle: mirrorTitle, pageId: pageId};
 				}
+				var sourceSchema = (typeof args.sourceSchema === 'string') ? args.sourceSchema.trim() : '';
 				var primary = inserted[0];
 				for (var i = 0; i < inserted.length; i++)
 				{
@@ -4669,6 +4670,43 @@ Draw.loadPlugin(function(ui)
 					}
 				}
 				var primarySchema = extractShapeSchema(primary, graph);
+				if (sourceSchema.length > 0)
+				{
+					var prefer = null;
+					var preferSchema = null;
+					var seenPrefer = {};
+					var qPrefer = inserted.slice();
+					while (qPrefer.length > 0)
+					{
+						var cPrefer = qPrefer.shift();
+						if (!cPrefer || !cPrefer.id || seenPrefer[cPrefer.id] === true)
+						{
+							continue;
+						}
+						seenPrefer[cPrefer.id] = true;
+						var mPrefer = extractShapeSchema(cPrefer, graph);
+						var sPrefer = (mPrefer && typeof mPrefer.schema === 'string') ? mPrefer.schema.trim() : '';
+						if (sPrefer.length > 0 && sPrefer !== sourceSchema)
+						{
+							prefer = cPrefer;
+							preferSchema = mPrefer;
+							break;
+						}
+						if (graph.model && typeof graph.model.getChildCount === 'function' && typeof graph.model.getChildAt === 'function')
+						{
+							var ccPrefer = graph.model.getChildCount(cPrefer);
+							for (var cpi = 0; cpi < ccPrefer; cpi++)
+							{
+								qPrefer.push(graph.model.getChildAt(cPrefer, cpi));
+							}
+						}
+					}
+					if (prefer != null)
+					{
+						primary = prefer;
+						primarySchema = preferSchema;
+					}
+				}
 				if (!primarySchema || !primarySchema.schema)
 				{
 					var seenIds = {};
@@ -5690,7 +5728,15 @@ Draw.loadPlugin(function(ui)
 			}
 
 			var result = response.result || {};
-			executeInteractiveCommands(result);
+			var uiResults = executeInteractiveCommands(result);
+			if (command && command.id === 'seafAddPage')
+			{
+				await writeLog('debug', 'seafAddPage uiCommandResults', {
+					uiCommandResults: uiResults || [],
+					finalStatus: result && result.status ? result.status : 'unknown',
+					finalMessage: result && result.message ? result.message : ''
+				});
+			}
 
 			if (result.status === 'error')
 			{
