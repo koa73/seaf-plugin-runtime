@@ -176,6 +176,7 @@
   - `createPage` (штатный draw.io `ui.createPage` + `ui.insertPage`);
   - `setCellLinkToPage` (устанавливает `data:page/id,<id>` в исходный стенсил через `graph.setLinkForCell`).
 - `createPage` выполняется с `selectCreated=false`, чтобы линк в исходном стенсиле ставился в стабильном контексте текущей страницы.
+- Runtime дополнительно восстанавливает исходную страницу после `ui.insertPage(...)`, если build draw.io автоматически переключил фокус на созданную страницу несмотря на `selectCreated=false`.
 - `setCellLinkToPage` исполняется только с валидным `targetPageId` (полученным из результата `createPage` в `uiCommandResults`), без fallback-поиска страницы по title.
 - Если `createPage` не вернул `pageId` или `setCellLinkToPage` завершился не `updated` (`missing_target`/`cell_not_found`), сценарий считается ошибкой, а не silent-skip.
 - Скрипт не отправляет отдельные `showMessage` для `success/error`; пользовательские сообщения отображаются единообразно через общий runtime-обработчик статуса команды.

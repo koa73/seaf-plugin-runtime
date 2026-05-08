@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.2
+ * Runtime script version: 0.5.3
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -4367,11 +4367,18 @@ Draw.loadPlugin(function(ui)
 			{
 				return {status: 'error', reason: 'page_api_unavailable'};
 			}
+			var originalPage = ui.currentPage || null;
 			var page = ui.createPage(title, ui.createPageId());
 			page = ui.insertPage(page);
 			if (args.selectCreated !== false && page != null && typeof ui.selectPage === 'function')
 			{
 				ui.selectPage(page);
+			}
+			else if (args.selectCreated === false && originalPage != null && typeof ui.selectPage === 'function')
+			{
+				// Some draw.io builds select inserted page implicitly inside insertPage().
+				// Restore original page to keep subsequent commands bound to source object context.
+				ui.selectPage(originalPage);
 			}
 			return {
 				status: 'created',
