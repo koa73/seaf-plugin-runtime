@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.12
+
+- Removed `assignEmptyOidOnPage` from `seafAddPage` flow to test baseline page creation pipeline (`createPage -> setCellLinkToPage -> insertStencilFromP41ByTitle -> updateStencilDataBulk -> moveObjectsToLayer`) without OID backfill on created page.
+
 ## 0.1.3
 
 - Added configurable command-level `indicator` block in `conf/plugin.yaml`.

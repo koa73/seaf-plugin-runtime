@@ -186,7 +186,7 @@
 - Для mirror используется Python lookup `title -> schema` по библиотеке `conf/stencils/Р41.xml`; если schema или layer не резолвятся, `add_page.py` возвращает `status=error` и не отправляет `moveObjectsToLayer` с пустым `layerName`.
 - Если `mirror` не найден в библиотеке `SEAF_Р41` или вставка/синхронизация/назначение слоя завершились неуспешно, сценарий переводится в `status=error`.
 - Пользовательское сообщение для ошибки вставки mirror: `Не возможно добавить элемент <mirror> на страницу`; расширенная диагностика (`mirrorTitle`, `sourceObjectId`, `sourceSchema`, `pageId`, `reason/error`) пишется в `seaf-plugin.log`.
-- После шагов create/link/mirror `add_page` выполняет финальную UI-команду `assignEmptyOidOnPage`: на созданной странице выбираются объекты с существующим атрибутом `OID` и пустым значением, после чего `OID` назначаются по тому же алгоритму, что в `events/all_add.py` (`companyPrefix + schemaCode + sequence`).
+- После шагов create/link/mirror сценарий `add_page` завершает работу без дополнительного OID-backfill на созданной странице.
 - Скрипт не отправляет отдельные `showMessage` для `success/error`; пользовательские сообщения отображаются единообразно через общий runtime-обработчик статуса команды.
 
 ## Interactive terminal command
