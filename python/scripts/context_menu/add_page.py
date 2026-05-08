@@ -31,12 +31,7 @@ def main() -> int:
             status="error",
             message="Поле title пустое. Создание страницы отменено.",
             payload={"objectId": object_id},
-            commands=[
-                {
-                    "name": "showMessage",
-                    "args": {"level": "error", "text": "Поле title не заполнено. Страница не создана."},
-                }
-            ],
+            commands=[],
             errors=["title_is_empty"],
             exit_code=0,
         )
@@ -48,20 +43,14 @@ def main() -> int:
             status="error",
             message=f"Страница '{title}' уже существует. Создание отменено.",
             payload={"objectId": object_id, "pageId": existing.get("id"), "pageName": title},
-            commands=[
-                {
-                    "name": "showMessage",
-                    "args": {"level": "error", "text": f"Страница '{title}' уже существует"},
-                }
-            ],
+            commands=[],
             errors=["page_title_duplicate"],
             exit_code=0,
         )
 
     commands = [
-        build_create_page_command(title=title, select_created=True),
+        build_create_page_command(title=title, select_created=False),
         build_link_to_page_command(object_id=object_id, title=title),
-        {"name": "showMessage", "args": {"level": "info", "text": f"Страница '{title}' создана"}},
     ]
     return write_response(
         status="success",

@@ -174,6 +174,8 @@
 - После успешного создания страницы скрипт возвращает UI-команды:
   - `createPage` (штатный draw.io `ui.createPage` + `ui.insertPage`);
   - `setCellLinkToPage` (устанавливает `data:page/id,<id>` в исходный стенсил через `graph.setLinkForCell`).
+- `createPage` выполняется с `selectCreated=false`, чтобы линк в исходном стенсиле ставился в стабильном контексте текущей страницы.
+- Скрипт не отправляет отдельные `showMessage` для `success/error`; пользовательские сообщения отображаются единообразно через общий runtime-обработчик статуса команды.
 
 ## Interactive terminal command
 
