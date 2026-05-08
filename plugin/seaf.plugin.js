@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.4.1
+ * Runtime script version: 0.4.2
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -1247,13 +1247,14 @@ Draw.loadPlugin(function(ui)
 				replace(/\s*\.\.\.\s*$/, '')
 				trim();
 		},
-		hasItemLabel: function(menuObj, labelText)
+		getItemStateByLabel: function(menuObj, labelText)
 		{
+			var out = {present: false, enabled: false};
 			try
 			{
-				if (menuObj == null || menuObj.tbody == null || typeof labelText !== 'string') return false;
+				if (menuObj == null || menuObj.tbody == null || typeof labelText !== 'string') return out;
 				var expected = this.normalizeMenuLabel(labelText);
-				if (expected.length === 0) return false;
+				if (expected.length === 0) return out;
 				var rows = menuObj.tbody.getElementsByTagName('tr');
 				for (var ri = 0; ri < rows.length; ri++)
 				{
@@ -1261,50 +1262,47 @@ Draw.loadPlugin(function(ui)
 					if (cols != null && cols.length > 1)
 					{
 						var current = this.normalizeMenuLabel(cols[1].textContent || '');
-						if (current === expected) return true;
+						if (current === expected)
+						{
+							out.present = true;
+							var className = String(rows[ri].className || '');
+							out.enabled = className.indexOf('mxDisabled') < 0;
+							return out;
+						}
 					}
 				}
 			}
 			catch (e)
 			{
-				return false;
+				return out;
 			}
-			return false;
+			return out;
 		},
-		addStandard: function(menuObj, targetCell)
-		{
-			var standardLabel = mxResources.get('editData') + '...';
-			menuObj.addItem(standardLabel, null, function()
-			{
-				try { ui.showDataDialog(targetCell); } catch (e) { /* logged in router */ }
-			}, null, null, true);
-		},
-		addSeaf: function(menuObj, evt)
+		addSeaf: function(menuObj, evt, enabled)
 		{
 			var seafLabel = mxResources.get('seafEditData');
 			menuObj.addItem(seafLabel, null, function()
 			{
 				var action = ui.actions.get('seafEditData');
 				if (action != null && typeof action.funct === 'function') action.funct(evt);
-			}, null, null, true);
+			}, null, null, enabled !== false);
 		},
-		render: function(menuObj, intent, evt, hasStandardItem)
+		render: function(menuObj, intent, evt)
 		{
 			if (intent == null || intent.targetCell == null) return;
 			if (intent.mode === 'seaf')
 			{
-				this.addSeaf(menuObj, evt);
+				this.addSeaf(menuObj, evt, true);
 				return;
 			}
 			if (intent.mode === 'both')
 			{
-				if (!hasStandardItem) this.addStandard(menuObj, intent.targetCell);
-				this.addSeaf(menuObj, evt);
+				this.addSeaf(menuObj, evt, true);
 				return;
 			}
-			if (intent.mode === 'standard' && !hasStandardItem)
+			if (intent.mode === 'standard')
 			{
-				this.addStandard(menuObj, intent.targetCell);
+				this.addSeaf(menuObj, evt, false);
 			}
 		}
 	};
@@ -5307,14 +5305,20 @@ Draw.loadPlugin(function(ui)
 			var graph = ui.editor.graph;
 			state.contextMenuLastCell = cell || null;
 			var intent = buildEditDataIntent(cell, graph, 'context_menu');
+			var applySchemaPolicy = false;
 			try
 			{
 				if (intent == null)
 				{
 					intent = {targetCell: cell, mode: 'standard', schema: '', policySource: 'hard-default'};
 				}
+				applySchemaPolicy = (intent.targetCell != null && intent.policySource === 'config-hit');
 			}
-			catch (eMode) { intent = {targetCell: cell, mode: 'standard', schema: '', policySource: 'hard-default'}; }
+			catch (eMode)
+			{
+				intent = {targetCell: cell, mode: 'standard', schema: '', policySource: 'hard-default'};
+				applySchemaPolicy = false;
+			}
 
 			// In seaf-mode hide the standard "Edit Data" before the base call assembles the menu.
 			// Restored after the base call so other entry points (Edit menu, etc.) are unaffected.
@@ -5322,7 +5326,7 @@ Draw.loadPlugin(function(ui)
 			var hiddenOverridden = false;
 			try
 			{
-				if (intent.mode === 'seaf')
+				if (applySchemaPolicy && intent.mode === 'seaf')
 				{
 					var merged = {};
 					if (prevHiddenItems != null && typeof prevHiddenItems === 'object')
@@ -5357,7 +5361,9 @@ Draw.loadPlugin(function(ui)
 			}
 
 			var standardLabel = mxResources.get('editData');
-			var hasStandardItem = ContextMenuPresenter.hasItemLabel(menu, standardLabel);
+			var seafLabel = mxResources.get('seafEditData');
+			var standardState = ContextMenuPresenter.getItemStateByLabel(menu, standardLabel);
+			var seafStateBefore = ContextMenuPresenter.getItemStateByLabel(menu, seafLabel);
 			var selectionCount = 0;
 			var statePresent = false;
 			var isEditable = false;
@@ -5381,7 +5387,11 @@ Draw.loadPlugin(function(ui)
 				schema: intent.schema,
 				mode: intent.mode,
 				policySource: intent.policySource,
-				baseHasEditData: hasStandardItem,
+				policyApplied: applySchemaPolicy,
+				standardVisible: standardState.present === true,
+				standardEnabled: standardState.enabled === true,
+				seafVisibleBefore: seafStateBefore.present === true,
+				seafEnabledBefore: seafStateBefore.enabled === true,
 				selectionCount: selectionCount,
 				statePresent: statePresent,
 				isEditable: isEditable
@@ -5393,9 +5403,9 @@ Draw.loadPlugin(function(ui)
 			// - standard: only standard
 			try
 			{
-				if (intent.targetCell != null)
+				if (applySchemaPolicy)
 				{
-					ContextMenuPresenter.render(menu, intent, evt, hasStandardItem);
+					ContextMenuPresenter.render(menu, intent, evt);
 				}
 			}
 			catch (eInsert)
@@ -5404,16 +5414,28 @@ Draw.loadPlugin(function(ui)
 					error: eInsert && eInsert.message ? eInsert.message : String(eInsert)
 				});
 			}
-			if (intent.mode === 'seaf' || intent.mode === 'both')
+			if (applySchemaPolicy && (intent.mode === 'seaf' || intent.mode === 'both' || intent.mode === 'standard'))
 			{
 				writeLog('debug', 'seafEditData menu item inserted', {
 					mode: intent.mode,
 					cellId: intent.targetCellId || null
 				});
 			}
-			if ((intent.mode === 'standard' || intent.mode === 'both') && !hasStandardItem)
+			var standardStateAfter = ContextMenuPresenter.getItemStateByLabel(menu, standardLabel);
+			var seafStateAfter = ContextMenuPresenter.getItemStateByLabel(menu, seafLabel);
+			writeLog('debug', 'context menu edit_data policy result', {
+				mode: intent.mode,
+				policySource: intent.policySource,
+				policyApplied: applySchemaPolicy,
+				standardVisible: standardStateAfter.present === true,
+				standardEnabled: standardStateAfter.enabled === true,
+				seafVisible: seafStateAfter.present === true,
+				seafEnabled: seafStateAfter.enabled === true
+			});
+			if ((intent.mode === 'standard' || intent.mode === 'both') && applySchemaPolicy &&
+				standardStateAfter.present !== true)
 			{
-				writeLog('debug', 'standard editData menu item inserted (fallback)', {
+				writeLog('warn', 'standard editData item is absent after base popup', {
 					mode: intent.mode,
 					cellId: intent.targetCellId || null
 				});

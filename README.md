@@ -150,8 +150,9 @@
 - Каноническая точка маршрутизации — переопределение `EditorUi.prototype.showDataDialog` (`installEditDataDialogRouter`). Это покрывает все пути одинаково: правое меню → штатный action `editData`, кнопка «Edit Data» в Format panel и горячая клавиша Ctrl+M.
 - Контекстное меню получает отдельный явный пункт «Редактировать данные (SEAF)…» (action `seafEditData`):
   - `mode=seaf` — штатный `editData` скрыт через `Menus.hiddenMenuItems` (только на время `createPopupMenu`), показывается только SEAF-пункт;
-  - `mode=both` — оба пункта остаются доступны (штатный raw + SEAF), а если draw.io не вставил штатный пункт из-за внутреннего состояния ячейки, plugin добавляет fallback-пункт стандартного `Edit Data` вручную;
-  - `mode=standard` — в контекстном меню показывается только штатный `Edit Data` (с тем же fallback-правилом ручной вставки, если базовый пункт не был добавлен).
+  - `mode=both` — оба пункта доступны и enabled (ровно один штатный `Edit Data` + один `Редактировать данные (SEAF)…`);
+  - `mode=standard` — штатный `Edit Data` остается enabled, `Редактировать данные (SEAF)…` показывается disabled.
+  - В любом режиме plugin не добавляет стандартный `Edit Data` вручную: единственный источник standard-пункта — базовый draw.io popup.
 - Для grouped stencil-элементов mode для RMB/`seafEditData` теперь вычисляется не только по кликнутой дочерней ячейке, но и по ближайшему родителю со `schema`; это устраняет ситуацию, когда пункт SEAF не показывался из-за клика в служебный внутренний `mxCell`.
 - Реинжиниринг v2: Edit Data логика декомпозирована на слои `EditDataModeEngine` (policy/intent), `ContextMenuPresenter` (отрисовка RMB), `EditDataDialogRouter` (маршрутизация entry-points) и `EditDataSessionCoordinator` (явный lifecycle snapshot-сессии).
 - Конфигурация — `conf/stencils/config.yaml`: `schemas.<schema>.edit_data` (`seaf|standard|both`) и `schemas.<schema>.data_lock` (список защищённых атрибутов).
@@ -161,7 +162,7 @@
 - Диагностика: при загрузке `stencils/config.yaml`, установке router'а и формировании RMB (`resolvedMode`, `resolvedCell`, `statePresent`, `isEditable`) пишутся `info`/`debug`-сообщения в `seaf-plugin.log` (при `pluginLogLevel=info|debug`; при `pluginLogLevel=none` эти записи не выводятся).
 - Технически `stencils/config.yaml` читается через typed IPC action `getSeafStencilConfig` (main-process `seafPluginService`); legacy `readSeafPluginFile` остается как backup path под feature flag на миграционный период.
 - Feature flags для поэтапного rollout/rollback (через `env.yaml`): `featureIntentEngineV2`, `featureMenuPresenterV2`, `featureIpcStencilConfigV2`, `featureSessionCoordinatorV2`.
-- Антидублирование RMB `Edit Data`: fallback-проверка стандартного пункта теперь сравнивает нормализованный label (учет `...`/`…`), чтобы не добавлять второй стандартный пункт в режимах `standard`/`both`.
+- Матрица `standard|both|seaf` применяется только для `policySource=config-hit` (schema присутствует в `conf/stencils/config.yaml`); для остальных объектов plugin не вмешивается в standard item.
 - Phase 2 (зарезервировано): `schemas.<schema>.fields.<attr>.widget` (`text|textarea|combo|radio|checkbox`) — rich-виджеты внутри того же диалога без изменений в маршрутизации/menu hooks.
 
 ## Interactive terminal command

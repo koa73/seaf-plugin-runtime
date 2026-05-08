@@ -385,7 +385,8 @@ Fallback policy (когда `conf/stencils/config.yaml` не загрузилс�
 - При `pluginLogLevel: none` debug/info записи о резолве режима/ячейки в лог не попадают.
 - `stencils/config.yaml` читается через typed action `getSeafStencilConfig` (main-process `seafPluginService`) с преднормализованным payload; legacy `readSeafPluginFile` используется только как migration fallback.
 - Rollout v2 архитектуры управляется feature flags в `env.yaml`: `featureIntentEngineV2`, `featureMenuPresenterV2`, `featureIpcStencilConfigV2`, `featureSessionCoordinatorV2`.
-- Антидублирование standard-пункта RMB: fallback-детектор сравнивает нормализованные подписи (`...` и `…` эквивалентны), чтобы исключить второй `Edit Data` при уже добавленном базовом пункте draw.io.
+- Контракт RMB без дублей: plugin не добавляет штатный `Edit Data` вручную. В `both` и `standard` остается один базовый standard-пункт draw.io; в `both` SEAF-пункт enabled, в `standard` SEAF-пункт disabled, в `seaf` standard скрывается policy-слоем и остается только SEAF enabled.
+- Матрица `standard|both|seaf` применяется только для `policySource=config-hit` (schema найдена в `stencils/config.yaml`), чтобы не вмешиваться в объекты вне stencil-policy.
 
 Семантика `data_lock`:
 
