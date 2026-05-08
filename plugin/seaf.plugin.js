@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.4.0
+ * Runtime script version: 0.4.1
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -1237,12 +1237,22 @@ Draw.loadPlugin(function(ui)
 	};
 
 	var ContextMenuPresenter = {
+		normalizeMenuLabel: function(value)
+		{
+			var text = (value == null) ? '' : String(value);
+			// Draw.io may render menu labels with trailing "..." while custom fallback can use plain text.
+			// Compare normalized forms to avoid false "item missing" and duplicate insertion.
+			return text
+				.replace(/\u2026/g, '...')
+				replace(/\s*\.\.\.\s*$/, '')
+				trim();
+		},
 		hasItemLabel: function(menuObj, labelText)
 		{
 			try
 			{
 				if (menuObj == null || menuObj.tbody == null || typeof labelText !== 'string') return false;
-				var expected = labelText.trim();
+				var expected = this.normalizeMenuLabel(labelText);
 				if (expected.length === 0) return false;
 				var rows = menuObj.tbody.getElementsByTagName('tr');
 				for (var ri = 0; ri < rows.length; ri++)
@@ -1250,7 +1260,7 @@ Draw.loadPlugin(function(ui)
 					var cols = rows[ri].getElementsByTagName('td');
 					if (cols != null && cols.length > 1)
 					{
-						var current = String(cols[1].textContent || '').trim();
+						var current = this.normalizeMenuLabel(cols[1].textContent || '');
 						if (current === expected) return true;
 					}
 				}
@@ -1263,7 +1273,7 @@ Draw.loadPlugin(function(ui)
 		},
 		addStandard: function(menuObj, targetCell)
 		{
-			var standardLabel = mxResources.get('editData');
+			var standardLabel = mxResources.get('editData') + '...';
 			menuObj.addItem(standardLabel, null, function()
 			{
 				try { ui.showDataDialog(targetCell); } catch (e) { /* logged in router */ }

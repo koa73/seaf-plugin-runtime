@@ -161,6 +161,7 @@
 - Диагностика: при загрузке `stencils/config.yaml`, установке router'а и формировании RMB (`resolvedMode`, `resolvedCell`, `statePresent`, `isEditable`) пишутся `info`/`debug`-сообщения в `seaf-plugin.log` (при `pluginLogLevel=info|debug`; при `pluginLogLevel=none` эти записи не выводятся).
 - Технически `stencils/config.yaml` читается через typed IPC action `getSeafStencilConfig` (main-process `seafPluginService`); legacy `readSeafPluginFile` остается как backup path под feature flag на миграционный период.
 - Feature flags для поэтапного rollout/rollback (через `env.yaml`): `featureIntentEngineV2`, `featureMenuPresenterV2`, `featureIpcStencilConfigV2`, `featureSessionCoordinatorV2`.
+- Антидублирование RMB `Edit Data`: fallback-проверка стандартного пункта теперь сравнивает нормализованный label (учет `...`/`…`), чтобы не добавлять второй стандартный пункт в режимах `standard`/`both`.
 - Phase 2 (зарезервировано): `schemas.<schema>.fields.<attr>.widget` (`text|textarea|combo|radio|checkbox`) — rich-виджеты внутри того же диалога без изменений в маршрутизации/menu hooks.
 
 ## Interactive terminal command
