@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.6
+ * Runtime script version: 0.5.7
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -1270,6 +1270,59 @@ Draw.loadPlugin(function(ui)
 			}
 		}
 		return null;
+	}
+
+	function extractTemplateSchemaFromCells(cells)
+	{
+		var queue = Array.isArray(cells) ? cells.slice() : [];
+		var seen = {};
+		while (queue.length > 0)
+		{
+			var cell = queue.shift();
+			if (cell == null)
+			{
+				continue;
+			}
+			var cid = (typeof cell.id === 'string' && cell.id.length > 0) ? cell.id : ('tmp_' + queue.length + '_' + Math.random());
+			if (seen[cid] === true)
+			{
+				continue;
+			}
+			seen[cid] = true;
+			try
+			{
+				var value = cell.value;
+				if (value != null)
+				{
+					var schema = '';
+					if (typeof value.getAttribute === 'function')
+					{
+						schema = String(value.getAttribute('schema') || '').trim();
+					}
+					else if (typeof value === 'object' && typeof value.schema === 'string')
+					{
+						schema = value.schema.trim();
+					}
+					if (schema.length > 0)
+					{
+						return schema;
+					}
+				}
+			}
+			catch (ignored)
+			{
+				// ignore malformed node
+			}
+			var children = cell.children;
+			if (Array.isArray(children))
+			{
+				for (var i = 0; i < children.length; i++)
+				{
+					queue.push(children[i]);
+				}
+			}
+		}
+		return '';
 	}
 
 	function resolveSchemaPolicy(schema)
@@ -4579,6 +4632,7 @@ Draw.loadPlugin(function(ui)
 				// item.xml may already contain valid mxGraph XML text; extra entity-decoding breaks attribute payload.
 				var source = (rawXml.charAt(0) === '<') ? rawXml : Graph.decompress(rawXml);
 				var cells = ui.stringToCells(source);
+				var templateSchema = extractTemplateSchemaFromCells(cells);
 				if (!Array.isArray(cells) || cells.length === 0)
 				{
 					writeLog('error', 'Mirror stencil insert failed: empty decoded cells', {
@@ -4643,6 +4697,15 @@ Draw.loadPlugin(function(ui)
 							}
 						}
 					}
+				}
+				if ((!primarySchema || typeof primarySchema.schema !== 'string' || primarySchema.schema.trim().length === 0) &&
+					typeof templateSchema === 'string' && templateSchema.trim().length > 0)
+				{
+					primarySchema = {
+						schema: templateSchema.trim(),
+						styleText: primarySchema && typeof primarySchema.styleText === 'string' ? primarySchema.styleText : '',
+						schemaSource: 'template.schema'
+					};
 				}
 				graph.setSelectionCells(inserted);
 				graph.refresh();
@@ -4730,6 +4793,10 @@ Draw.loadPlugin(function(ui)
 				return null;
 			}
 			var layerName = typeof args.layerName === 'string' ? args.layerName.trim() : '';
+			if (!layerName && args.skipIfLayerMissing === true)
+			{
+				return {moved: 0, layerName: '', layerId: null, status: 'skipped', reason: 'layer_missing'};
+			}
 			if (!layerName)
 			{
 				layerName = 'unknown';
@@ -5176,6 +5243,11 @@ Draw.loadPlugin(function(ui)
 			if (resolvedLayer.length > 0)
 			{
 				args.layerName = resolvedLayer;
+				changed = true;
+			}
+			else
+			{
+				args.skipIfLayerMissing = true;
 				changed = true;
 			}
 			delete args.layerFromInsertedSchema;
