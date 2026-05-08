@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.3.30
+ * Runtime script version: 0.4.0
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -38,6 +38,12 @@ Draw.loadPlugin(function(ui)
 		originalShowDataDialog: null,
 		contextMenuLastCell: null,
 		stencilsLayerConfig: null,
+		features: {
+			intentEngineV2: true,
+			menuPresenterV2: true,
+			ipcStencilConfigV2: true,
+			sessionCoordinatorV2: true
+		},
 		stencilIndex: {
 			ready: false,
 			byObjectId: {},
@@ -96,6 +102,28 @@ Draw.loadPlugin(function(ui)
 	function safeLogData(data)
 	{
 		return state.logging.includePayload ? maskSensitive(data) : null;
+	}
+
+	function toBoolFlag(raw, fallback)
+	{
+		if (typeof raw === 'boolean') return raw;
+		if (typeof raw === 'number') return raw !== 0;
+		if (typeof raw === 'string')
+		{
+			var v = raw.trim().toLowerCase();
+			if (v === '1' || v === 'true' || v === 'yes' || v === 'on') return true;
+			if (v === '0' || v === 'false' || v === 'no' || v === 'off') return false;
+		}
+		return fallback === true;
+	}
+
+	function refreshFeatureFlagsFromEnv()
+	{
+		var env = (state.envConfig && state.envConfig.env && typeof state.envConfig.env === 'object') ? state.envConfig.env : {};
+		state.features.intentEngineV2 = toBoolFlag(env.featureIntentEngineV2, true);
+		state.features.menuPresenterV2 = toBoolFlag(env.featureMenuPresenterV2, true);
+		state.features.ipcStencilConfigV2 = toBoolFlag(env.featureIpcStencilConfigV2, true);
+		state.features.sessionCoordinatorV2 = toBoolFlag(env.featureSessionCoordinatorV2, true);
 	}
 
 	function sanitizeForIpc(value, depth, seen)
@@ -966,14 +994,32 @@ Draw.loadPlugin(function(ui)
 		}
 		try
 		{
-			var rawText = await requestAsync({
-				action: 'readSeafPluginFile',
-				configPath: state.configPath,
-				relativePath: 'stencils/config.yaml',
-				encoding: 'utf8'
-			});
-			var normalizedText = normalizeIpcTextPayload(rawText);
-			var parsed = parseStencilsConfigYaml(normalizedText);
+			var rawText = null;
+			var normalizedText = '';
+			var parsed = null;
+			if (state.features.ipcStencilConfigV2 === true)
+			{
+				var typed = await requestAsync({
+					action: 'getSeafStencilConfig',
+					configPath: state.configPath
+				});
+				if (typed != null && typeof typed === 'object' && typed.stencils != null &&
+					typeof typed.stencils === 'object' && !Array.isArray(typed.stencils))
+				{
+					parsed = typed.stencils;
+				}
+			}
+			if (parsed == null)
+			{
+				rawText = await requestAsync({
+					action: 'readSeafPluginFile',
+					configPath: state.configPath,
+					relativePath: 'stencils/config.yaml',
+					encoding: 'utf8'
+				});
+				normalizedText = normalizeIpcTextPayload(rawText);
+				parsed = parseStencilsConfigYaml(normalizedText);
+			}
 			if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed))
 			{
 				parsed = {};
@@ -997,7 +1043,8 @@ Draw.loadPlugin(function(ui)
 			await writeLog('info', 'Stencils layer config loaded', {
 				path: path,
 				schemas: schemaKeys.length,
-				sample: sample
+				sample: sample,
+				source: (state.features.ipcStencilConfigV2 === true ? 'getSeafStencilConfig' : 'readSeafPluginFile')
 			});
 			if (schemaKeys.length === 0)
 			{
@@ -1012,7 +1059,8 @@ Draw.loadPlugin(function(ui)
 					rawType: rawType,
 					rawKeys: rawKeys,
 					normalizedLength: normalizedText.length,
-					normalizedHead: normalizedText.substring(0, 80)
+					normalizedHead: normalizedText.substring(0, 80),
+					typedApiEnabled: state.features.ipcStencilConfigV2 === true
 				});
 			}
 		}
@@ -1128,6 +1176,142 @@ Draw.loadPlugin(function(ui)
 		}
 		return ['OID', 'schema'];
 	}
+
+	function resolveSchemaPolicy(schema)
+	{
+		var key = (typeof schema === 'string') ? schema.trim() : '';
+		var entry = getSchemaConfigEntry(key);
+		var mode = 'standard';
+		var policySource = 'hard-default';
+
+		if (entry != null)
+		{
+			mode = getEditDataModeForSchema(key);
+			policySource = 'config-hit';
+		}
+		else if (isSeafPrefixedSchema(key))
+		{
+			mode = 'seaf';
+			policySource = 'prefix-fallback';
+		}
+
+		return {
+			schema: key,
+			mode: mode,
+			lockList: getDataLockForSchema(key),
+			policySource: policySource
+		};
+	}
+
+	function buildEditDataIntent(sourceCell, graph, sourceKind)
+	{
+		var resolved = resolveEditDataTarget(sourceCell, graph);
+		var targetCell = (resolved && resolved.cell) ? resolved.cell : sourceCell;
+		var schema = (resolved && typeof resolved.schema === 'string') ? resolved.schema : '';
+		var policy = resolveSchemaPolicy(schema);
+
+		return {
+			source: (typeof sourceKind === 'string' && sourceKind.length > 0) ? sourceKind : 'unknown',
+			sourceCellId: sourceCell && sourceCell.id ? String(sourceCell.id) : null,
+			targetCellId: targetCell && targetCell.id ? String(targetCell.id) : null,
+			sourceCell: sourceCell || null,
+			targetCell: targetCell || null,
+			schema: policy.schema,
+			mode: policy.mode,
+			lockList: Array.isArray(policy.lockList) ? policy.lockList : [],
+			policySource: policy.policySource
+		};
+	}
+
+	var EditDataSessionCoordinator = {
+		begin: function(graph)
+		{
+			state.editDataSessionActive = true;
+			state.editDataBeforeByCell = captureEditDataBeforeSnapshots(graph);
+		},
+		reset: function()
+		{
+			state.editDataSessionActive = false;
+			state.editDataBeforeByCell = {};
+		}
+	};
+
+	var ContextMenuPresenter = {
+		hasItemLabel: function(menuObj, labelText)
+		{
+			try
+			{
+				if (menuObj == null || menuObj.tbody == null || typeof labelText !== 'string') return false;
+				var expected = labelText.trim();
+				if (expected.length === 0) return false;
+				var rows = menuObj.tbody.getElementsByTagName('tr');
+				for (var ri = 0; ri < rows.length; ri++)
+				{
+					var cols = rows[ri].getElementsByTagName('td');
+					if (cols != null && cols.length > 1)
+					{
+						var current = String(cols[1].textContent || '').trim();
+						if (current === expected) return true;
+					}
+				}
+			}
+			catch (e)
+			{
+				return false;
+			}
+			return false;
+		},
+		addStandard: function(menuObj, targetCell)
+		{
+			var standardLabel = mxResources.get('editData');
+			menuObj.addItem(standardLabel, null, function()
+			{
+				try { ui.showDataDialog(targetCell); } catch (e) { /* logged in router */ }
+			}, null, null, true);
+		},
+		addSeaf: function(menuObj, evt)
+		{
+			var seafLabel = mxResources.get('seafEditData');
+			menuObj.addItem(seafLabel, null, function()
+			{
+				var action = ui.actions.get('seafEditData');
+				if (action != null && typeof action.funct === 'function') action.funct(evt);
+			}, null, null, true);
+		},
+		render: function(menuObj, intent, evt, hasStandardItem)
+		{
+			if (intent == null || intent.targetCell == null) return;
+			if (intent.mode === 'seaf')
+			{
+				this.addSeaf(menuObj, evt);
+				return;
+			}
+			if (intent.mode === 'both')
+			{
+				if (!hasStandardItem) this.addStandard(menuObj, intent.targetCell);
+				this.addSeaf(menuObj, evt);
+				return;
+			}
+			if (intent.mode === 'standard' && !hasStandardItem)
+			{
+				this.addStandard(menuObj, intent.targetCell);
+			}
+		}
+	};
+
+	var EditDataDialogRouter = {
+		route: function(cell, sourceKind)
+		{
+			var graph = ui && ui.editor ? ui.editor.graph : null;
+			var intent = buildEditDataIntent(cell, graph, sourceKind);
+			if (intent.targetCell != null && (intent.mode === 'seaf' || intent.mode === 'both'))
+			{
+				showSeafEditDataDialog(intent.targetCell);
+				return {handled: true, intent: intent};
+			}
+			return {handled: false, intent: intent};
+		}
+	};
 
 	function isSeafEditDataModeForCell(cell, graph)
 	{
@@ -3084,8 +3268,7 @@ Draw.loadPlugin(function(ui)
 		try
 		{
 			var graph = ui && ui.editor ? ui.editor.graph : null;
-			state.editDataSessionActive = true;
-			state.editDataBeforeByCell = captureEditDataBeforeSnapshots(graph);
+			EditDataSessionCoordinator.begin(graph);
 			var dlg = new SeafEditDataDialog(ui, cell, graph);
 			ui.showDialog(dlg.container, 480, 420, true, false, null,
 				false, null, new mxRectangle(0, 0, 440, 220));
@@ -3122,18 +3305,14 @@ Draw.loadPlugin(function(ui)
 		{
 			try
 			{
-				var graph = ui && ui.editor ? ui.editor.graph : null;
-			var resolved = resolveEditDataTarget(cell, graph);
-			var targetCell = (resolved && resolved.cell) ? resolved.cell : cell;
-			var targetSchema = (resolved && typeof resolved.schema === 'string') ? resolved.schema : '';
-			var targetMode = getEditDataModeForSchema(targetSchema);
-			if (targetCell != null && (targetMode === 'seaf' || targetMode === 'both'))
+				var routed = EditDataDialogRouter.route(cell, 'showDataDialog');
+				if (routed && routed.handled === true)
 				{
 					writeLog('debug', 'showDataDialog routed to SEAF dialog', {
-					cellId: (targetCell && targetCell.id) ? String(targetCell.id) : null,
-					mode: targetMode
+						cellId: routed.intent && routed.intent.targetCellId ? routed.intent.targetCellId : null,
+						mode: routed.intent && routed.intent.mode ? routed.intent.mode : null,
+						policySource: routed.intent && routed.intent.policySource ? routed.intent.policySource : null
 					});
-				showSeafEditDataDialog(targetCell);
 					return;
 				}
 			}
@@ -3143,8 +3322,7 @@ Draw.loadPlugin(function(ui)
 					error: e && e.message ? e.message : String(e)
 				});
 			}
-			state.editDataSessionActive = true;
-			state.editDataBeforeByCell = captureEditDataBeforeSnapshots(ui && ui.editor ? ui.editor.graph : null);
+			EditDataSessionCoordinator.begin(ui && ui.editor ? ui.editor.graph : null);
 			return originalShowDataDialog(cell);
 		};
 		state.editDataDialogRouterInstalled = true;
@@ -5113,97 +5291,20 @@ Draw.loadPlugin(function(ui)
 		{
 			return;
 		}
-
-		function popupMenuHasItemLabel(menuObj, labelText)
-		{
-			try
-			{
-				if (menuObj == null || menuObj.tbody == null || typeof labelText !== 'string')
-				{
-					return false;
-				}
-				var expected = labelText.trim();
-				if (expected.length === 0)
-				{
-					return false;
-				}
-				var rows = menuObj.tbody.getElementsByTagName('tr');
-				for (var ri = 0; ri < rows.length; ri++)
-				{
-					var cols = rows[ri].getElementsByTagName('td');
-					if (cols != null && cols.length > 1)
-					{
-						var current = String(cols[1].textContent || '').trim();
-						if (current === expected)
-						{
-							return true;
-						}
-					}
-				}
-			}
-			catch (e)
-			{
-				return false;
-			}
-
-			return false;
-		}
-
-		function addStandardEditDataMenuItem(menuObj, targetCell, evt)
-		{
-			var standardLabel = mxResources.get('editData');
-			menuObj.addItem(standardLabel, null, function()
-			{
-				try
-				{
-					ui.showDataDialog(targetCell);
-				}
-				catch (e)
-				{
-					writeLog('error', 'standard editData menu item execution failed', {
-						error: e && e.message ? e.message : String(e)
-					});
-				}
-			}, null, null, true);
-		}
-
-		function addSeafEditDataMenuItem(menuObj, evt)
-		{
-			var seafLabel = mxResources.get('seafEditData');
-			menuObj.addItem(seafLabel, null, function()
-			{
-				var action = ui.actions.get('seafEditData');
-				if (action != null && typeof action.funct === 'function')
-				{
-					action.funct(evt);
-				}
-			}, null, null, true);
-		}
-
 		state.contextMenuBaseCreatePopupMenu = ui.menus.createPopupMenu;
 		ui.menus.createPopupMenu = function(menu, cell, evt)
 		{
 			var graph = ui.editor.graph;
 			state.contextMenuLastCell = cell || null;
-			// Resolve edit-data mode for the right-clicked cell (used both for hiding standard item
-			// and for inserting SEAF replacement entry).
-			var resolvedMode = 'standard';
-			var resolvedCell = cell;
-			var schemaKey = '';
+			var intent = buildEditDataIntent(cell, graph, 'context_menu');
 			try
 			{
-				if (cell != null)
+				if (intent == null)
 				{
-					var target = resolveEditDataTarget(cell, graph);
-					resolvedCell = target && target.cell ? target.cell : cell;
-					schemaKey = target && typeof target.schema === 'string' ? target.schema : '';
-					resolvedMode = getEditDataModeForSchema(schemaKey);
+					intent = {targetCell: cell, mode: 'standard', schema: '', policySource: 'hard-default'};
 				}
 			}
-			catch (eMode)
-			{
-				resolvedMode = 'standard';
-			}
+			catch (eMode) { intent = {targetCell: cell, mode: 'standard', schema: '', policySource: 'hard-default'}; }
 
 			// In seaf-mode hide the standard "Edit Data" before the base call assembles the menu.
 			// Restored after the base call so other entry points (Edit menu, etc.) are unaffected.
@@ -5211,7 +5312,7 @@ Draw.loadPlugin(function(ui)
 			var hiddenOverridden = false;
 			try
 			{
-				if (resolvedMode === 'seaf')
+				if (intent.mode === 'seaf')
 				{
 					var merged = {};
 					if (prevHiddenItems != null && typeof prevHiddenItems === 'object')
@@ -5246,7 +5347,7 @@ Draw.loadPlugin(function(ui)
 			}
 
 			var standardLabel = mxResources.get('editData');
-			var hasStandardItem = popupMenuHasItemLabel(menu, standardLabel);
+			var hasStandardItem = ContextMenuPresenter.hasItemLabel(menu, standardLabel);
 			var selectionCount = 0;
 			var statePresent = false;
 			var isEditable = false;
@@ -5254,9 +5355,9 @@ Draw.loadPlugin(function(ui)
 			{
 				selectionCount = (graph && typeof graph.getSelectionCount === 'function') ? graph.getSelectionCount() : 0;
 				statePresent = (graph && graph.view && typeof graph.view.getState === 'function') ?
-					(graph.view.getState(resolvedCell) != null) : false;
+					(graph.view.getState(intent.targetCell) != null) : false;
 				isEditable = (graph && typeof graph.isCellEditable === 'function') ?
-					graph.isCellEditable(resolvedCell) : false;
+					graph.isCellEditable(intent.targetCell) : false;
 			}
 			catch (eMenuState)
 			{
@@ -5266,9 +5367,10 @@ Draw.loadPlugin(function(ui)
 			}
 			writeLog('debug', 'context menu edit_data mode resolved', {
 				clickedCellId: (cell && cell.id) ? String(cell.id) : null,
-				resolvedCellId: (resolvedCell && resolvedCell.id) ? String(resolvedCell.id) : null,
-				schema: schemaKey,
-				mode: resolvedMode,
+				resolvedCellId: intent.targetCellId || null,
+				schema: intent.schema,
+				mode: intent.mode,
+				policySource: intent.policySource,
 				baseHasEditData: hasStandardItem,
 				selectionCount: selectionCount,
 				statePresent: statePresent,
@@ -5281,46 +5383,29 @@ Draw.loadPlugin(function(ui)
 			// - standard: only standard
 			try
 			{
-				if (resolvedCell != null)
+				if (intent.targetCell != null)
 				{
-					if (resolvedMode === 'seaf')
-					{
-						addSeafEditDataMenuItem(menu, evt);
-						writeLog('debug', 'seafEditData menu item inserted', {
-							mode: resolvedMode,
-							cellId: (resolvedCell && resolvedCell.id) ? String(resolvedCell.id) : null
-						});
-					}
-					else if (resolvedMode === 'both')
-					{
-						if (!hasStandardItem)
-						{
-							addStandardEditDataMenuItem(menu, resolvedCell, evt);
-							writeLog('debug', 'standard editData menu item inserted (fallback)', {
-								mode: resolvedMode,
-								cellId: (resolvedCell && resolvedCell.id) ? String(resolvedCell.id) : null
-							});
-						}
-						addSeafEditDataMenuItem(menu, evt);
-						writeLog('debug', 'seafEditData menu item inserted', {
-							mode: resolvedMode,
-							cellId: (resolvedCell && resolvedCell.id) ? String(resolvedCell.id) : null
-						});
-					}
-					else if (resolvedMode === 'standard' && !hasStandardItem)
-					{
-						addStandardEditDataMenuItem(menu, resolvedCell, evt);
-						writeLog('debug', 'standard editData menu item inserted (fallback)', {
-							mode: resolvedMode,
-							cellId: (resolvedCell && resolvedCell.id) ? String(resolvedCell.id) : null
-						});
-					}
+					ContextMenuPresenter.render(menu, intent, evt, hasStandardItem);
 				}
 			}
 			catch (eInsert)
 			{
 				writeLog('error', 'editData menu item insertion failed', {
 					error: eInsert && eInsert.message ? eInsert.message : String(eInsert)
+				});
+			}
+			if (intent.mode === 'seaf' || intent.mode === 'both')
+			{
+				writeLog('debug', 'seafEditData menu item inserted', {
+					mode: intent.mode,
+					cellId: intent.targetCellId || null
+				});
+			}
+			if ((intent.mode === 'standard' || intent.mode === 'both') && !hasStandardItem)
+			{
+				writeLog('debug', 'standard editData menu item inserted (fallback)', {
+					mode: intent.mode,
+					cellId: intent.targetCellId || null
 				});
 			}
 
@@ -5381,8 +5466,8 @@ Draw.loadPlugin(function(ui)
 					var graph = ui && ui.editor ? ui.editor.graph : null;
 				var sourceCell = graph ? (graph.getSelectionCell() || state.contextMenuLastCell ||
 					(graph.getModel ? graph.getModel().getRoot() : null)) : null;
-				var target = resolveEditDataTarget(sourceCell, graph);
-				var cell = target && target.cell ? target.cell : sourceCell;
+					var intent = buildEditDataIntent(sourceCell, graph, 'seaf_action');
+					var cell = intent && intent.targetCell ? intent.targetCell : sourceCell;
 					if (cell != null)
 					{
 						showSeafEditDataDialog(cell);
@@ -5467,6 +5552,7 @@ Draw.loadPlugin(function(ui)
 			{
 				state.envConfig = {env: {}};
 			}
+			refreshFeatureFlagsFromEnv();
 			try
 			{
 				state.eventConfig = await requestAsync({
@@ -5483,7 +5569,8 @@ Draw.loadPlugin(function(ui)
 			await writeLog('info', 'Plugin initialization started', {
 				configPath: state.configPath,
 				commandsCount: Array.isArray(state.config.commands) ? state.config.commands.length : 0,
-				runtimeVersion: state.runtimeVersion || 'unknown'
+				runtimeVersion: state.runtimeVersion || 'unknown',
+				features: state.features
 			});
 			await runInitStep('python_env_auto', ensurePythonEnvironmentAuto, true);
 			await runInitStep('stencil_libraries_load', loadSeafStencilLibraries, false);

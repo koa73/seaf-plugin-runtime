@@ -383,8 +383,8 @@ Fallback policy (когда `conf/stencils/config.yaml` не загрузилс�
 
 - Для расследования кейсов `standard/both` включайте `pluginLogLevel: info|debug` в `conf/env.yaml`.
 - При `pluginLogLevel: none` debug/info записи о резолве режима/ячейки в лог не попадают.
-- `stencils/config.yaml` читается через trusted action `readSeafPluginFile` (main-process `seafPluginService`), а не через общий `readFile` draw.io; это устраняет ошибку `Invalid file data` для YAML-конфига.
-- Ответ `readSeafPluginFile` в renderer нормализуется как text (`string`/`Buffer`-like payload) перед YAML-парсингом; это устраняет кейс `Stencils layer config loaded ... schemas: 0` при непустом файле.
+- `stencils/config.yaml` читается через typed action `getSeafStencilConfig` (main-process `seafPluginService`) с преднормализованным payload; legacy `readSeafPluginFile` используется только как migration fallback.
+- Rollout v2 архитектуры управляется feature flags в `env.yaml`: `featureIntentEngineV2`, `featureMenuPresenterV2`, `featureIpcStencilConfigV2`, `featureSessionCoordinatorV2`.
 
 Семантика `data_lock`:
 
