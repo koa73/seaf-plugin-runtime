@@ -165,6 +165,16 @@
 - Матрица `standard|both|seaf` применяется только для `policySource=config-hit` (schema присутствует в `conf/stencils/config.yaml`); для остальных объектов plugin не вмешивается в standard item.
 - Phase 2 (зарезервировано): `schemas.<schema>.fields.<attr>.widget` (`text|textarea|combo|radio|checkbox`) — rich-виджеты внутри того же диалога без изменений в маршрутизации/menu hooks.
 
+## Context menu: Create Page
+
+- Контекстная команда `Создать страницу` выполняется Python-скриптом `python/scripts/context_menu/add_page.py`.
+- Имя новой страницы берется из `selection[0].data.title`; перед созданием выполняются проверки:
+  - `title` не пустой;
+  - в `payload.pages` нет страницы с тем же именем.
+- После успешного создания страницы скрипт возвращает UI-команды:
+  - `createPage` (штатный draw.io `ui.createPage` + `ui.insertPage`);
+  - `setCellLinkToPage` (устанавливает `data:page/id,<id>` в исходный стенсил через `graph.setLinkForCell`).
+
 ## Interactive terminal command
 
 - В full runtime добавлен demo-пункт `SEAF Interactive Terminal Demo`.
@@ -194,6 +204,12 @@
 
 - Run `release/runtime/build-runtime.sh`.
 - Run `node ../drawio-desktop/scripts/seaf-stability-smoke.mjs`.
+- Run contract checks for recent runtime flows:
+  - `node ../drawio-desktop/scripts/test-edit-data-unit.mjs`
+  - `node ../drawio-desktop/scripts/test-edit-data-menu-integration.mjs`
+  - `node ../drawio-desktop/scripts/test-edit-data-ipc-contract.mjs`
+  - `node ../drawio-desktop/scripts/test-add-page-script.mjs`
+- (Optional aggregate) run `node ../drawio-desktop/scripts/legacy-removal-gate.mjs` to ensure `docs/validation-status.json` contains all required green checks.
 - Manual UI smoke: `More Shapes -> SEAF -> SEAF_Р41` renders without `undefined`.
 - Manual UI smoke: saved library selection is respected over defaults.
 - Runtime update smoke: `env.yaml` keeps user values after update.

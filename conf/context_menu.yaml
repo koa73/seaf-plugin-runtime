@@ -11,8 +11,16 @@ commands:
       context:
         enabled: false
         target: selection_non_empty
-  - id: seafFailureDemo
+  - id: seafAddPage
     title: Создать страницу
+    script: context_menu/add_page.py
+    execution:
+      mode: sync
+      timeoutSec: 20
+    input:
+      includeDiagramXml: false
+      includeCurrentPage: true
+      includePages: true
     menu:
       context:
         enabled: true

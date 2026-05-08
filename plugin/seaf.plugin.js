@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.4.2
+ * Runtime script version: 0.5.0
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -3359,6 +3359,10 @@ Draw.loadPlugin(function(ui)
 				name: ui.currentPage.getName ? ui.currentPage.getName() : null
 			};
 		}
+		if (inputCfg.includePages === true)
+		{
+			payload.pages = getPagesPayload();
+		}
 
 		payload.arguments = inputCfg.arguments != null ? mxUtils.clone(inputCfg.arguments) : {};
 
@@ -3375,6 +3379,23 @@ Draw.loadPlugin(function(ui)
 		}
 
 		return payload;
+	}
+
+	function getPagesPayload()
+	{
+		var pages = Array.isArray(ui.pages) ? ui.pages : [];
+		var out = [];
+		for (var i = 0; i < pages.length; i++)
+		{
+			var page = pages[i];
+			if (page == null) continue;
+			out.push({
+				id: (typeof page.getId === 'function') ? page.getId() : null,
+				name: (typeof page.getName === 'function') ? page.getName() : null,
+				isCurrent: ui.currentPage === page
+			});
+		}
+		return out;
 	}
 
 	function getEditConfigCommand()
@@ -3887,6 +3908,25 @@ Draw.loadPlugin(function(ui)
 		return null;
 	}
 
+	function findPageByName(pageName)
+	{
+		var targetName = (typeof pageName === 'string') ? pageName.trim() : '';
+		if (!targetName || !Array.isArray(ui.pages))
+		{
+			return null;
+		}
+		for (var i = 0; i < ui.pages.length; i++)
+		{
+			var page = ui.pages[i];
+			var name = (page && typeof page.getName === 'function') ? String(page.getName() || '').trim() : '';
+			if (name === targetName)
+			{
+				return page;
+			}
+		}
+		return null;
+	}
+
 	function resolveCellForUpdate(graph, objectId)
 	{
 		if (!graph || !graph.model || typeof objectId !== 'string' || objectId.trim().length === 0)
@@ -4267,6 +4307,79 @@ Draw.loadPlugin(function(ui)
 			{
 				showInfo(args.text);
 			}
+		},
+		createPage: function(args)
+		{
+			if (!args || typeof args !== 'object')
+			{
+				return null;
+			}
+			var title = (typeof args.title === 'string') ? args.title.trim() : '';
+			if (!title)
+			{
+				return {status: 'skipped', reason: 'title_missing'};
+			}
+			var existing = findPageByName(title);
+			if (existing != null)
+			{
+				return {
+					status: 'existing',
+					pageId: (typeof existing.getId === 'function') ? existing.getId() : null,
+					pageName: (typeof existing.getName === 'function') ? existing.getName() : title
+				};
+			}
+			if (typeof ui.createPage !== 'function' || typeof ui.insertPage !== 'function' || typeof ui.createPageId !== 'function')
+			{
+				return {status: 'error', reason: 'page_api_unavailable'};
+			}
+			var page = ui.createPage(title, ui.createPageId());
+			page = ui.insertPage(page);
+			if (args.selectCreated !== false && page != null && typeof ui.selectPage === 'function')
+			{
+				ui.selectPage(page);
+			}
+			return {
+				status: 'created',
+				pageId: page && typeof page.getId === 'function' ? page.getId() : null,
+				pageName: page && typeof page.getName === 'function' ? page.getName() : title
+			};
+		},
+		setCellLinkToPage: function(args)
+		{
+			var graph = ui && ui.editor ? ui.editor.graph : null;
+			if (!graph || !args || typeof args !== 'object')
+			{
+				return null;
+			}
+			var objectId = (typeof args.objectId === 'string') ? args.objectId.trim() : '';
+			var pageId = (typeof args.targetPageId === 'string') ? args.targetPageId.trim() : '';
+			var pageTitle = (typeof args.targetPageTitle === 'string') ? args.targetPageTitle.trim() : '';
+			if (!pageId && pageTitle)
+			{
+				var page = findPageByName(pageTitle);
+				pageId = (page && typeof page.getId === 'function') ? String(page.getId() || '').trim() : '';
+			}
+			if (!objectId || !pageId)
+			{
+				return {status: 'skipped', reason: 'missing_target'};
+			}
+			var targetCell = resolveCellForUpdate(graph, objectId);
+			if (targetCell == null)
+			{
+				return {status: 'skipped', reason: 'cell_not_found', objectId: objectId};
+			}
+			var href = 'data:page/id,' + pageId;
+			graph.getModel().beginUpdate();
+			try
+			{
+				graph.setLinkForCell(targetCell, href);
+			}
+			finally
+			{
+				graph.getModel().endUpdate();
+			}
+			graph.refresh();
+			return {status: 'updated', objectId: objectId, pageId: pageId};
 		},
 		ensureLayer: function(args)
 		{

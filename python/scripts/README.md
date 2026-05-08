@@ -18,7 +18,9 @@
 - `examples/events/*.py` — примеры batch-обработчиков событий стенсилов (`specific` и `all` для `add/remove/modify`).
 - подробная документация по event handlers: [`examples/events/README.md`](examples/events/README.md).
 - `events/all_add.py` — production orchestrator для `add`-событий: собирает контекст, вызывает OID-библиотеку и формирует `Response.commands[]`.
+- `context_menu/add_page.py` — production handler для команды «Создать страницу»: валидирует `selection.data.title`, проверяет дубли имен страниц и возвращает `commands[]` для create page + установки link на исходный стенсил.
 - `lib/oid/*` — модульная библиотека генерации/валидации OID и поиска конфликтов.
+- `lib/diagram/*` — библиотека переиспользуемых helper-функций для context-menu сценариев создания страниц и установки page links.
 - `lib/events/*` — service helper-слой для event handlers (`SEAF_INFO/SEAF_ERROR` логирование, сообщения о коллизиях, резолв env/arguments параметров).
 - `lib/logging/*` — централизованный слой логирования runtime-скриптов (уровни и emit `SEAF_INFO/SEAF_ERROR`).
 
@@ -65,6 +67,7 @@ args = payload.get("arguments") or {}
 | `selection` | `array<object>` | Снимок текущего выделения в диаграмме. Скрипты используют это для проверок и для выбора/подсветки объектов. |
 | `diagramXml` | `string` (XML) | Опционально. Полная диаграмма в виде XML. Попадает сюда, если в `plugin.yaml` у команды стоит `input.includeDiagramXml: true`. |
 | `currentPage` | `object` | Опционально. Текущая страница `{id, name}`. Попадает сюда, если `input.includeCurrentPage: true`. |
+| `pages` | `array<object>` | Опционально. Список страниц `{id,name,isCurrent}`. Попадает сюда, если `input.includePages: true`; используется скриптами для валидации дублей имен страниц. |
 | `arguments` | `object` | Опционально. Аргументы команды из `plugin.yaml` (`commands[].input.arguments`). Используется для параметризации (например, тайминги, режимы). |
 | `env` | `object` | Значения из `conf/env.yaml`, инжектятся runtime перед запуском скрипта. |
 
@@ -137,6 +140,8 @@ Runtime передает значения редактируемой конфи�
 | `updateStencilDataBulk` | `{ "pageId": "...", "updates": [{"objectId":"...","mode":"merge|replace","data":{...}}] }` | Пакетно обновляет данные объектов в одной транзакции. |
 | `ensureLayer` | `{ "pageId": "...", "layerName": "...", "makeVisible": true }` | Находит или создает слой по имени и делает его видимым. |
 | `moveObjectsToLayer` | `{ "pageId": "...", "layerName": "...", "objectIds": ["id1"], "makeVisible": true }` | Находит/создает слой и переносит указанные объекты в него через `graph.moveCells(...)`. |
+| `createPage` | `{ "title": "...", "selectCreated": true }` | Создает страницу через штатные API draw.io (`ui.createPage` + `ui.insertPage`) с заданным именем. |
+| `setCellLinkToPage` | `{ "objectId": "...", "targetPageTitle": "..." }` | Устанавливает ссылку `data:page/id,<pageId>` в выбранный объект через `graph.setLinkForCell(...)`. |
 
 ### Результат UI-команд
 

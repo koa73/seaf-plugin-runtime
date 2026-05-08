@@ -99,10 +99,11 @@
 
 Пример идеи:
 - в `main_menu.yaml` лежит полное описание команды;
-- в `context_menu.yaml` лежит только:
+- в `context_menu.yaml` лежат override-поля:
   - `id`
   - `menu.context.enabled`
-  - `menu.context.target`.
+  - `menu.context.target`
+  - при необходимости `title/script/input/execution` (например, для отдельной context-only команды `Создать страницу` -> `context_menu/add_page.py`).
 
 Compose-loader объединяет их в финальный `commands[]`.
 
@@ -367,8 +368,8 @@ rules:
 Семантика `edit_data`:
 
 - `seaf` — штатный пункт «Edit Data» в context menu скрыт, в контекстное меню добавляется отдельный пункт «Редактировать данные (SEAF)…» (action `seafEditData`); Right-click, Ctrl+M и Format panel открывают SEAF-диалог `SeafEditDataDialog` с поддержкой `data_lock`.
-- `standard` — в context menu показывается только штатный `Edit Data`; если базовый пункт не был добавлен draw.io из-за внутреннего состояния ячейки, plugin добавляет fallback-пункт вручную; `data_lock` игнорируется (для совместимости).
-- `both` — в context menu доступны оба пункта (штатный + «Редактировать данные (SEAF)…»); если штатный пункт не был добавлен draw.io, plugin добавляет fallback-пункт стандартного `Edit Data`; Ctrl+M / Format panel ведут на SEAF-диалог.
+- `standard` — в context menu остается один штатный `Edit Data` (enabled), SEAF-пункт отображается disabled.
+- `both` — в context menu ровно два пункта: штатный `Edit Data` (enabled) и `Редактировать данные (SEAF)…` (enabled).
 - Для grouped stencil-элементов при RMB mode/target определяются по ближайшему родителю со `schema`, если клик пришелся в дочерний служебный `mxCell` без schema.
 - Lookup schema в `config.yaml` устойчив к шуму формата (`;`, `,`, `#` в конце, дополнительные префиксы перед `seaf.`), чтобы избежать ложного fallback в `mode=seaf`.
 

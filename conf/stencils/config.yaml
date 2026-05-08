@@ -13,18 +13,27 @@ schemas:
   seaf.company.ta.services.dc_azs:
     layer: "Зона доступности"
     edit_data: standard
+    parent:
+      schema: seaf.company.ta.services.dc_regions
+      field: region
     data_lock:
       - OID
       - schema
   seaf.company.ta.services.dc_offices:
     layer: "Офис"
     edit_data: seaf
+    parent:
+      schema: seaf.company.ta.services.dc_regions
+      field: region
     data_lock:
       - OID
       - schema
   seaf.company.ta.services.dcs:
     layer: "ЦОД"
     edit_data: seaf
+    parent:
+      schema: seaf.company.ta.services.dc_azs
+      field: availabilityzone
     data_lock:
       - OID
       - schema
