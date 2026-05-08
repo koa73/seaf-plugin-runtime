@@ -179,6 +179,12 @@
 - Runtime дополнительно восстанавливает исходную страницу после `ui.insertPage(...)`, если build draw.io автоматически переключил фокус на созданную страницу несмотря на `selectCreated=false`.
 - `setCellLinkToPage` исполняется только с валидным `targetPageId` (полученным из результата `createPage` в `uiCommandResults`), без fallback-поиска страницы по title.
 - Если `createPage` не вернул `pageId` или `setCellLinkToPage` завершился не `updated` (`missing_target`/`cell_not_found`), сценарий считается ошибкой, а не silent-skip.
+- После успешной связки `createPage + setCellLinkToPage` runtime переключается на созданную страницу и добавляет mirror-элемент из библиотеки `SEAF_Р41`, если для `sourceSchema` в `conf/stencils/config.yaml` задан `schemas.<schema>.mirror`.
+- Вставка mirror выполняется новой UI-командой `insertStencilFromP41ByTitle` (по `mirrorTitle`, позиция top-left), далее выполняются:
+  - `updateStencilDataBulk` (полный copy-all данных source-объекта в новый mirror-объект);
+  - `moveObjectsToLayer` (layer-routing по schema вставленного mirror-объекта, как в `all_add`).
+- Если `mirror` не найден в библиотеке `SEAF_Р41` или вставка/синхронизация/назначение слоя завершились неуспешно, сценарий переводится в `status=error`.
+- Пользовательское сообщение для ошибки вставки mirror: `Не возможно добавить элемент <mirror> на страницу`; расширенная диагностика (`mirrorTitle`, `sourceObjectId`, `sourceSchema`, `pageId`, `reason/error`) пишется в `seaf-plugin.log`.
 - Скрипт не отправляет отдельные `showMessage` для `success/error`; пользовательские сообщения отображаются единообразно через общий runtime-обработчик статуса команды.
 
 ## Interactive terminal command

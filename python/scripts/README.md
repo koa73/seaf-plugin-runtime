@@ -142,6 +142,7 @@ Runtime передает значения редактируемой конфи�
 | `moveObjectsToLayer` | `{ "pageId": "...", "layerName": "...", "objectIds": ["id1"], "makeVisible": true }` | Находит/создает слой и переносит указанные объекты в него через `graph.moveCells(...)`. |
 | `createPage` | `{ "title": "...", "selectCreated": false }` | Создает страницу через штатные API draw.io (`ui.createPage` + `ui.insertPage`) с заданным именем; для сценария add-page рекомендуется `selectCreated=false`. |
 | `setCellLinkToPage` | `{ "objectId": "...", "targetPageId": "..." }` | Устанавливает ссылку `data:page/id,<pageId>` в выбранный объект через `graph.setLinkForCell(...)`; `targetPageId` должен быть валидным. |
+| `insertStencilFromP41ByTitle` | `{ "pageId": "...", "mirrorTitle": "...", "x": 20, "y": 20 }` | Ищет элемент в библиотеке `SEAF_Р41` по `title` и вставляет его на страницу; возвращает `status` и `objectId`. |
 
 ### Результат UI-команд
 
@@ -149,6 +150,11 @@ Runtime передает значения редактируемой конфи�
 - Для `ensureLayer` возвращается объект вида:
   - `{ "status": "created|existing", "layerId": "...", "layerName": "..." }`.
 - Для сценария `createPage -> setCellLinkToPage` runtime валидирует `uiCommandResults`: если `createPage` не вернул `pageId` или link-команда вернула `status!=updated`, весь сценарий переводится в `status=error`.
+- Для mirror-ветки `seafAddPage` runtime дополнительно валидирует:
+  - `insertStencilFromP41ByTitle.status === "inserted"`;
+  - `updateStencilDataBulk.updated >= 1`;
+  - `moveObjectsToLayer.moved >= 1`.
+- При нарушении любого из условий сценарий переводится в `status=error`.
 
 ## 3) Разбор вашего примера `Response` (ошибка) и как поля используются
 

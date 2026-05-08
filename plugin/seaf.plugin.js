@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.3
+ * Runtime script version: 0.5.4
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -28,6 +28,7 @@ Draw.loadPlugin(function(ui)
 			includePayload: false
 		},
 		seafStencilPaletteIds: [],
+		seafStencilSections: [],
 		eventConfig: null,
 		stencilModelListenerInstalled: false,
 		stencilEventDispatchInFlight: false,
@@ -670,6 +671,46 @@ Draw.loadPlugin(function(ui)
 		return parsed;
 	}
 
+	function toDisplayText(value)
+	{
+		if (value == null)
+		{
+			return '';
+		}
+		if (typeof value === 'string')
+		{
+			return value.trim();
+		}
+		if (typeof value === 'object')
+		{
+			if (typeof value.main === 'string' && value.main.trim().length > 0)
+			{
+				return value.main.trim();
+			}
+			if (typeof value.ru === 'string' && value.ru.trim().length > 0)
+			{
+				return value.ru.trim();
+			}
+			if (typeof value.en === 'string' && value.en.trim().length > 0)
+			{
+				return value.en.trim();
+			}
+		}
+		return String(value).trim();
+	}
+
+	function decodeHtmlEntities(text)
+	{
+		var raw = (typeof text === 'string') ? text : '';
+		if (raw.length === 0)
+		{
+			return '';
+		}
+		var node = document.createElement('textarea');
+		node.innerHTML = raw;
+		return node.value;
+	}
+
 	// Inline mini YAML parser tuned for stencils/config.yaml shape:
 	// - top-level objects, nested objects with 2-space indent
 	// - lists ("- item" lines)
@@ -1177,6 +1218,71 @@ Draw.loadPlugin(function(ui)
 		return ['OID', 'schema'];
 	}
 
+	function getLayerNameForSchema(schema)
+	{
+		var entry = getSchemaConfigEntry(schema);
+		if (entry == null)
+		{
+			return '';
+		}
+		var layer = entry.layer;
+		if (typeof layer === 'string')
+		{
+			return layer.trim();
+		}
+		if (Array.isArray(layer))
+		{
+			for (var i = 0; i < layer.length; i++)
+			{
+				var value = String(layer[i] || '').trim();
+				if (value.length > 0)
+				{
+					return value;
+				}
+			}
+		}
+		return '';
+	}
+
+	function findP41LibraryItemByTitle(title)
+	{
+		var expected = (typeof title === 'string') ? title.trim() : '';
+		if (!expected || !Array.isArray(state.seafStencilSections))
+		{
+			return null;
+		}
+		for (var i = 0; i < state.seafStencilSections.length; i++)
+		{
+			var section = state.seafStencilSections[i] || {};
+			var entries = Array.isArray(section.entries) ? section.entries : [];
+			for (var j = 0; j < entries.length; j++)
+			{
+				var entry = entries[j] || {};
+				var isP41 = (entry.id === 'seaf_r41') || (toDisplayText(entry.title) === 'SEAF_Р41');
+				if (!isP41)
+				{
+					continue;
+				}
+				var libs = Array.isArray(entry.libs) ? entry.libs : [];
+				for (var k = 0; k < libs.length; k++)
+				{
+					var lib = libs[k] || {};
+					var data = Array.isArray(lib.data) ? lib.data : [];
+					for (var n = 0; n < data.length; n++)
+					{
+						var item = data[n] || {};
+						var itemTitle = (typeof item.title === 'string') ? item.title.trim() : '';
+						if (itemTitle === expected)
+						{
+							return item;
+						}
+					}
+				}
+			}
+		}
+		return null;
+	}
+
 	function resolveSchemaPolicy(schema)
 	{
 		var key = (typeof schema === 'string') ? schema.trim() : '';
@@ -1608,6 +1714,7 @@ Draw.loadPlugin(function(ui)
 	async function loadSeafStencilLibraries()
 	{
 		var sidebar = ui != null ? ui.sidebar : null;
+		state.seafStencilSections = [];
 		if (sidebar == null)
 		{
 			return;
@@ -1691,6 +1798,7 @@ Draw.loadPlugin(function(ui)
 		}
 
 		applySeafCustomEntriesPipeline(sidebar, loadedSections);
+		state.seafStencilSections = loadedSections;
 
 		for (var s = 0; s < loadedSections.length; s++)
 		{
@@ -4417,6 +4525,109 @@ Draw.loadPlugin(function(ui)
 			graph.refresh();
 			return {status: 'updated', objectId: objectId, pageId: pageId};
 		},
+		insertStencilFromP41ByTitle: function(args)
+		{
+			var graph = ui && ui.editor ? ui.editor.graph : null;
+			if (!graph || !args || typeof args !== 'object')
+			{
+				return {status: 'error', reason: 'invalid_args'};
+			}
+			var mirrorTitle = (typeof args.mirrorTitle === 'string') ? args.mirrorTitle.trim() : '';
+			var pageId = (typeof args.pageId === 'string') ? args.pageId.trim() : '';
+			if (!mirrorTitle)
+			{
+				return {status: 'error', reason: 'mirror_title_missing'};
+			}
+			if (!pageId)
+			{
+				return {status: 'error', reason: 'page_id_missing', mirrorTitle: mirrorTitle};
+			}
+			var targetPage = findPageById(pageId);
+			if (targetPage == null)
+			{
+				return {status: 'error', reason: 'page_not_found', pageId: pageId, mirrorTitle: mirrorTitle};
+			}
+			if (typeof ui.selectPage === 'function' && ui.currentPage !== targetPage)
+			{
+				ui.selectPage(targetPage);
+			}
+			var item = findP41LibraryItemByTitle(mirrorTitle);
+			if (item == null)
+			{
+				writeLog('error', 'Mirror stencil item not found in P41 library', {
+					mirrorTitle: mirrorTitle,
+					pageId: pageId,
+					sourceObjectId: args.sourceObjectId || null,
+					sourceSchema: args.sourceSchema || null
+				});
+				return {status: 'error', reason: 'mirror_not_found', mirrorTitle: mirrorTitle, pageId: pageId};
+			}
+			try
+			{
+				var rawXml = (typeof item.xml === 'string') ? item.xml : '';
+				var decodedXml = decodeHtmlEntities(rawXml);
+				var source = (decodedXml.charAt(0) === '<') ? decodedXml : Graph.decompress(decodedXml);
+				var cells = ui.stringToCells(source);
+				if (!Array.isArray(cells) || cells.length === 0)
+				{
+					writeLog('error', 'Mirror stencil insert failed: empty decoded cells', {
+						mirrorTitle: mirrorTitle,
+						pageId: pageId
+					});
+					return {status: 'error', reason: 'mirror_cells_empty', mirrorTitle: mirrorTitle, pageId: pageId};
+				}
+				var x = Number.isFinite(args.x) ? Number(args.x) : 20;
+				var y = Number.isFinite(args.y) ? Number(args.y) : 20;
+				var inserted = graph.importCells(cells, x, y, graph.getDefaultParent());
+				if (!Array.isArray(inserted) || inserted.length === 0)
+				{
+					return {status: 'error', reason: 'insert_failed', mirrorTitle: mirrorTitle, pageId: pageId};
+				}
+				var primary = inserted[0];
+				for (var i = 0; i < inserted.length; i++)
+				{
+					if (inserted[i] && inserted[i].id && (graph.model.isVertex(inserted[i]) || graph.model.isEdge(inserted[i])))
+					{
+						primary = inserted[i];
+						break;
+					}
+				}
+				graph.setSelectionCells(inserted);
+				graph.refresh();
+				var schema = extractShapeSchema(primary, graph);
+				writeLog('debug', 'Mirror stencil inserted', {
+					mirrorTitle: mirrorTitle,
+					pageId: pageId,
+					objectId: primary && primary.id ? primary.id : null,
+					schema: schema || null
+				});
+				return {
+					status: 'inserted',
+					mirrorTitle: mirrorTitle,
+					pageId: pageId,
+					objectId: primary && primary.id ? primary.id : null,
+					schema: schema || null,
+					insertedCount: inserted.length
+				};
+			}
+			catch (e)
+			{
+				writeLog('error', 'Mirror stencil insert failed', {
+					mirrorTitle: mirrorTitle,
+					pageId: pageId,
+					sourceObjectId: args.sourceObjectId || null,
+					sourceSchema: args.sourceSchema || null,
+					error: e && e.message ? e.message : String(e)
+				});
+				return {
+					status: 'error',
+					reason: 'insert_failed',
+					mirrorTitle: mirrorTitle,
+					pageId: pageId,
+					error: e && e.message ? e.message : String(e)
+				};
+			}
+		},
 		ensureLayer: function(args)
 		{
 			var graph = ui && ui.editor ? ui.editor.graph : null;
@@ -4801,31 +5012,129 @@ Draw.loadPlugin(function(ui)
 		{
 			return cmd;
 		}
-		if (cmd.name !== 'setCellLinkToPage')
+		var args = (cmd.args && typeof cmd.args === 'object') ? mxUtils.clone(cmd.args) : {};
+		var changed = false;
+		var commandName = (typeof cmd.name === 'string') ? cmd.name : '';
+
+		function resolvePageRef()
+		{
+			var pageRef = (typeof args.pageIdFrom === 'string') ? args.pageIdFrom.trim() : '';
+			if (!pageRef || (typeof args.pageId === 'string' && args.pageId.trim().length > 0))
+			{
+				return;
+			}
+			var source = findLastUiCommandResult(collected, pageRef);
+			var pageId = (source && typeof source.pageId === 'string') ? source.pageId.trim() : '';
+			if (pageId.length > 0)
+			{
+				args.pageId = pageId;
+				changed = true;
+			}
+			delete args.pageIdFrom;
+		}
+
+		function resolveObjectRef()
+		{
+			var objectRef = (typeof args.objectIdFrom === 'string') ? args.objectIdFrom.trim() : '';
+			if (objectRef.length > 0)
+			{
+				var source = findLastUiCommandResult(collected, objectRef);
+				var objectId = (source && typeof source.objectId === 'string') ? source.objectId.trim() : '';
+				if (objectId.length > 0)
+				{
+					args.objectId = objectId;
+					changed = true;
+				}
+				delete args.objectIdFrom;
+			}
+
+			var objectIdsRef = (typeof args.objectIdsFrom === 'string') ? args.objectIdsFrom.trim() : '';
+			if (objectIdsRef.length > 0)
+			{
+				var sourceList = findLastUiCommandResult(collected, objectIdsRef);
+				var firstObject = (sourceList && typeof sourceList.objectId === 'string') ? sourceList.objectId.trim() : '';
+				if (firstObject.length > 0)
+				{
+					args.objectIds = [firstObject];
+					changed = true;
+				}
+				delete args.objectIdsFrom;
+			}
+		}
+
+		resolvePageRef();
+		resolveObjectRef();
+
+		if (commandName === 'setCellLinkToPage')
+		{
+			var targetPageId = (typeof args.targetPageId === 'string') ? args.targetPageId.trim() : '';
+			if (targetPageId.length === 0)
+			{
+				var createResult = findLastUiCommandResult(collected, 'createPage');
+				var createdPageId = (createResult && typeof createResult.pageId === 'string') ? createResult.pageId.trim() : '';
+				if (createdPageId.length > 0)
+				{
+					args.targetPageId = createdPageId;
+					changed = true;
+				}
+			}
+			if (Object.prototype.hasOwnProperty.call(args, 'targetPageTitle'))
+			{
+				delete args.targetPageTitle;
+				changed = true;
+			}
+		}
+
+		if (commandName === 'moveObjectsToLayer' && args.layerFromInsertedSchema === true)
+		{
+			var insertResult = findLastUiCommandResult(collected, 'insertStencilFromP41ByTitle');
+			var insertedSchema = (insertResult && typeof insertResult.schema === 'string') ? insertResult.schema.trim() : '';
+			var resolvedLayer = getLayerNameForSchema(insertedSchema);
+			if (resolvedLayer.length > 0)
+			{
+				args.layerName = resolvedLayer;
+				changed = true;
+			}
+			delete args.layerFromInsertedSchema;
+		}
+
+		if (commandName === 'updateStencilDataBulk' && Array.isArray(args.updates))
+		{
+			for (var i = 0; i < args.updates.length; i++)
+			{
+				var row = args.updates[i];
+				if (row == null || typeof row !== 'object' || Array.isArray(row))
+				{
+					continue;
+				}
+				var rowRef = (typeof row.objectIdFrom === 'string') ? row.objectIdFrom.trim() : '';
+				if (!rowRef || (typeof row.objectId === 'string' && row.objectId.trim().length > 0))
+				{
+					if (Object.prototype.hasOwnProperty.call(row, 'objectIdFrom'))
+					{
+						delete row.objectIdFrom;
+						changed = true;
+					}
+					continue;
+				}
+				var rowSource = findLastUiCommandResult(collected, rowRef);
+				var rowObjectId = (rowSource && typeof rowSource.objectId === 'string') ? rowSource.objectId.trim() : '';
+				if (rowObjectId.length > 0)
+				{
+					row.objectId = rowObjectId;
+					changed = true;
+				}
+				delete row.objectIdFrom;
+			}
+		}
+
+		if (!changed)
 		{
 			return cmd;
-		}
-		var args = (cmd.args && typeof cmd.args === 'object') ? cmd.args : {};
-		var targetPageId = (typeof args.targetPageId === 'string') ? args.targetPageId.trim() : '';
-		if (targetPageId.length > 0)
-		{
-			return cmd;
-		}
-		var createResult = findLastUiCommandResult(collected, 'createPage');
-		var createdPageId = (createResult && typeof createResult.pageId === 'string') ? createResult.pageId.trim() : '';
-		if (createdPageId.length === 0)
-		{
-			return cmd;
-		}
-		var nextArgs = mxUtils.clone(args);
-		nextArgs.targetPageId = createdPageId;
-		if (Object.prototype.hasOwnProperty.call(nextArgs, 'targetPageTitle'))
-		{
-			delete nextArgs.targetPageTitle;
 		}
 		return {
 			name: cmd.name,
-			args: nextArgs
+			args: args
 		};
 	}
 
@@ -4875,6 +5184,60 @@ Draw.loadPlugin(function(ui)
 				result.errors = [];
 			}
 			result.errors.push('set_cell_link_failed');
+			return;
+		}
+
+		var hasMirrorInsert = false;
+		for (var j = 0; j < result.commands.length; j++)
+		{
+			hasMirrorInsert = hasMirrorInsert || (result.commands[j] && result.commands[j].name === 'insertStencilFromP41ByTitle');
+		}
+		if (!hasMirrorInsert)
+		{
+			return;
+		}
+
+		var insertValue = findLastUiCommandResult(rows, 'insertStencilFromP41ByTitle');
+		var insertStatus = (insertValue && typeof insertValue.status === 'string') ? insertValue.status : '';
+		if (insertStatus !== 'inserted')
+		{
+			var mirrorTitle = (insertValue && typeof insertValue.mirrorTitle === 'string' && insertValue.mirrorTitle.trim().length > 0) ?
+				insertValue.mirrorTitle.trim() : 'mirror';
+			result.status = 'error';
+			result.message = 'Не возможно добавить элемент ' + mirrorTitle + ' на страницу';
+			if (!Array.isArray(result.errors))
+			{
+				result.errors = [];
+			}
+			result.errors.push('mirror_insert_failed');
+			return;
+		}
+
+		var syncValue = findLastUiCommandResult(rows, 'updateStencilDataBulk');
+		var syncUpdated = (syncValue && Number.isFinite(syncValue.updated)) ? Number(syncValue.updated) : 0;
+		if (syncUpdated < 1)
+		{
+			result.status = 'error';
+			result.message = 'Не удалось синхронизировать данные mirror-элемента.';
+			if (!Array.isArray(result.errors))
+			{
+				result.errors = [];
+			}
+			result.errors.push('mirror_sync_failed');
+			return;
+		}
+
+		var layerValue = findLastUiCommandResult(rows, 'moveObjectsToLayer');
+		var moved = (layerValue && Number.isFinite(layerValue.moved)) ? Number(layerValue.moved) : 0;
+		if (moved < 1)
+		{
+			result.status = 'error';
+			result.message = 'Не удалось назначить слой mirror-элементу.';
+			if (!Array.isArray(result.errors))
+			{
+				result.errors = [];
+			}
+			result.errors.push('mirror_layer_failed');
 		}
 	}
 

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from lib.config.stencil_mirror import load_stencil_mirror_config, resolve_mirror_title
 from lib.diagram.link_service import build_create_page_command, build_link_to_page_command
 from lib.diagram.page_service import find_page_by_name, list_pages, normalize_page_name
 from lib.diagram.stencil_service import (
@@ -21,6 +22,12 @@ def main() -> int:
     selection_item = get_primary_selection(payload)
     object_id = extract_object_id(context_object) or extract_object_id(selection_item)
     title = normalize_page_name(extract_stencil_title(context_object) or extract_stencil_title(selection_item))
+    source_data = {}
+    if isinstance(context_object, dict) and isinstance(context_object.get("data"), dict):
+        source_data = dict(context_object.get("data"))
+    elif isinstance(selection_item, dict) and isinstance(selection_item.get("data"), dict):
+        source_data = dict(selection_item.get("data"))
+    source_schema = str(source_data.get("schema") or "").strip()
 
     if not object_id:
         return write_response(
@@ -58,10 +65,50 @@ def main() -> int:
         build_create_page_command(title=title, select_created=False),
         build_link_to_page_command(object_id=object_id, title=title),
     ]
+    mirror_config = load_stencil_mirror_config()
+    mirror_title = resolve_mirror_title(source_schema, mirror_config)
+    if mirror_title:
+        commands.extend(
+            [
+                {
+                    "name": "insertStencilFromP41ByTitle",
+                    "args": {
+                        "pageIdFrom": "createPage",
+                        "mirrorTitle": mirror_title,
+                        "x": 20,
+                        "y": 20,
+                        "sourceObjectId": object_id,
+                        "sourceSchema": source_schema,
+                    },
+                },
+                {
+                    "name": "updateStencilDataBulk",
+                    "args": {
+                        "pageIdFrom": "createPage",
+                        "updates": [
+                            {
+                                "objectIdFrom": "insertStencilFromP41ByTitle",
+                                "mode": "replace",
+                                "data": source_data,
+                            }
+                        ],
+                    },
+                },
+                {
+                    "name": "moveObjectsToLayer",
+                    "args": {
+                        "pageIdFrom": "createPage",
+                        "objectIdsFrom": "insertStencilFromP41ByTitle",
+                        "layerFromInsertedSchema": True,
+                        "makeVisible": True,
+                    },
+                },
+            ]
+        )
     return write_response(
         status="success",
         message=f"Страница '{title}' создана и ссылка установлена",
-        payload={"objectId": object_id, "pageName": title},
+        payload={"objectId": object_id, "pageName": title, "mirrorTitle": mirror_title or None},
         commands=commands,
         errors=[],
     )
