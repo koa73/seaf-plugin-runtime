@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.10
+ * Runtime script version: 0.5.11
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -4489,6 +4489,149 @@ Draw.loadPlugin(function(ui)
 		return conflicts;
 	}
 
+	function oidSchemaCode(schema)
+	{
+		var raw = (typeof schema === 'string') ? schema.trim() : '';
+		if (raw.length === 0)
+		{
+			return 'unknown';
+		}
+		var parts = raw.split('.');
+		var clean = [];
+		for (var i = 0; i < parts.length; i++)
+		{
+			var p = String(parts[i] || '').trim();
+			if (p.length > 0)
+			{
+				clean.push(p);
+			}
+		}
+		if (clean.length < 2)
+		{
+			return 'unknown';
+		}
+		return clean[clean.length - 2] + '.' + clean[clean.length - 1];
+	}
+
+	function extractOidSequence(oidValue, expectedPrefix)
+	{
+		var text = String(oidValue || '').trim();
+		if (!text || !expectedPrefix || text.indexOf(expectedPrefix) !== 0)
+		{
+			return -1;
+		}
+		var suffix = text.slice(expectedPrefix.length);
+		if (!/^\d+$/.test(suffix))
+		{
+			return -1;
+		}
+		var n = Number(suffix);
+		return Number.isFinite(n) ? n : -1;
+	}
+
+	function nextOidValue(companyPrefix, schema, knownOids, reservedOids)
+	{
+		var base = String(companyPrefix || 'company').trim() + '.' + oidSchemaCode(schema) + '.';
+		var maxSeq = 0;
+		for (var existingOid in knownOids)
+		{
+			if (!Object.prototype.hasOwnProperty.call(knownOids, existingOid))
+			{
+				continue;
+			}
+			var seq = extractOidSequence(existingOid, base);
+			if (seq > maxSeq)
+			{
+				maxSeq = seq;
+			}
+		}
+		var nextSeq = maxSeq + 1;
+		while (true)
+		{
+			var candidate = base + String(nextSeq);
+			if (!Object.prototype.hasOwnProperty.call(knownOids, candidate) &&
+				!Object.prototype.hasOwnProperty.call(reservedOids, candidate))
+			{
+				reservedOids[candidate] = true;
+				return candidate;
+			}
+			nextSeq += 1;
+		}
+	}
+
+	function collectEmptyOidItemsOnPage(graph)
+	{
+		if (!graph || !graph.model)
+		{
+			return [];
+		}
+		var model = graph.model;
+		var root = model.getRoot ? model.getRoot() : model.root;
+		var out = [];
+		var cells = [];
+		if (typeof model.filterDescendants === 'function')
+		{
+			cells = model.filterDescendants(function(cell)
+			{
+				return model.isVertex(cell) || model.isEdge(cell);
+			}, root) || [];
+		}
+		for (var i = 0; i < cells.length; i++)
+		{
+			var cell = cells[i];
+			if (!cell || !cell.id)
+			{
+				continue;
+			}
+			var data = extractEditableDataFromCell(cell, graph);
+			if (!Object.prototype.hasOwnProperty.call(data, 'OID'))
+			{
+				continue;
+			}
+			var oidValue = String(data.OID || '').trim();
+			if (oidValue.length > 0)
+			{
+				continue;
+			}
+			var schemaMeta = extractShapeSchema(cell, graph);
+			out.push({
+				objectId: cell.id,
+				schema: (schemaMeta && typeof schemaMeta.schema === 'string') ? schemaMeta.schema.trim() : ''
+			});
+		}
+		return out;
+	}
+
+	function buildOidBackfillUpdates(items, companyPrefix)
+	{
+		var knownOids = {};
+		var reservedOids = {};
+		var byOid = state && state.stencilIndex ? state.stencilIndex.byOid : {};
+		for (var oid in byOid)
+		{
+			if (Object.prototype.hasOwnProperty.call(byOid, oid))
+			{
+				knownOids[oid] = true;
+			}
+		}
+		var updates = [];
+		for (var i = 0; i < items.length; i++)
+		{
+			var row = items[i];
+			if (!row || !row.objectId)
+			{
+				continue;
+			}
+			var next = nextOidValue(companyPrefix, row.schema || '', knownOids, reservedOids);
+			updates.push({
+				objectId: row.objectId,
+				mode: 'merge',
+				data: {OID: next}
+			});
+		}
+		return updates;
+	}
+
 	var uiCommandHandlers = {
 		reloadDocument: function()
 		{
@@ -4608,6 +4751,76 @@ Draw.loadPlugin(function(ui)
 			}
 			graph.refresh();
 			return {status: 'updated', objectId: objectId, pageId: pageId};
+		},
+		assignEmptyOidOnPage: function(args)
+		{
+			var graph = ui && ui.editor ? ui.editor.graph : null;
+			if (!graph || !args || typeof args !== 'object')
+			{
+				return {status: 'error', reason: 'invalid_args'};
+			}
+			var pageId = (typeof args.pageId === 'string') ? args.pageId.trim() : '';
+			if (!pageId)
+			{
+				return {status: 'error', reason: 'page_id_missing'};
+			}
+			var targetPage = findPageById(pageId);
+			if (targetPage == null)
+			{
+				return {status: 'error', reason: 'page_not_found', pageId: pageId};
+			}
+			var originalPage = ui.currentPage || null;
+			var switchedPage = false;
+			if (typeof ui.selectPage === 'function' && ui.currentPage !== targetPage)
+			{
+				ui.selectPage(targetPage);
+				switchedPage = true;
+			}
+			try
+			{
+				var companyPrefix = (typeof args.companyPrefix === 'string' && args.companyPrefix.trim().length > 0) ?
+					args.companyPrefix.trim() : 'company';
+				var items = collectEmptyOidItemsOnPage(graph);
+				if (items.length === 0)
+				{
+					return {status: 'noop', scanned: 0, updated: 0, pageId: pageId};
+				}
+				var updates = buildOidBackfillUpdates(items, companyPrefix);
+				if (updates.length === 0)
+				{
+					return {status: 'noop', scanned: items.length, updated: 0, pageId: pageId};
+				}
+				var result = null;
+				var cmdArgs = {pageId: pageId, updates: updates};
+				if (args.suppressStencilEvents === true)
+				{
+					result = runWithStencilEventsSuppressed(function()
+					{
+						return uiCommandHandlers.updateStencilDataBulk(cmdArgs);
+					});
+				}
+				else
+				{
+					result = uiCommandHandlers.updateStencilDataBulk(cmdArgs);
+				}
+				var updated = (result && Number.isFinite(result.updated)) ? result.updated : 0;
+				var skipped = (result && Number.isFinite(result.skipped)) ? result.skipped : 0;
+				return {
+					status: 'updated',
+					pageId: pageId,
+					scanned: items.length,
+					updated: updated,
+					skipped: skipped,
+					errors: (result && Array.isArray(result.errors)) ? result.errors : []
+				};
+			}
+			finally
+			{
+				if (switchedPage && originalPage != null && ui.currentPage !== originalPage && typeof ui.selectPage === 'function')
+				{
+					ui.selectPage(originalPage);
+				}
+			}
 		},
 		insertStencilFromP41ByTitle: function(args)
 		{
@@ -5398,6 +5611,28 @@ Draw.loadPlugin(function(ui)
 			}
 			result.errors.push('set_cell_link_failed');
 			return;
+		}
+
+		var hasOidBackfill = false;
+		for (var jb = 0; jb < result.commands.length; jb++)
+		{
+			hasOidBackfill = hasOidBackfill || (result.commands[jb] && result.commands[jb].name === 'assignEmptyOidOnPage');
+		}
+		if (hasOidBackfill)
+		{
+			var oidValue = findLastUiCommandResult(rows, 'assignEmptyOidOnPage');
+			var oidStatus = (oidValue && typeof oidValue.status === 'string') ? oidValue.status : '';
+			if (oidStatus !== 'updated' && oidStatus !== 'noop')
+			{
+				result.status = 'error';
+				result.message = 'Не удалось заполнить пустые OID на созданной странице.';
+				if (!Array.isArray(result.errors))
+				{
+					result.errors = [];
+				}
+				result.errors.push('assign_oid_failed');
+				return;
+			}
 		}
 
 		var hasMirrorInsert = false;

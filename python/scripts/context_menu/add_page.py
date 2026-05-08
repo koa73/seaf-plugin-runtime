@@ -13,7 +13,7 @@ from lib.diagram.stencil_service import (
     get_context_object,
     get_primary_selection,
 )
-from lib.events import resolve_layer_for_schema
+from lib.events import resolve_company_prefix, resolve_layer_for_schema
 from lib.io import get_payload, read_request, write_response
 
 
@@ -102,8 +102,8 @@ def main() -> int:
                     "args": {
                         "pageIdFrom": "createPage",
                         "mirrorTitle": mirror_title,
-                        "x": 20,
-                        "y": 20,
+                        "x": 200,
+                        "y": 200,
                         "suppressStencilEvents": True,
                         "sourceObjectId": object_id,
                         "sourceSchema": source_schema,
@@ -135,6 +135,18 @@ def main() -> int:
                 },
             ]
         )
+    # Final command in add_page flow: assign missing OID values on created page
+    # for objects that already have OID attribute but keep it empty.
+    commands.append(
+        {
+            "name": "assignEmptyOidOnPage",
+            "args": {
+                "pageIdFrom": "createPage",
+                "companyPrefix": resolve_company_prefix(payload),
+                "suppressStencilEvents": True,
+            },
+        }
+    )
     return write_response(
         status="success",
         message=f"Страница '{title}' создана и ссылка установлена",

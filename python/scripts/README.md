@@ -143,6 +143,7 @@ Runtime передает значения редактируемой конфи�
 | `createPage` | `{ "title": "...", "selectCreated": false }` | Создает страницу через штатные API draw.io (`ui.createPage` + `ui.insertPage`) с заданным именем; для сценария add-page рекомендуется `selectCreated=false`. |
 | `setCellLinkToPage` | `{ "objectId": "...", "targetPageId": "..." }` | Устанавливает ссылку `data:page/id,<pageId>` в выбранный объект через `graph.setLinkForCell(...)`; `targetPageId` должен быть валидным. |
 | `insertStencilFromP41ByTitle` | `{ "pageId": "...", "mirrorTitle": "...", "x": 20, "y": 20 }` | Ищет элемент в библиотеке `SEAF_Р41` по `title` и вставляет его на страницу; возвращает `status` и `objectId`. |
+| `assignEmptyOidOnPage` | `{ "pageId": "...", "companyPrefix": "company", "suppressStencilEvents": true }` | Находит на странице объекты, где атрибут `OID` существует и пуст, и присваивает уникальные значения по OID-алгоритму `all_add`. |
 
 ### Результат UI-команд
 
@@ -156,6 +157,7 @@ Runtime передает значения редактируемой конфи�
   - `moveObjectsToLayer.moved >= 1`.
 - При нарушении любого из условий сценарий переводится в `status=error`.
 - Layer-routing для `events/all_add.py` и `context_menu/add_page.py` унифицирован в Python helper `lib/events/layer_routing.py`; `add_page.py` передает в `moveObjectsToLayer` уже вычисленный `layerName` (без JS-резолва `schema -> layer`).
+- Для финального шага `assignEmptyOidOnPage` runtime валидирует статус `updated|noop`; при другом статусе результат `seafAddPage` переводится в `status=error` (`assign_oid_failed`).
 
 ## 3) Разбор вашего примера `Response` (ошибка) и как поля используются
 

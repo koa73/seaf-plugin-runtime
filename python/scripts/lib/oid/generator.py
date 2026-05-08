@@ -70,3 +70,35 @@ def build_oid_updates(
         )
         assigned.append({"objectId": object_id, "OID": oid})
     return updates, assigned
+
+
+def build_oid_updates_for_empty_oid_items(
+    items: List[Dict],
+    company_prefix: str,
+    known_oids: Dict[str, Dict],
+) -> Tuple[List[Dict], List[Dict]]:
+    """Build OID updates only for rows where OID attribute exists but is empty."""
+    reserved: Dict[str, bool] = {}
+    updates: List[Dict] = []
+    assigned: List[Dict] = []
+    for item in items:
+        object_id = item.get("objectId") or item.get("id")
+        if not object_id:
+            continue
+        data = item.get("data") if isinstance(item.get("data"), dict) else {}
+        if "OID" not in data:
+            continue
+        oid_raw = str(data.get("OID") or "").strip()
+        if oid_raw:
+            continue
+        schema = item.get("schema") or ""
+        oid = next_oid(company_prefix, schema, known_oids, reserved)
+        updates.append(
+            {
+                "objectId": object_id,
+                "mode": "merge",
+                "data": {"OID": oid},
+            }
+        )
+        assigned.append({"objectId": object_id, "OID": oid})
+    return updates, assigned
