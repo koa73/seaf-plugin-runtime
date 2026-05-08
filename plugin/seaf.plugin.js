@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.1
+ * Runtime script version: 0.5.2
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -3337,7 +3337,35 @@ Draw.loadPlugin(function(ui)
 		writeLog('info', 'showDataDialog router installed', {});
 	}
 
-	function buildPayload(command)
+	function buildContextObjectPayload(cell)
+	{
+		var graph = ui && ui.editor ? ui.editor.graph : null;
+		if (!graph || cell == null)
+		{
+			return null;
+		}
+		var geometry = null;
+		try
+		{
+			geometry = graph.getCellGeometry(cell);
+		}
+		catch (e)
+		{
+			geometry = null;
+		}
+		return {
+			id: cell.id || null,
+			objectId: cell.id || null,
+			isVertex: graph.model.isVertex(cell),
+			isEdge: graph.model.isEdge(cell),
+			label: graph.convertValueToString(cell),
+			style: sanitizeForIpc(graph.getCellStyle(cell)),
+			geometry: buildGeometryPayload(geometry),
+			data: extractEditableDataFromCell(cell, graph)
+		};
+	}
+
+	function buildPayload(command, sourceCell)
 	{
 		var inputCfg = command.input || {};
 		var payload = {
@@ -3376,6 +3404,13 @@ Draw.loadPlugin(function(ui)
 					payload.arguments[envKey] = state.envConfig.env[envKey];
 				}
 			}
+		}
+
+		var contextCell = sourceCell || state.contextMenuLastCell || null;
+		var contextObject = buildContextObjectPayload(contextCell);
+		if (contextObject != null)
+		{
+			payload.contextObject = contextObject;
 		}
 
 		return payload;
@@ -4353,12 +4388,6 @@ Draw.loadPlugin(function(ui)
 			}
 			var objectId = (typeof args.objectId === 'string') ? args.objectId.trim() : '';
 			var pageId = (typeof args.targetPageId === 'string') ? args.targetPageId.trim() : '';
-			var pageTitle = (typeof args.targetPageTitle === 'string') ? args.targetPageTitle.trim() : '';
-			if (!pageId && pageTitle)
-			{
-				var page = findPageByName(pageTitle);
-				pageId = (page && typeof page.getId === 'function') ? String(page.getId() || '').trim() : '';
-			}
 			if (!objectId || !pageId)
 			{
 				return {status: 'skipped', reason: 'missing_target'};
@@ -4742,6 +4771,106 @@ Draw.loadPlugin(function(ui)
 		return null;
 	}
 
+	function findLastUiCommandResult(collected, commandName)
+	{
+		if (!Array.isArray(collected) || typeof commandName !== 'string' || commandName.trim().length === 0)
+		{
+			return null;
+		}
+		for (var i = collected.length - 1; i >= 0; i--)
+		{
+			var row = collected[i];
+			if (row && row.name === commandName)
+			{
+				return row.value || null;
+			}
+		}
+		return null;
+	}
+
+	function enrichUiCommandBeforeRun(cmd, collected)
+	{
+		if (!cmd || typeof cmd !== 'object')
+		{
+			return cmd;
+		}
+		if (cmd.name !== 'setCellLinkToPage')
+		{
+			return cmd;
+		}
+		var args = (cmd.args && typeof cmd.args === 'object') ? cmd.args : {};
+		var targetPageId = (typeof args.targetPageId === 'string') ? args.targetPageId.trim() : '';
+		if (targetPageId.length > 0)
+		{
+			return cmd;
+		}
+		var createResult = findLastUiCommandResult(collected, 'createPage');
+		var createdPageId = (createResult && typeof createResult.pageId === 'string') ? createResult.pageId.trim() : '';
+		if (createdPageId.length === 0)
+		{
+			return cmd;
+		}
+		var nextArgs = mxUtils.clone(args);
+		nextArgs.targetPageId = createdPageId;
+		if (Object.prototype.hasOwnProperty.call(nextArgs, 'targetPageTitle'))
+		{
+			delete nextArgs.targetPageTitle;
+		}
+		return {
+			name: cmd.name,
+			args: nextArgs
+		};
+	}
+
+	function validateSeafAddPageUiResults(result)
+	{
+		if (result == null || !Array.isArray(result.commands))
+		{
+			return;
+		}
+		var hasCreate = false;
+		var hasLink = false;
+		for (var i = 0; i < result.commands.length; i++)
+		{
+			var name = result.commands[i] && result.commands[i].name;
+			hasCreate = hasCreate || name === 'createPage';
+			hasLink = hasLink || name === 'setCellLinkToPage';
+		}
+		if (!hasCreate || !hasLink)
+		{
+			return;
+		}
+		var rows = (result.payload && Array.isArray(result.payload.uiCommandResults)) ? result.payload.uiCommandResults : [];
+		var createValue = findLastUiCommandResult(rows, 'createPage');
+		var createStatus = (createValue && typeof createValue.status === 'string') ? createValue.status : '';
+		var createPageId = (createValue && typeof createValue.pageId === 'string') ? createValue.pageId.trim() : '';
+		if ((createStatus !== 'created' && createStatus !== 'existing') || createPageId.length === 0)
+		{
+			result.status = 'error';
+			result.message = 'Создание страницы не вернуло валидный pageId; привязка ссылки отменена.';
+			if (!Array.isArray(result.errors))
+			{
+				result.errors = [];
+			}
+			result.errors.push('create_page_result_invalid');
+			return;
+		}
+		var linkValue = findLastUiCommandResult(rows, 'setCellLinkToPage');
+		var linkStatus = (linkValue && typeof linkValue.status === 'string') ? linkValue.status : '';
+		if (linkStatus !== 'updated')
+		{
+			var reason = (linkValue && typeof linkValue.reason === 'string' && linkValue.reason.trim().length > 0) ?
+				linkValue.reason.trim() : 'unknown';
+			result.status = 'error';
+			result.message = 'Не удалось установить ссылку на страницу: ' + reason;
+			if (!Array.isArray(result.errors))
+			{
+				result.errors = [];
+			}
+			result.errors.push('set_cell_link_failed');
+		}
+	}
+
 	function executeInteractiveCommands(result)
 	{
 		if (result == null || !Array.isArray(result.commands))
@@ -4751,7 +4880,8 @@ Draw.loadPlugin(function(ui)
 		var collected = [];
 		for (var i = 0; i < result.commands.length; i++)
 		{
-			var commandResult = runUiCommand(result.commands[i]);
+			var prepared = enrichUiCommandBeforeRun(result.commands[i], collected);
+			var commandResult = runUiCommand(prepared);
 			if (commandResult != null)
 			{
 				collected.push(commandResult);
@@ -4765,6 +4895,7 @@ Draw.loadPlugin(function(ui)
 			}
 			result.payload.uiCommandResults = collected;
 		}
+		validateSeafAddPageUiResults(result);
 		return collected;
 	}
 
@@ -4994,7 +5125,7 @@ Draw.loadPlugin(function(ui)
 		}
 	}
 
-	async function executeCommand(command, source)
+	async function executeCommand(command, source, sourceCell)
 	{
 		if (command && command.clientAction === 'editConfig')
 		{
@@ -5008,7 +5139,7 @@ Draw.loadPlugin(function(ui)
 			return;
 		}
 
-		var payload = buildPayload(command);
+		var payload = buildPayload(command, sourceCell || null);
 		payload.source = source;
 		var indicatorCfg = getIndicatorConfig(command);
 
@@ -5642,7 +5773,9 @@ Draw.loadPlugin(function(ui)
 				{
 					ui.actions.addAction(command.id, function()
 					{
-						executeCommand(command, 'menu');
+						var graph = ui && ui.editor ? ui.editor.graph : null;
+						var sourceCell = graph ? (graph.getSelectionCell() || state.contextMenuLastCell || null) : null;
+						executeCommand(command, 'menu', sourceCell);
 					});
 				}
 			})(commands[i]);

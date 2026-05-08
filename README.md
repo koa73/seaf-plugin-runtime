@@ -168,13 +168,16 @@
 ## Context menu: Create Page
 
 - Контекстная команда `Создать страницу` выполняется Python-скриптом `python/scripts/context_menu/add_page.py`.
-- Имя новой страницы берется из `selection[0].data.title`; перед созданием выполняются проверки:
+- Источник стенсила берется приоритетно из `payload.contextObject` (snapshot RMB-клика), fallback — `payload.selection[0]`.
+- Имя новой страницы берется из `contextObject.data.title` (fallback `selection[0].data.title`); перед созданием выполняются проверки:
   - `title` не пустой;
   - в `payload.pages` нет страницы с тем же именем.
 - После успешного создания страницы скрипт возвращает UI-команды:
   - `createPage` (штатный draw.io `ui.createPage` + `ui.insertPage`);
   - `setCellLinkToPage` (устанавливает `data:page/id,<id>` в исходный стенсил через `graph.setLinkForCell`).
 - `createPage` выполняется с `selectCreated=false`, чтобы линк в исходном стенсиле ставился в стабильном контексте текущей страницы.
+- `setCellLinkToPage` исполняется только с валидным `targetPageId` (полученным из результата `createPage` в `uiCommandResults`), без fallback-поиска страницы по title.
+- Если `createPage` не вернул `pageId` или `setCellLinkToPage` завершился не `updated` (`missing_target`/`cell_not_found`), сценарий считается ошибкой, а не silent-skip.
 - Скрипт не отправляет отдельные `showMessage` для `success/error`; пользовательские сообщения отображаются единообразно через общий runtime-обработчик статуса команды.
 
 ## Interactive terminal command

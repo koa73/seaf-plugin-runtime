@@ -140,14 +140,15 @@ Runtime передает значения редактируемой конфи�
 | `updateStencilDataBulk` | `{ "pageId": "...", "updates": [{"objectId":"...","mode":"merge|replace","data":{...}}] }` | Пакетно обновляет данные объектов в одной транзакции. |
 | `ensureLayer` | `{ "pageId": "...", "layerName": "...", "makeVisible": true }` | Находит или создает слой по имени и делает его видимым. |
 | `moveObjectsToLayer` | `{ "pageId": "...", "layerName": "...", "objectIds": ["id1"], "makeVisible": true }` | Находит/создает слой и переносит указанные объекты в него через `graph.moveCells(...)`. |
-| `createPage` | `{ "title": "...", "selectCreated": true }` | Создает страницу через штатные API draw.io (`ui.createPage` + `ui.insertPage`) с заданным именем. |
-| `setCellLinkToPage` | `{ "objectId": "...", "targetPageTitle": "..." }` | Устанавливает ссылку `data:page/id,<pageId>` в выбранный объект через `graph.setLinkForCell(...)`. |
+| `createPage` | `{ "title": "...", "selectCreated": false }` | Создает страницу через штатные API draw.io (`ui.createPage` + `ui.insertPage`) с заданным именем; для сценария add-page рекомендуется `selectCreated=false`. |
+| `setCellLinkToPage` | `{ "objectId": "...", "targetPageId": "..." }` | Устанавливает ссылку `data:page/id,<pageId>` в выбранный объект через `graph.setLinkForCell(...)`; `targetPageId` должен быть валидным. |
 
 ### Результат UI-команд
 
 - Renderer агрегирует возвращаемые значения UI-команд в `result.payload.uiCommandResults`.
 - Для `ensureLayer` возвращается объект вида:
   - `{ "status": "created|existing", "layerId": "...", "layerName": "..." }`.
+- Для сценария `createPage -> setCellLinkToPage` runtime валидирует `uiCommandResults`: если `createPage` не вернул `pageId` или link-команда вернула `status!=updated`, весь сценарий переводится в `status=error`.
 
 ## 3) Разбор вашего примера `Response` (ошибка) и как поля используются
 
