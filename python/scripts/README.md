@@ -142,7 +142,7 @@ Runtime передает значения редактируемой конфи�
 | `moveObjectsToLayer` | `{ "pageId": "...", "layerName": "...", "objectIds": ["id1"], "makeVisible": true }` | Находит/создает слой и переносит указанные объекты в него через `graph.moveCells(...)`. |
 | `createPage` | `{ "title": "...", "selectCreated": false }` | Создает страницу через штатные API draw.io (`ui.createPage` + `ui.insertPage`) с заданным именем; для сценария add-page рекомендуется `selectCreated=false`. |
 | `setCellLinkToPage` | `{ "objectId": "...", "targetPageId": "..." }` | Устанавливает ссылку `data:page/id,<pageId>` в выбранный объект через `graph.setLinkForCell(...)`; `targetPageId` должен быть валидным. |
-| `insertStencilFromP41ByTitle` | `{ "pageId": "...", "mirrorTitle": "...", "x": 20, "y": 20 }` | Ищет элемент в библиотеке `SEAF_Р41` по `title` и вставляет его на страницу; возвращает `status` и `objectId`. |
+| `insertStencilFromP41ByTitle` | `{ "pageId": "...", "mirrorTitle": "...", "x": 20, "y": 20, "sourceSchema": "..." }` | Ищет элемент в библиотеке `SEAF_Р41` по `title`, вставляет группу на страницу; в `objectId` возвращает первую вставленную ячейку, у которой `schema` совпадает с `sourceSchema` (для последующего `updateStencilDataBulk`). Если такой ячейки нет — `status: error`, `reason: mirror_not_found`. |
 
 ### Результат UI-команд
 

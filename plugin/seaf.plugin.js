@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.11
+ * Runtime script version: 0.5.13
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -4920,7 +4920,7 @@ Draw.loadPlugin(function(ui)
 						seenPrefer[cPrefer.id] = true;
 						var mPrefer = extractShapeSchema(cPrefer, graph);
 						var sPrefer = (mPrefer && typeof mPrefer.schema === 'string') ? mPrefer.schema.trim() : '';
-						if (sPrefer.length > 0 && sPrefer !== sourceSchema)
+						if (sPrefer.length > 0 && sPrefer === sourceSchema)
 						{
 							prefer = cPrefer;
 							preferSchema = mPrefer;
@@ -4940,34 +4940,20 @@ Draw.loadPlugin(function(ui)
 						primary = prefer;
 						primarySchema = preferSchema;
 					}
-				}
-				if (!primarySchema || !primarySchema.schema)
-				{
-					var seenIds = {};
-					var queue = inserted.slice();
-					while (queue.length > 0)
+					else
 					{
-						var cell = queue.shift();
-						if (!cell || !cell.id || seenIds[cell.id] === true)
-						{
-							continue;
-						}
-						seenIds[cell.id] = true;
-						var info = extractShapeSchema(cell, graph);
-						if (info && typeof info.schema === 'string' && info.schema.trim().length > 0)
-						{
-							primary = cell;
-							primarySchema = info;
-							break;
-						}
-						if (graph.model && typeof graph.model.getChildCount === 'function' && typeof graph.model.getChildAt === 'function')
-						{
-							var cc = graph.model.getChildCount(cell);
-							for (var ci = 0; ci < cc; ci++)
-							{
-								queue.push(graph.model.getChildAt(cell, ci));
-							}
-						}
+						writeLog('error', 'Mirror primary with sourceSchema not found', {
+							mirrorTitle: mirrorTitle,
+							pageId: pageId,
+							sourceObjectId: args.sourceObjectId || null,
+							sourceSchema: sourceSchema
+						});
+						return {
+							status: 'error',
+							reason: 'mirror_not_found',
+							mirrorTitle: mirrorTitle,
+							pageId: pageId
+						};
 					}
 				}
 				if ((!primarySchema || typeof primarySchema.schema !== 'string' || primarySchema.schema.trim().length === 0) &&
