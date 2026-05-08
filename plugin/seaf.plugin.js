@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.5
+ * Runtime script version: 0.5.6
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -33,6 +33,7 @@ Draw.loadPlugin(function(ui)
 		stencilModelListenerInstalled: false,
 		stencilEventDispatchInFlight: false,
 		pendingStencilBatches: [],
+		stencilEventsSuppressedDepth: 0,
 		editDataSessionActive: false,
 		editDataBeforeByCell: {},
 		editDataDialogRouterInstalled: false,
@@ -2721,6 +2722,14 @@ Draw.loadPlugin(function(ui)
 		}
 		var edit = evt && typeof evt.getProperty === 'function' ? evt.getProperty('edit') : null;
 		var changes = edit && Array.isArray(edit.changes) ? edit.changes : [];
+		if (state.stencilEventsSuppressedDepth > 0)
+		{
+			writeLog('debug', 'Stencil model change ignored due to suppression flag', {
+				changes: changes.length,
+				suppressedDepth: state.stencilEventsSuppressedDepth
+			});
+			return result;
+		}
 		writeLog('debug', 'Stencil model change detected', {
 			changes: changes.length,
 			editDataSessionActive: state.editDataSessionActive === true
@@ -2853,6 +2862,19 @@ Draw.loadPlugin(function(ui)
 		{
 			mxResources.parse('seafEditDataLockTooltip=Поле защищено data_lock и недоступно для изменения или удаления');
 			mxResources.parse('seafEditDataLockedAddAlert=Имя свойства защищено data_lock и не может быть добавлено');
+		}
+	}
+
+	function runWithStencilEventsSuppressed(fn)
+	{
+		state.stencilEventsSuppressedDepth += 1;
+		try
+		{
+			return fn();
+		}
+		finally
+		{
+			state.stencilEventsSuppressedDepth = Math.max(0, state.stencilEventsSuppressedDepth - 1);
 		}
 	}
 
@@ -4567,7 +4589,18 @@ Draw.loadPlugin(function(ui)
 				}
 				var x = Number.isFinite(args.x) ? Number(args.x) : 20;
 				var y = Number.isFinite(args.y) ? Number(args.y) : 20;
-				var inserted = graph.importCells(cells, x, y, graph.getDefaultParent());
+				var inserted = null;
+				if (args.suppressStencilEvents === true)
+				{
+					inserted = runWithStencilEventsSuppressed(function()
+					{
+						return graph.importCells(cells, x, y, graph.getDefaultParent());
+					});
+				}
+				else
+				{
+					inserted = graph.importCells(cells, x, y, graph.getDefaultParent());
+				}
 				if (!Array.isArray(inserted) || inserted.length === 0)
 				{
 					return {status: 'error', reason: 'insert_failed', mirrorTitle: mirrorTitle, pageId: pageId};
@@ -4581,21 +4614,50 @@ Draw.loadPlugin(function(ui)
 						break;
 					}
 				}
+				var primarySchema = extractShapeSchema(primary, graph);
+				if (!primarySchema || !primarySchema.schema)
+				{
+					var seenIds = {};
+					var queue = inserted.slice();
+					while (queue.length > 0)
+					{
+						var cell = queue.shift();
+						if (!cell || !cell.id || seenIds[cell.id] === true)
+						{
+							continue;
+						}
+						seenIds[cell.id] = true;
+						var info = extractShapeSchema(cell, graph);
+						if (info && typeof info.schema === 'string' && info.schema.trim().length > 0)
+						{
+							primary = cell;
+							primarySchema = info;
+							break;
+						}
+						if (graph.model && typeof graph.model.getChildCount === 'function' && typeof graph.model.getChildAt === 'function')
+						{
+							var cc = graph.model.getChildCount(cell);
+							for (var ci = 0; ci < cc; ci++)
+							{
+								queue.push(graph.model.getChildAt(cell, ci));
+							}
+						}
+					}
+				}
 				graph.setSelectionCells(inserted);
 				graph.refresh();
-				var schema = extractShapeSchema(primary, graph);
 				writeLog('debug', 'Mirror stencil inserted', {
 					mirrorTitle: mirrorTitle,
 					pageId: pageId,
 					objectId: primary && primary.id ? primary.id : null,
-					schema: schema || null
+					schema: primarySchema || null
 				});
 				return {
 					status: 'inserted',
 					mirrorTitle: mirrorTitle,
 					pageId: pageId,
 					objectId: primary && primary.id ? primary.id : null,
-					schema: schema || null,
+					schema: primarySchema || null,
 					insertedCount: inserted.length
 				};
 			}
@@ -4682,7 +4744,18 @@ Draw.loadPlugin(function(ui)
 					ui.selectPage(targetPage);
 					switchedPage = true;
 				}
-				var layerResult = ensureLayer(graph, layerName, args.makeVisible !== false);
+				var layerResult = null;
+				if (args.suppressStencilEvents === true)
+				{
+					layerResult = runWithStencilEventsSuppressed(function()
+					{
+						return ensureLayer(graph, layerName, args.makeVisible !== false);
+					});
+				}
+				else
+				{
+					layerResult = ensureLayer(graph, layerName, args.makeVisible !== false);
+				}
 				var targetLayer = findLayerByName(graph, layerName);
 				if (!targetLayer)
 				{
@@ -4691,7 +4764,17 @@ Draw.loadPlugin(function(ui)
 				var cells = resolveMoveTargetsByObjectIds(graph, args.objectIds || []);
 				if (cells.length > 0)
 				{
-					graph.moveCells(cells, 0, 0, false, targetLayer);
+					if (args.suppressStencilEvents === true)
+					{
+						runWithStencilEventsSuppressed(function()
+						{
+							graph.moveCells(cells, 0, 0, false, targetLayer);
+						});
+					}
+					else
+					{
+						graph.moveCells(cells, 0, 0, false, targetLayer);
+					}
 					graph.refresh();
 				}
 				return {
@@ -4794,39 +4877,50 @@ Draw.loadPlugin(function(ui)
 					ui.selectPage(targetPage);
 					switchedPage = true;
 				}
-				graph.getModel().beginUpdate();
-				try
+				var applyBulk = function()
 				{
-					for (var i = 0; i < updates.length; i++)
+					graph.getModel().beginUpdate();
+					try
 					{
-						var row = updates[i] || {};
-						var objectId = typeof row.objectId === 'string' ? row.objectId.trim() : '';
-						var patchData = (row.data && typeof row.data === 'object' && !Array.isArray(row.data)) ? row.data : null;
-						var mode = (typeof row.mode === 'string' && row.mode.trim().length > 0) ? row.mode.trim().toLowerCase() : 'merge';
-						if (!objectId || patchData == null)
+						for (var i = 0; i < updates.length; i++)
 						{
-							skipped += 1;
-							continue;
-						}
-						var cell = resolveCellForUpdate(graph, objectId);
-						if (!cell)
-						{
-							skipped += 1;
-							continue;
-						}
-						if (applyDataUpdateToCell(graph, cell, patchData, mode === 'replace' ? 'replace' : 'merge', false))
-						{
-							updated += 1;
-						}
-						else
-						{
-							skipped += 1;
+							var row = updates[i] || {};
+							var objectId = typeof row.objectId === 'string' ? row.objectId.trim() : '';
+							var patchData = (row.data && typeof row.data === 'object' && !Array.isArray(row.data)) ? row.data : null;
+							var mode = (typeof row.mode === 'string' && row.mode.trim().length > 0) ? row.mode.trim().toLowerCase() : 'merge';
+							if (!objectId || patchData == null)
+							{
+								skipped += 1;
+								continue;
+							}
+							var cell = resolveCellForUpdate(graph, objectId);
+							if (!cell)
+							{
+								skipped += 1;
+								continue;
+							}
+							if (applyDataUpdateToCell(graph, cell, patchData, mode === 'replace' ? 'replace' : 'merge', false))
+							{
+								updated += 1;
+							}
+							else
+							{
+								skipped += 1;
+							}
 						}
 					}
-				}
-				finally
+					finally
+					{
+						graph.getModel().endUpdate();
+					}
+				};
+				if (args.suppressStencilEvents === true)
 				{
-					graph.getModel().endUpdate();
+					runWithStencilEventsSuppressed(applyBulk);
+				}
+				else
+				{
+					applyBulk();
 				}
 				graph.refresh();
 			}

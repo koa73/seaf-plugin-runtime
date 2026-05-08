@@ -77,6 +77,7 @@ def main() -> int:
                         "mirrorTitle": mirror_title,
                         "x": 20,
                         "y": 20,
+                        "suppressStencilEvents": True,
                         "sourceObjectId": object_id,
                         "sourceSchema": source_schema,
                     },
@@ -85,6 +86,7 @@ def main() -> int:
                     "name": "updateStencilDataBulk",
                     "args": {
                         "pageIdFrom": "createPage",
+                        "suppressStencilEvents": True,
                         "updates": [
                             {
                                 "objectIdFrom": "insertStencilFromP41ByTitle",
@@ -99,6 +101,7 @@ def main() -> int:
                     "args": {
                         "pageIdFrom": "createPage",
                         "objectIdsFrom": "insertStencilFromP41ByTitle",
+                        "suppressStencilEvents": True,
                         "layerFromInsertedSchema": True,
                         "makeVisible": True,
                     },
