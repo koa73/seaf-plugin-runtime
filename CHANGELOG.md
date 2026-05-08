@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.14
+
+- Restored final `assignEmptyOidOnPage` step in `seafAddPage` flow (`context_menu/add_page.py`): on the created page, all objects that have an `OID` attribute with an empty value receive calculated OIDs via the same generator as `all_add` (`companyPrefix` + `schemaCode` + sequence).
+
 ## 0.5.13
 
 - Fixed `insertStencilFromP41ByTitle` primary selection: the cell that receives parent `source_data` is now the first inserted descendant whose `schema` equals `sourceSchema` (not the first cell with a different schema). If no such cell exists, the command returns `reason: 'mirror_not_found'` and `validateSeafAddPageUiResults` surfaces the existing UX message «Не возможно добавить элемент <mirror> на страницу».

@@ -13,7 +13,7 @@ from lib.diagram.stencil_service import (
     get_context_object,
     get_primary_selection,
 )
-from lib.events import resolve_layer_for_schema
+from lib.events import resolve_company_prefix, resolve_layer_for_schema
 from lib.io import get_payload, read_request, write_response
 
 
@@ -135,6 +135,16 @@ def main() -> int:
                 },
             ]
         )
+    commands.append(
+        {
+            "name": "assignEmptyOidOnPage",
+            "args": {
+                "pageIdFrom": "createPage",
+                "companyPrefix": resolve_company_prefix(payload),
+                "suppressStencilEvents": True,
+            },
+        }
+    )
     return write_response(
         status="success",
         message=f"Страница '{title}' создана и ссылка установлена",
