@@ -155,6 +155,7 @@ Runtime передает значения редактируемой конфи�
   - `updateStencilDataBulk.updated >= 1`;
   - `moveObjectsToLayer.moved >= 1`.
 - При нарушении любого из условий сценарий переводится в `status=error`.
+- Layer-routing для `events/all_add.py` и `context_menu/add_page.py` унифицирован в Python helper `lib/events/layer_routing.py`; `add_page.py` передает в `moveObjectsToLayer` уже вычисленный `layerName` (без JS-резолва `schema -> layer`).
 
 ## 3) Разбор вашего примера `Response` (ошибка) и как поля используются
 

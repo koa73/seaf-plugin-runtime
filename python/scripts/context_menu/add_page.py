@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from lib.config.stencil_mirror_library import resolve_mirror_schema_by_title
 from lib.config.stencil_mirror import load_stencil_mirror_config, resolve_mirror_title
 from lib.diagram.link_service import build_create_page_command, build_link_to_page_command
 from lib.diagram.page_service import find_page_by_name, list_pages, normalize_page_name
@@ -12,6 +13,7 @@ from lib.diagram.stencil_service import (
     get_context_object,
     get_primary_selection,
 )
+from lib.events import resolve_layer_for_schema
 from lib.io import get_payload, read_request, write_response
 
 
@@ -68,6 +70,31 @@ def main() -> int:
     mirror_config = load_stencil_mirror_config()
     mirror_title = resolve_mirror_title(source_schema, mirror_config)
     if mirror_title:
+        mirror_schema = resolve_mirror_schema_by_title(mirror_title)
+        if not mirror_schema:
+            return write_response(
+                status="error",
+                message=f"Не возможно добавить элемент {mirror_title} на страницу",
+                payload={"objectId": object_id, "pageName": title, "mirrorTitle": mirror_title},
+                commands=[],
+                errors=["mirror_schema_not_found"],
+                exit_code=0,
+            )
+        layer_name, _ = resolve_layer_for_schema(mirror_schema)
+        if not layer_name:
+            return write_response(
+                status="error",
+                message=f"Не возможно добавить элемент {mirror_title} на страницу",
+                payload={
+                    "objectId": object_id,
+                    "pageName": title,
+                    "mirrorTitle": mirror_title,
+                    "mirrorSchema": mirror_schema,
+                },
+                commands=[],
+                errors=["mirror_layer_not_found"],
+                exit_code=0,
+            )
         commands.extend(
             [
                 {
@@ -102,7 +129,7 @@ def main() -> int:
                         "pageIdFrom": "createPage",
                         "objectIdsFrom": "insertStencilFromP41ByTitle",
                         "suppressStencilEvents": True,
-                        "layerFromInsertedSchema": True,
+                        "layerName": layer_name,
                         "makeVisible": True,
                     },
                 },

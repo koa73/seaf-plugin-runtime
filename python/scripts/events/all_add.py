@@ -3,11 +3,10 @@
 
 from typing import Any, Callable, Dict, List, Tuple
 
-from lib.config import load_stencil_layer_config, resolve_layer_name
 from lib.io import read_request, write_response
 from lib.events import (
+    build_layer_commands_for_items,
     build_collision_message,
-    build_move_objects_to_layer_command,
     build_update_stencil_data_bulk_command,
     log_event_items,
     resolve_company_prefix,
@@ -50,35 +49,7 @@ def create_layer_commands(payload: Dict, log_info: Callable[[Dict], None]) -> Li
     page = event.get("page") or {}
     page_id = page.get("id")
     items = event.get("items") or []
-    layer_config = load_stencil_layer_config()
-
-    grouped: Dict[str, List[str]] = {}
-    for item in items:
-        object_id = str(item.get("objectId") or item.get("id") or "").strip()
-        if not object_id:
-            continue
-        schema = str(item.get("schema") or (item.get("data") or {}).get("schema") or "").strip()
-        if not schema:
-            log_info({"handler": "all_add", "action": "layer_skip_schema_missing", "objectId": object_id})
-            continue
-        layer_name, has_multiple = resolve_layer_name(schema, layer_config)
-        if has_multiple:
-            log_info(
-                {
-                    "handler": "all_add",
-                    "action": "layer_config_multiple_values",
-                    "schema": schema,
-                    "selectedLayer": layer_name,
-                }
-            )
-        if not layer_name:
-            continue
-        grouped.setdefault(layer_name, []).append(object_id)
-
-    commands: List[Dict] = []
-    for layer_name, object_ids in grouped.items():
-        commands.append(build_move_objects_to_layer_command(page_id, layer_name, object_ids))
-    return commands
+    return build_layer_commands_for_items(page_id, items, log_info, "all_add")
 
 
 def build_commands(payload: Dict, log_info: Callable[[Dict], None] = lambda _payload: None) -> List[Dict]:

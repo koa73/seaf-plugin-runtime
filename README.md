@@ -182,7 +182,8 @@
 - После успешной связки `createPage + setCellLinkToPage` runtime переключается на созданную страницу и добавляет mirror-элемент из библиотеки `SEAF_Р41`, если для `sourceSchema` в `conf/stencils/config.yaml` задан `schemas.<schema>.mirror`.
 - Вставка mirror выполняется новой UI-командой `insertStencilFromP41ByTitle` (по `mirrorTitle`, позиция top-left), далее выполняются:
   - `updateStencilDataBulk` (полный copy-all данных source-объекта в новый mirror-объект);
-  - `moveObjectsToLayer` (layer-routing по schema вставленного mirror-объекта, как в `all_add`).
+  - `moveObjectsToLayer` (с заранее вычисленным `layerName` из общего Python helper `lib/events/layer_routing.py`, который также используется в `all_add`).
+- Для mirror используется Python lookup `title -> schema` по библиотеке `conf/stencils/Р41.xml`; если schema или layer не резолвятся, `add_page.py` возвращает `status=error` и не отправляет `moveObjectsToLayer` с пустым `layerName`.
 - Если `mirror` не найден в библиотеке `SEAF_Р41` или вставка/синхронизация/назначение слоя завершились неуспешно, сценарий переводится в `status=error`.
 - Пользовательское сообщение для ошибки вставки mirror: `Не возможно добавить элемент <mirror> на страницу`; расширенная диагностика (`mirrorTitle`, `sourceObjectId`, `sourceSchema`, `pageId`, `reason/error`) пишется в `seaf-plugin.log`.
 - Скрипт не отправляет отдельные `showMessage` для `success/error`; пользовательские сообщения отображаются единообразно через общий runtime-обработчик статуса команды.

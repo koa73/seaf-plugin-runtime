@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.9
+ * Runtime script version: 0.5.10
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -5296,25 +5296,19 @@ Draw.loadPlugin(function(ui)
 
 		if (commandName === 'moveObjectsToLayer' && args.layerFromInsertedSchema === true)
 		{
-			var insertResult = findLastUiCommandResult(collected, 'insertStencilFromP41ByTitle');
-			var insertedSchema = normalizeSchemaKey(insertResult ? insertResult.schema : '');
-			var resolvedLayer = getLayerNameForSchema(insertedSchema);
-			if (resolvedLayer.length > 0)
-			{
-				args.layerName = resolvedLayer;
-				changed = true;
-			}
-			else
-			{
-				// Keep safety check and explicit fallback to avoid creating layer with empty name.
-				args.skipIfLayerMissing = true;
-				writeLog('warn', 'moveObjectsToLayer layer resolve failed from inserted schema', {
-					insertedSchema: insertedSchema,
-					insertResult: insertResult || null
-				});
-				changed = true;
-			}
+			// Backward-compatible cleanup only: layer resolution is handled by python handlers.
 			delete args.layerFromInsertedSchema;
+			changed = true;
+		}
+
+		if (commandName === 'moveObjectsToLayer')
+		{
+			var layerNameArg = (typeof args.layerName === 'string') ? args.layerName.trim() : '';
+			if (layerNameArg.length === 0)
+			{
+				args.skipIfLayerMissing = true;
+				changed = true;
+			}
 		}
 
 		if (commandName === 'updateStencilDataBulk' && Array.isArray(args.updates))
