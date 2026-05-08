@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.4
+ * Runtime script version: 0.5.5
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -697,18 +697,6 @@ Draw.loadPlugin(function(ui)
 			}
 		}
 		return String(value).trim();
-	}
-
-	function decodeHtmlEntities(text)
-	{
-		var raw = (typeof text === 'string') ? text : '';
-		if (raw.length === 0)
-		{
-			return '';
-		}
-		var node = document.createElement('textarea');
-		node.innerHTML = raw;
-		return node.value;
 	}
 
 	// Inline mini YAML parser tuned for stencils/config.yaml shape:
@@ -4565,8 +4553,9 @@ Draw.loadPlugin(function(ui)
 			try
 			{
 				var rawXml = (typeof item.xml === 'string') ? item.xml : '';
-				var decodedXml = decodeHtmlEntities(rawXml);
-				var source = (decodedXml.charAt(0) === '<') ? decodedXml : Graph.decompress(decodedXml);
+				// Keep library payload exactly as Sidebar does:
+				// item.xml may already contain valid mxGraph XML text; extra entity-decoding breaks attribute payload.
+				var source = (rawXml.charAt(0) === '<') ? rawXml : Graph.decompress(rawXml);
 				var cells = ui.stringToCells(source);
 				if (!Array.isArray(cells) || cells.length === 0)
 				{
