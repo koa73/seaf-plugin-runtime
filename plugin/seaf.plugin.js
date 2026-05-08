@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.8
+ * Runtime script version: 0.5.9
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -1207,9 +1207,30 @@ Draw.loadPlugin(function(ui)
 		return ['OID', 'schema'];
 	}
 
+	function normalizeSchemaKey(rawSchema)
+	{
+		if (typeof rawSchema === 'string')
+		{
+			return rawSchema.trim();
+		}
+		if (rawSchema != null && typeof rawSchema === 'object')
+		{
+			if (typeof rawSchema.schema === 'string')
+			{
+				return rawSchema.schema.trim();
+			}
+		}
+		return '';
+	}
+
 	function getLayerNameForSchema(schema)
 	{
-		var entry = getSchemaConfigEntry(schema);
+		var key = normalizeSchemaKey(schema);
+		if (key.length === 0)
+		{
+			return '';
+		}
+		var entry = getSchemaConfigEntry(key);
 		if (entry == null)
 		{
 			return '';
@@ -5276,7 +5297,7 @@ Draw.loadPlugin(function(ui)
 		if (commandName === 'moveObjectsToLayer' && args.layerFromInsertedSchema === true)
 		{
 			var insertResult = findLastUiCommandResult(collected, 'insertStencilFromP41ByTitle');
-			var insertedSchema = (insertResult && typeof insertResult.schema === 'string') ? insertResult.schema.trim() : '';
+			var insertedSchema = normalizeSchemaKey(insertResult ? insertResult.schema : '');
 			var resolvedLayer = getLayerNameForSchema(insertedSchema);
 			if (resolvedLayer.length > 0)
 			{
@@ -5285,7 +5306,12 @@ Draw.loadPlugin(function(ui)
 			}
 			else
 			{
+				// Keep safety check and explicit fallback to avoid creating layer with empty name.
 				args.skipIfLayerMissing = true;
+				writeLog('warn', 'moveObjectsToLayer layer resolve failed from inserted schema', {
+					insertedSchema: insertedSchema,
+					insertResult: insertResult || null
+				});
 				changed = true;
 			}
 			delete args.layerFromInsertedSchema;
