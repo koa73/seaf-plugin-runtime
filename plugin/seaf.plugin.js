@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.14
+ * Runtime script version: 0.5.15
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -2580,6 +2580,18 @@ Draw.loadPlugin(function(ui)
 				count: uiResults.length
 			});
 		}
+		if (result && result.status === 'error')
+		{
+			var errorMessage = (typeof result.message === 'string' && result.message.trim().length > 0) ?
+				result.message.trim() : 'stencil_event_handler_failed';
+			await writeLog('error', 'Stencil event handler returned error status', {
+				commandId: commandId.trim(),
+				eventType: eventPayload && eventPayload.eventType ? eventPayload.eventType : '',
+				ruleId: eventPayload && eventPayload.ruleId ? eventPayload.ruleId : '',
+				message: errorMessage
+			});
+			showError('stencil_event_processor: ' + errorMessage);
+		}
 		return response;
 	}
 
@@ -4445,6 +4457,56 @@ Draw.loadPlugin(function(ui)
 		return cells;
 	}
 
+	function collectCellsByCriteriaAcrossPages(criteria)
+	{
+		var graph = ui && ui.editor ? ui.editor.graph : null;
+		if (!graph || !ui || !Array.isArray(ui.pages))
+		{
+			return [];
+		}
+		var out = [];
+		var originalPage = ui.currentPage || null;
+		for (var i = 0; i < ui.pages.length; i++)
+		{
+			var page = ui.pages[i];
+			if (page == null)
+			{
+				continue;
+			}
+			try
+			{
+				if (originalPage !== page && typeof ui.selectPage === 'function')
+				{
+					ui.selectPage(page);
+				}
+				var cells = getCellsByCriteria(graph, criteria);
+				var pageId = (typeof page.getId === 'function') ? page.getId() : page.id;
+				var pageName = (typeof page.getName === 'function') ? page.getName() : page.name;
+				for (var j = 0; j < cells.length; j++)
+				{
+					if (!cells[j] || !cells[j].id)
+					{
+						continue;
+					}
+					out.push({
+						pageId: pageId || null,
+						pageName: pageName || '',
+						cell: cells[j]
+					});
+				}
+			}
+			catch (e)
+			{
+				// ignore page-level lookup errors and continue scanning remaining pages
+			}
+		}
+		if (originalPage != null && ui.currentPage !== originalPage && typeof ui.selectPage === 'function')
+		{
+			ui.selectPage(originalPage);
+		}
+		return out;
+	}
+
 	function detectOidConflicts(cells, graph, patchData)
 	{
 		var conflicts = [];
@@ -5343,6 +5405,172 @@ Draw.loadPlugin(function(ui)
 				dryRun: args.dryRun === true
 			});
 		},
+		mirrorDataByOidAtomic: function(args)
+		{
+			var graph = ui && ui.editor ? ui.editor.graph : null;
+			if (!graph || !args || typeof args !== 'object')
+			{
+				return {status: 'error', reason: 'invalid_args', failures: []};
+			}
+			var schema = (typeof args.schema === 'string') ? args.schema.trim() : '';
+			var oid = (typeof args.oid === 'string') ? args.oid.trim() : '';
+			var patchData = (args.patch && typeof args.patch === 'object' && !Array.isArray(args.patch)) ? mxUtils.clone(args.patch) : null;
+			if (schema.length === 0 || oid.length === 0 || patchData == null)
+			{
+				return {status: 'error', reason: 'invalid_payload', failures: [{pageName: 'unknown_page', oid: oid || 'unknown_oid', reason: 'invalid_payload'}]};
+			}
+			var excluded = Array.isArray(args.excludedFields) ? args.excludedFields : [];
+			for (var e = 0; e < excluded.length; e++)
+			{
+				var key = String(excluded[e] || '').trim();
+				if (key.length > 0 && Object.prototype.hasOwnProperty.call(patchData, key))
+				{
+					delete patchData[key];
+				}
+			}
+			if (Object.keys(patchData).length === 0)
+			{
+				return {status: 'success', updated: 0, skipped: 0, failures: []};
+			}
+			var targets = collectCellsByCriteriaAcrossPages({
+				schema: schema,
+				attributes: {OID: oid}
+			});
+			if (targets.length === 0)
+			{
+				return {status: 'error', reason: 'targets_not_found', failures: [{pageName: 'unknown_page', oid: oid, reason: 'targets_not_found'}]};
+			}
+			var snapshots = [];
+			var sources = [];
+			for (var i = 0; i < targets.length; i++)
+			{
+				var target = targets[i];
+				var currentData = extractEditableDataFromCell(target.cell, graph);
+				snapshots.push({
+					pageName: target.pageName || '',
+					oid: oid,
+					cell: target.cell,
+					data: currentData
+				});
+			}
+			var sourceRollbacks = Array.isArray(args.sourceRollbacks) ? args.sourceRollbacks : [];
+			for (var sr = 0; sr < sourceRollbacks.length; sr++)
+			{
+				var row = sourceRollbacks[sr];
+				if (!row || typeof row !== 'object')
+				{
+					continue;
+				}
+				var sourceObjectId = (typeof row.objectId === 'string') ? row.objectId.trim() : '';
+				var sourceBefore = (row.dataBefore && typeof row.dataBefore === 'object' && !Array.isArray(row.dataBefore)) ? row.dataBefore : null;
+				if (!sourceObjectId || sourceBefore == null)
+				{
+					continue;
+				}
+				var sourceCell = resolveCellForUpdate(graph, sourceObjectId);
+				if (!sourceCell)
+				{
+					continue;
+				}
+				sources.push({
+					cell: sourceCell,
+					dataBefore: mxUtils.clone(sourceBefore),
+					pageName: (typeof row.pageName === 'string') ? row.pageName : '',
+					oid: (typeof row.oid === 'string' && row.oid.trim().length > 0) ? row.oid.trim() : oid
+				});
+			}
+			var failures = [];
+			var updated = 0;
+			var applyAtomic = function()
+			{
+				graph.getModel().beginUpdate();
+				try
+				{
+					for (var j = 0; j < snapshots.length; j++)
+					{
+						var snap = snapshots[j];
+						if (!applyDataUpdateToCell(graph, snap.cell, patchData, 'merge', false))
+						{
+							failures.push({
+								pageName: snap.pageName || 'unknown_page',
+								oid: snap.oid || oid,
+								reason: 'apply_failed'
+							});
+							throw new Error('apply_failed');
+						}
+						updated += 1;
+					}
+				}
+				catch (applyErr)
+				{
+					for (var rb = 0; rb < snapshots.length; rb++)
+					{
+						var rollbackRow = snapshots[rb];
+						try
+						{
+							applyDataUpdateToCell(graph, rollbackRow.cell, rollbackRow.data || {}, 'replace', false);
+						}
+						catch (rollbackErr)
+						{
+							failures.push({
+								pageName: rollbackRow.pageName || 'unknown_page',
+								oid: rollbackRow.oid || oid,
+								reason: 'rollback_failed'
+							});
+						}
+					}
+					for (var sb = 0; sb < sources.length; sb++)
+					{
+						var src = sources[sb];
+						try
+						{
+							applyDataUpdateToCell(graph, src.cell, src.dataBefore || {}, 'replace', false);
+						}
+						catch (sourceRollbackErr)
+						{
+							failures.push({
+								pageName: src.pageName || 'unknown_page',
+								oid: src.oid || oid,
+								reason: 'source_rollback_failed'
+							});
+						}
+					}
+					throw applyErr;
+				}
+				finally
+				{
+					graph.getModel().endUpdate();
+				}
+			};
+			try
+			{
+				if (args.suppressStencilEvents === true)
+				{
+					runWithStencilEventsSuppressed(applyAtomic);
+				}
+				else
+				{
+					applyAtomic();
+				}
+				graph.refresh();
+				return {status: 'success', updated: updated, skipped: 0, failures: []};
+			}
+			catch (err)
+			{
+				graph.refresh();
+				if (failures.length === 0)
+				{
+					failures.push({pageName: 'unknown_page', oid: oid, reason: err && err.message ? err.message : 'unknown_error'});
+				}
+				return {
+					status: 'error',
+					reason: err && err.message ? err.message : 'mirror_failed',
+					updated: 0,
+					skipped: snapshots.length,
+					failures: failures
+				};
+			}
+		},
 		findBySchema: function(args)
 		{
 			var schema = args && typeof args.schema === 'string' ? args.schema.trim() : '';
@@ -5675,6 +5903,65 @@ Draw.loadPlugin(function(ui)
 		}
 	}
 
+	function validateDataMirrorUiResults(result)
+	{
+		if (result == null || result.payload == null || typeof result.payload !== 'object')
+		{
+			return;
+		}
+		if (result.payload.handler !== 'data_mirror')
+		{
+			return;
+		}
+		var rows = Array.isArray(result.payload.uiCommandResults) ? result.payload.uiCommandResults : [];
+		var failures = [];
+		for (var i = 0; i < rows.length; i++)
+		{
+			var row = rows[i];
+			if (!row || row.name !== 'mirrorDataByOidAtomic')
+			{
+				continue;
+			}
+			var value = (row.value && typeof row.value === 'object') ? row.value : {};
+			if (value.status === 'success')
+			{
+				continue;
+			}
+			var rowFailures = Array.isArray(value.failures) ? value.failures : [];
+			if (rowFailures.length === 0)
+			{
+				failures.push({pageName: 'unknown_page', oid: 'unknown_oid', reason: value.reason || 'mirror_failed'});
+				continue;
+			}
+			for (var j = 0; j < rowFailures.length; j++)
+			{
+				var failure = rowFailures[j];
+				failures.push({
+					pageName: failure && failure.pageName ? String(failure.pageName) : 'unknown_page',
+					oid: failure && failure.oid ? String(failure.oid) : 'unknown_oid',
+					reason: failure && failure.reason ? String(failure.reason) : 'mirror_failed'
+				});
+			}
+		}
+		if (failures.length === 0)
+		{
+			result.message = '';
+			return;
+		}
+		var lines = [];
+		for (var k = 0; k < failures.length; k++)
+		{
+			lines.push('[page=' + failures[k].pageName + '] [OID=' + failures[k].oid + '] ' + failures[k].reason);
+		}
+		result.status = 'error';
+		result.message = 'Синхронизация данных не выполнена:\n' + lines.join('\n');
+		if (!Array.isArray(result.errors))
+		{
+			result.errors = [];
+		}
+		result.errors.push('data_mirror_sync_failed');
+	}
+
 	function executeInteractiveCommands(result)
 	{
 		if (result == null || !Array.isArray(result.commands))
@@ -5700,6 +5987,7 @@ Draw.loadPlugin(function(ui)
 			result.payload.uiCommandResults = collected;
 		}
 		validateSeafAddPageUiResults(result);
+		validateDataMirrorUiResults(result);
 		return collected;
 	}
 

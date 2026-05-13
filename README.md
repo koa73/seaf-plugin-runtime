@@ -116,6 +116,9 @@
 - Auto-event processor подписывается на изменения модели и отправляет batch события `add/remove` для стенсилов из `events.yaml`.
 - `modify` обрабатывается только в сценарии `Edit Data -> Apply` и только при реальном изменении данных.
 - Маршрутизация событий идет по `rules` из `events.yaml` в рамках `listId` и `schema`-паттернов: приоритет `exact > wildcard > all`.
+- Для схем `seaf.company.ta.services.dcs` и `seaf.company.ta.services.dc_offices` `modify` маршрутизируется в `seafStencilDataMirrorModify` (`python/scripts/events/data_mirror.py`) для синхронизации по `schema+OID` на всех страницах текущей диаграммы.
+- Синхронизация `data_mirror` выполняется атомарной UI-командой `mirrorDataByOidAtomic` (`precheck -> snapshot -> apply -> rollback`) с `suppressStencilEvents=true`, чтобы исключить рекурсивный цикл modify-событий.
+- При ошибке синхронизации runtime возвращает `status=error`, пишет диагностику в лог и показывает пользователю только ошибку с деталями `pageName` и `OID`; success-уведомление не показывается.
 - `rule.schema` поддерживает 3 режима: точное значение (например `seaf.company.ta.services.dc_azs`), wildcard с `*` (например `seaf.company.ta.*`) и `all`.
 - `rule.execution` задает режим вызова handler: `sync` (ожидание ответа) или `async` (fire-and-forget с отдельным trace в логе).
 - Event payload для Python handlers обогащен полями `objectId`, `geometry(x,y,width,height)` и `data` (атрибуты объекта по модели `Edit Data`).

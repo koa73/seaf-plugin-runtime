@@ -18,11 +18,17 @@
 - `examples/events/*.py` — примеры batch-обработчиков событий стенсилов (`specific` и `all` для `add/remove/modify`).
 - подробная документация по event handlers: [`examples/events/README.md`](examples/events/README.md).
 - `events/all_add.py` — production orchestrator для `add`-событий: собирает контекст, вызывает OID-библиотеку и формирует `Response.commands[]`.
+- `events/data_mirror.py` — production orchestrator для `modify`-синхронизации `schema+OID` (схемы `dcs`/`dc_offices`) через атомарную runtime-команду.
 - `context_menu/add_page.py` — production handler для команды «Создать страницу»: валидирует `selection.data.title`, проверяет дубли имен страниц и возвращает `commands[]` для create page + установки link на исходный стенсил.
 - `lib/oid/*` — модульная библиотека генерации/валидации OID и поиска конфликтов.
 - `lib/diagram/*` — библиотека переиспользуемых helper-функций для context-menu сценариев создания страниц и установки page links.
 - `lib/events/*` — service helper-слой для event handlers (`SEAF_INFO/SEAF_ERROR` логирование, сообщения о коллизиях, резолв env/arguments параметров).
 - `lib/logging/*` — централизованный слой логирования runtime-скриптов (уровни и emit `SEAF_INFO/SEAF_ERROR`).
+
+Последовательность команд в `events/data_mirror.py`:
+1. Санитизация patch (`dataAfter` без `OID`/`schema`).
+2. Формирование `commands[].name=mirrorDataByOidAtomic` для каждой пары `schema+OID`.
+3. Runtime выполняет `precheck -> snapshot -> apply -> rollback` и при ошибке возвращает список проблем с `pageName` и `OID`.
 
 Последовательность команд в `events/all_add.py`:
 1. `updateStencilDataBulk` (пакетное обновление `data` стенсилов).
@@ -138,6 +144,7 @@ Runtime передает значения редактируемой конфи�
 | `selectCells` | `{ "cellIds": ["id1", "id2"] }` | Выделяет объекты по их `id` в диаграмме. |
 | `updateStencilData` | `{ "pageId": "...", "objectId": "...", "mode": "merge|replace", "data": {...} }` | Обновляет `data` объекта через встроенный путь draw.io (`model.setValue`). |
 | `updateStencilDataBulk` | `{ "pageId": "...", "updates": [{"objectId":"...","mode":"merge|replace","data":{...}}] }` | Пакетно обновляет данные объектов в одной транзакции. |
+| `mirrorDataByOidAtomic` | `{ "schema": "...", "oid": "...", "patch": {...}, "excludedFields": ["OID","schema"], "sourceRollbacks": [...], "suppressStencilEvents": true }` | Атомарно синхронизирует объекты с тем же `schema+OID` на всех страницах; при сбое откатывает изменения и возвращает `failures` с `pageName`/`OID`. |
 | `ensureLayer` | `{ "pageId": "...", "layerName": "...", "makeVisible": true }` | Находит или создает слой по имени и делает его видимым. |
 | `moveObjectsToLayer` | `{ "pageId": "...", "layerName": "...", "objectIds": ["id1"], "makeVisible": true }` | Находит/создает слой и переносит указанные объекты в него через `graph.moveCells(...)`. |
 | `createPage` | `{ "title": "...", "selectCreated": false }` | Создает страницу через штатные API draw.io (`ui.createPage` + `ui.insertPage`) с заданным именем; для сценария add-page рекомендуется `selectCreated=false`. |

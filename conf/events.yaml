@@ -14,6 +14,22 @@ rules:
       add: seafStencilAllAdd
       remove: seafStencilSpecificRemove
       modify: seafStencilSpecificModify
+  - id: exact_dcs_data_mirror
+    listId: SEAF_Р41
+    schema: "seaf.company.ta.services.dcs"
+    execution: sync
+    handlers:
+      add: seafStencilAllAdd
+      remove: seafStencilAllRemove
+      modify: seafStencilDataMirrorModify
+  - id: exact_dc_offices_data_mirror
+    listId: SEAF_Р41
+    schema: "seaf.company.ta.services.dc_offices"
+    execution: sync
+    handlers:
+      add: seafStencilAllAdd
+      remove: seafStencilAllRemove
+      modify: seafStencilDataMirrorModify
   - id: wildcard_ta_services
     listId: SEAF_Р41
     schema: "seaf.company.ta.*"
@@ -102,6 +118,19 @@ commands:
       context:
         enabled: false
     script: examples/events/all_modify.py
+    execution:
+      mode: sync
+      timeoutSec: 30
+    input:
+      includeDiagramXml: false
+  - id: seafStencilDataMirrorModify
+    title: SEAF Stencil Data Mirror Modify
+    menu:
+      main:
+        enabled: false
+      context:
+        enabled: false
+    script: events/data_mirror.py
     execution:
       mode: sync
       timeoutSec: 30

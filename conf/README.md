@@ -167,6 +167,16 @@ Compose-loader объединяет их в финальный `commands[]`.
 | `seafStencilAllAdd` | `events/all_add.py` |
 | `seafStencilAllRemove` | `examples/events/all_remove.py` |
 | `seafStencilAllModify` | `examples/events/all_modify.py` |
+| `seafStencilDataMirrorModify` | `events/data_mirror.py` |
+
+`seafStencilDataMirrorModify` применяется для `modify` по схемам:
+- `seaf.company.ta.services.dcs`
+- `seaf.company.ta.services.dc_offices`
+
+Логика handler:
+- синхронизация атрибутов по `schema+OID` на всех страницах текущей диаграммы;
+- служебные ключи `OID` и `schema` не переписываются;
+- успех не показывает popup, ошибка возвращает `status=error` c деталями `pageName` и `OID`.
 
 ---
 
