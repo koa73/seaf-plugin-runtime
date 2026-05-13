@@ -66,6 +66,8 @@ Event processor передает события в поле `REQUEST.payload.eve
 - `data` (атрибуты объекта по модели `Edit Data`)
 - `value`
 
+Для `reparent` дополнительно: `previousParentId`, `newParentId`, `previousLayerName`, `currentLayerName`, `targetParentLayerName` (целевой страничный слой для `moveLayerUnderLayer`).
+
 ### `items[]` для `modify`
 
 Дополнительно к полям выше:

@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.24
+ * Runtime script version: 0.5.25
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -3048,6 +3048,7 @@ Draw.loadPlugin(function(ui)
 							snapshot.previousParentId = change.previous && change.previous.id ? String(change.previous.id) : '';
 							snapshot.newParentId = change.parent && change.parent.id ? String(change.parent.id) : '';
 							snapshot.previousLayerName = getLayerDisplayNameForAncestorChain(graph, change.previous);
+							snapshot.targetParentLayerName = change.parent ? getLayerDisplayNameForAncestorChain(graph, change.parent) : '';
 						}
 						if (snapshot && snapshot.id)
 						{
@@ -4576,29 +4577,58 @@ Draw.loadPlugin(function(ui)
 		return true;
 	}
 
-	function findLayerByName(graph, layerName)
+	function findLayerCellByNameDeep(graph, layerName)
 	{
 		if (!graph || !graph.model || typeof layerName !== 'string' || layerName.trim().length === 0)
 		{
 			return null;
 		}
 		var model = graph.model;
-		var root = model.root;
+		var root = model.getRoot ? model.getRoot() : model.root;
 		var wanted = layerName.trim();
-		for (var i = 0; i < model.getChildCount(root); i++)
+		var stack = [];
+		var i;
+		for (i = 0; i < model.getChildCount(root); i++)
 		{
-			var candidate = model.getChildAt(root, i);
-			if (!candidate || (typeof model.isLayer === 'function' && !model.isLayer(candidate)))
+			var top = model.getChildAt(root, i);
+			if (top)
+			{
+				stack.push(top);
+			}
+		}
+		var guard = 0;
+		while (stack.length > 0 && guard < 5000)
+		{
+			guard++;
+			var cell = stack.pop();
+			if (!cell)
 			{
 				continue;
 			}
-			var name = graph.convertValueToString(candidate);
-			if (String(name || '').trim() === wanted)
+			if (typeof model.isLayer === 'function' && model.isLayer(cell))
 			{
-				return candidate;
+				var nm = String(graph.convertValueToString(cell) || '').trim();
+				if (nm === wanted)
+				{
+					return cell;
+				}
+			}
+			var cc = model.getChildCount(cell);
+			for (var j = 0; j < cc; j++)
+			{
+				var ch = model.getChildAt(cell, j);
+				if (ch)
+				{
+					stack.push(ch);
+				}
 			}
 		}
 		return null;
+	}
+
+	function findLayerByName(graph, layerName)
+	{
+		return findLayerCellByNameDeep(graph, layerName);
 	}
 
 	function ensureLayer(graph, layerName, makeVisible)
@@ -4939,6 +4969,80 @@ Draw.loadPlugin(function(ui)
 			});
 		}
 		return updates;
+	}
+
+	function performMoveLayerUnderLayer(graph, childLayerName, parentLayerName, makeVisible)
+	{
+		if (!graph || !graph.model)
+		{
+			return {status: 'error', reason: 'no_graph'};
+		}
+		var model = graph.model;
+		var root = model.getRoot ? model.getRoot() : model.root;
+		var childName = String(childLayerName || '').trim();
+		var parentName = String(parentLayerName || '').trim();
+		if (!childName || !parentName || childName === parentName)
+		{
+			return {status: 'skipped', reason: 'invalid_layer_names', childLayerName: childName, parentLayerName: parentName};
+		}
+		ensureLayer(graph, parentName, makeVisible !== false);
+		ensureLayer(graph, childName, makeVisible !== false);
+		var parentCell = findLayerCellByNameDeep(graph, parentName);
+		var childCell = findLayerCellByNameDeep(graph, childName);
+		if (!parentCell || !childCell)
+		{
+			return {
+				status: 'error',
+				reason: 'layer_cell_not_found',
+				parentLayerName: parentName,
+				childLayerName: childName,
+				parentFound: !!parentCell,
+				childFound: !!childCell
+			};
+		}
+		if (model.getParent(childCell) === parentCell)
+		{
+			return {
+				status: 'noop',
+				reason: 'already_under_parent',
+				parentLayerId: parentCell.id,
+				childLayerId: childCell.id,
+				parentLayerName: parentName,
+				childLayerName: childName
+			};
+		}
+		var walk = parentCell;
+		var guard = 0;
+		while (walk && guard < 256)
+		{
+			guard++;
+			if (walk === childCell)
+			{
+				return {status: 'skipped', reason: 'would_create_cycle', parentLayerName: parentName, childLayerName: childName};
+			}
+			walk = model.getParent(walk);
+			if (!walk || walk === root)
+			{
+				break;
+			}
+		}
+		model.beginUpdate();
+		try
+		{
+			model.add(parentCell, childCell, model.getChildCount(parentCell));
+		}
+		finally
+		{
+			model.endUpdate();
+		}
+		graph.refresh();
+		return {
+			status: 'moved',
+			parentLayerId: parentCell.id,
+			childLayerId: childCell.id,
+			parentLayerName: parentName,
+			childLayerName: childName
+		};
 	}
 
 	var uiCommandHandlers = {
@@ -5343,6 +5447,47 @@ Draw.loadPlugin(function(ui)
 					graph.refresh();
 				}
 				return result;
+			}
+			finally
+			{
+				if (switchedPage && originalPage != null && ui.currentPage !== originalPage && typeof ui.selectPage === 'function')
+				{
+					ui.selectPage(originalPage);
+				}
+			}
+		},
+		moveLayerUnderLayer: function(args)
+		{
+			var graph = ui && ui.editor ? ui.editor.graph : null;
+			if (!graph || !args || typeof args !== 'object')
+			{
+				return null;
+			}
+			var childLayerName = typeof args.childLayerName === 'string' ? args.childLayerName.trim() : '';
+			var parentLayerName = typeof args.parentLayerName === 'string' ? args.parentLayerName.trim() : '';
+			if (!childLayerName || !parentLayerName)
+			{
+				return {status: 'skipped', reason: 'missing_layer_name', childLayerName: childLayerName, parentLayerName: parentLayerName};
+			}
+			var originalPage = ui.currentPage || null;
+			var targetPage = findPageById(args.pageId);
+			var switchedPage = false;
+			try
+			{
+				if (targetPage != null && originalPage !== targetPage && typeof ui.selectPage === 'function')
+				{
+					ui.selectPage(targetPage);
+					switchedPage = true;
+				}
+				var mkVis = args.makeVisible !== false;
+				if (args.suppressStencilEvents === true)
+				{
+					return runWithStencilEventsSuppressed(function()
+					{
+						return performMoveLayerUnderLayer(graph, childLayerName, parentLayerName, mkVis);
+					});
+				}
+				return performMoveLayerUnderLayer(graph, childLayerName, parentLayerName, mkVis);
 			}
 			finally
 			{
@@ -5997,6 +6142,18 @@ Draw.loadPlugin(function(ui)
 			if (layerNameArg.length === 0)
 			{
 				args.skipIfLayerMissing = true;
+				changed = true;
+			}
+		}
+
+		if (commandName === 'moveLayerUnderLayer')
+		{
+			var childArg = (typeof args.childLayerName === 'string') ? args.childLayerName.trim() : '';
+			var parentArg = (typeof args.parentLayerName === 'string') ? args.parentLayerName.trim() : '';
+			if (childArg !== args.childLayerName || parentArg !== args.parentLayerName)
+			{
+				args.childLayerName = childArg;
+				args.parentLayerName = parentArg;
 				changed = true;
 			}
 		}

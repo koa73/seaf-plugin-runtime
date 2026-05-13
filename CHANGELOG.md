@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.25
+
+- Двухуровневая модель слоёв для **`reparent`**: семантический слой из `schemas.<schema>.layer` остаётся именем группы; при смене родителя Python handler эмитит **`moveLayerUnderLayer`** (`childLayerName` = семантический слой, `parentLayerName` = целевой страничный слой из item `targetParentLayerName`), а не `moveObjectsToLayer` по `objectIds`. Команда UI: `ensureLayer` для обоих имён, затем `model.add` слоя-потомка под слой-родитель; `suppressStencilEvents: true`.
+- В snapshot `reparent` в плагине уже передаётся **`targetParentLayerName`** (ближайший предок-слой над новым `parent`); **`findLayerByName`** / поиск слоя поддерживают вложенные слои (deep search под `root`).
+
 ## 0.5.24
 
 - Stencil events: `mxChildChange` с непустым `previous` и сменой `parent` эмитится как **`reparent`**, а не `add`. Новая вставка остаётся `add` (`previous == null`).

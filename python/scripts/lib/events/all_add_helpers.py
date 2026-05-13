@@ -90,6 +90,28 @@ def build_move_objects_to_layer_command(
     }
 
 
+def build_move_layer_under_layer_command(
+    page_id: Any,
+    child_layer_name: str,
+    parent_layer_name: str,
+    *,
+    suppress_stencil_events: bool = False,
+) -> Dict[str, Any]:
+    """Build UI command to reparent a layer mxCell under another page layer (nested layer tree)."""
+    args: Dict[str, Any] = {
+        "pageId": page_id,
+        "childLayerName": str(child_layer_name or "").strip(),
+        "parentLayerName": str(parent_layer_name or "").strip(),
+        "makeVisible": True,
+    }
+    if suppress_stencil_events:
+        args["suppressStencilEvents"] = True
+    return {
+        "name": "moveLayerUnderLayer",
+        "args": args,
+    }
+
+
 def sanitize_patch_data(
     patch: Dict[str, Any],
     excluded_fields: Sequence[str] = ("OID", "schema"),
