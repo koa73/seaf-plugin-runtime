@@ -18,7 +18,7 @@
 - `examples/events/*.py` — примеры batch-обработчиков событий стенсилов (`specific` и `all` для `add/remove/modify`).
 - подробная документация по event handlers: [`examples/events/README.md`](examples/events/README.md).
 - `events/all_add.py` — production orchestrator для `add`-событий: собирает контекст, вызывает OID-библиотеку и формирует `Response.commands[]` (новый OID только при отсутствии или пустом `data.OID`, чтобы второй `add` после смены слоя не сдвигал sequence).
-- `events/reparent.py` — production handler для `reparent`: **без** OID и **без** `Response.commands[]`; пишет в stderr **`SEAF_INFO`** JSON с `action=reparent_move_audit` (перемещённые объекты и `currentLayerName` из snapshot). Эмиссия `SEAF_INFO` из `build_script_logger` включена при `pluginLogLevel` в `REQUEST.payload.env` не ниже `info`; попадание INFO в файл `seaf-plugin.log` — при `scriptLogLevel: info` в `env.yaml` (main-process).
+- `events/reparent.py` — при вызове пишет в stderr **`SEAF_INFO`** объект с `reparentScriptFired: true` и полным **`event`** из `REQUEST.payload.event` (без отдельной компоновки полей); `Response.commands` пустой. Для файла лога см. `CHANGELOG` 0.5.27–0.5.28 (`pluginLogLevel`, `scriptLogLevel`).
 - `events/data_mirror.py` — production orchestrator для `modify`-синхронизации `schema+OID` (схемы `dcs`/`dc_offices`) через атомарную runtime-команду.
 - `context_menu/add_page.py` — production handler для команды «Создать страницу»: валидирует `selection.data.title`, проверяет дубли имен страниц и возвращает `commands[]` для create page + установки link на исходный стенсил.
 - `lib/oid/*` — модульная библиотека генерации/валидации OID и поиска конфликтов.
@@ -352,7 +352,7 @@ Auto-event processor передает event batch в Python handlers через 
 
 Примечание для grouped stencils:
 - если root group-ячейка добавления не содержит `schema`, runtime извлекает `add`-items из дочерних ячеек с валидным `schema`, чтобы `all_add` корректно формировал `moveObjectsToLayer`.
-- при `reparent` Python handler **не** добавляет команды слоя; в лог (при уровнях см. `CHANGELOG` 0.5.27) уходит аудит перемещения и **`currentLayerName`**.
+- при `reparent` Python handler только логирует полный `payload.event` в `SEAF_INFO` (`reparentScriptFired`); команд нет.
 
 Для `eventType=modify` добавляются:
 - `dataBefore`, `dataAfter`.

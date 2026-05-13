@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.28
+
+- **`reparent` / `events/reparent.py`**: убрана вся промежуточная обработка payload; один вызов **`logger.info`** с полями `reparentScriptFired: true` и **`event`** из `REQUEST.payload.event` как есть (включая `items` с `currentLayerName` и прочими полями снимка). Нет проверки `eventType`, нет компактных билдеров — только лог + `commands=[]`. Условия попадания INFO в файл — по-прежнему `pluginLogLevel` / `scriptLogLevel` (см. 0.5.27).
+
 ## 0.5.27
 
 - **`reparent` / `events/reparent.py`**: только аудит — одна структурированная запись **`logger.info`** (`action=reparent_move_audit`) с `page` и компактным списком `items` (`objectId`, `schema`, `OID`, **`currentLayerName`** как слой после перемещения в снимке, плюс опционально `previousParentId`, `newParentId`, `previousLayerName`, `targetParentLayerName`). `Response.commands` всегда пустой. Чтобы строка попала в `seaf-plugin.log`, в `REQUEST.payload.env` нужен **`pluginLogLevel`** не ниже `info` (эмиссия `SEAF_INFO` из Python); в `env.yaml` для записи INFO из скриптов в файл — **`scriptLogLevel: info`** (см. `seafPluginService`).
