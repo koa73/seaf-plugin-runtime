@@ -1,8 +1,13 @@
 # Changelog
 
+## 0.5.32
+
+- **`conf/events.yaml`**: удалены скрытые команды и ссылки `handlers.remove` / `handlers.modify`, которые обслуживали только диагностические скрипты (`seafStencilSpecificRemove`, `seafStencilSpecificModify`, `seafStencilAllRemove`, `seafStencilAllModify`). Для `dcs` / `dc_offices` остаются `add`, `reparent` и `modify` → `seafStencilDataMirrorModify`; для `dc_azs` — только `add` и `reparent`. События `remove` без handler по-прежнему отфильтровываются в renderer (см. `missing handler for operation` в debug log).
+- Удалены ранее добавленные по ошибке файлы `python/scripts/events/{specific_remove,specific_modify,all_remove,all_modify}.py` (дубликаты логики из examples; в поставке не используются).
+
 ## 0.5.31
 
-- **`conf/events.yaml`**: удалено catch-all правило `id: all` (`schema: all` для `SEAF_Р41`); `defaultRuleId` указывает на `wildcard_ta_services`. Скрытые команды `seafStencilSpecificRemove` / `seafStencilSpecificModify` / `seafStencilAllRemove` / `seafStencilAllModify` перенесены на production-скрипты в `python/scripts/events/` (`specific_remove.py`, `specific_modify.py`, `all_remove.py`, `all_modify.py`).
+- **`conf/events.yaml`**: удалено catch-all правило `id: all` (`schema: all` для `SEAF_Р41`); `defaultRuleId` указывает на `wildcard_ta_services`.
 - **`conf/main_menu.yaml`**, **`conf/context_menu.yaml`**: из поставочного меню убраны команды, чей `script` указывал на `python/scripts/examples/...` (демо reload/validate/async/failure/timeout/interactive terminal и overrides контекстного меню для удалённых id).
 
 ## 0.5.30

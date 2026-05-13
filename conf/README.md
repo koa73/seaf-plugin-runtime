@@ -151,12 +151,12 @@ Compose-loader объединяет их в финальный `commands[]`.
 
 ### Что такое handler id
 
-`seafStencilSpecificModify` (и аналогичные) — это **command id**, а не метод.
+`seafStencilDataMirrorModify` — это **command id**, а не метод.
 
 Маршрут:
-1. `events.yaml.rules[].handlers.modify` -> `seafStencilSpecificModify`
-2. compose config ищет command с `id=seafStencilSpecificModify`
-3. command указывает `script: events/specific_modify.py`
+1. `events.yaml.rules[].handlers.modify` -> `seafStencilDataMirrorModify`
+2. compose config ищет command с `id=seafStencilDataMirrorModify`
+3. command указывает `script: events/data_mirror.py`
 4. service runner запускает этот Python script
 
 ---
@@ -165,15 +165,11 @@ Compose-loader объединяет их в финальный `commands[]`.
 
 | Handler id | Script |
 |---|---|
-| `seafStencilSpecificRemove` | `events/specific_remove.py` |
-| `seafStencilSpecificModify` | `events/specific_modify.py` |
 | `seafStencilAllAdd` | `events/all_add.py` |
 | `seafStencilReparent` | `events/reparent.py` |
-| `seafStencilAllRemove` | `events/all_remove.py` |
-| `seafStencilAllModify` | `events/all_modify.py` |
 | `seafStencilDataMirrorModify` | `events/data_mirror.py` |
 
-Правила `exact_dcs_data_mirror` и `exact_dc_offices_data_mirror`: `add` → `seafStencilAllAdd`, `remove` → `seafStencilAllRemove`, `modify` → `seafStencilDataMirrorModify` для схем:
+Правила `exact_dcs_data_mirror` и `exact_dc_offices_data_mirror`: `add` → `seafStencilAllAdd`, `modify` → `seafStencilDataMirrorModify` для схем:
 - `seaf.company.ta.services.dcs`
 - `seaf.company.ta.services.dc_offices`
 
@@ -182,7 +178,7 @@ Compose-loader объединяет их в финальный `commands[]`.
 - служебные ключи `OID` и `schema` не переписываются;
 - успех не показывает popup, ошибка возвращает `status=error` c деталями `pageName` и `OID`.
 
-Для `add` / `remove` в тех же правилах используются `seafStencilAllAdd` и `seafStencilAllRemove`; `modify` — `seafStencilDataMirrorModify`.
+Правило `exact_dc_azs`: `add` → `seafStencilAllAdd`, `reparent` → `seafStencilReparent` (без Python handler для `remove` — события удаления не маршрутизируются).
 
 ---
 
@@ -244,6 +240,7 @@ includes:
 version: 1
 enabled: true
 schemaPrefix: "seaf."
+defaultRuleId: "wildcard_ta_services"
 stencilLists:
   - id: SEAF_Р41
 rules:
@@ -253,22 +250,22 @@ rules:
     execution: sync
     handlers:
       add: seafStencilAllAdd
-      remove: seafStencilSpecificRemove
-      modify: seafStencilSpecificModify
-  - id: wildcard_ta_services
+      reparent: seafStencilReparent
+  - id: exact_dcs_data_mirror
     listId: SEAF_Р41
-    schema: "seaf.company.ta.*"
-    execution: async
-    handlers:
-      add: seafStencilAllAdd
-  - id: all
-    listId: SEAF_Р41
-    schema: all
+    schema: "seaf.company.ta.services.dcs"
     execution: sync
     handlers:
       add: seafStencilAllAdd
-      remove: seafStencilAllRemove
-      modify: seafStencilAllModify
+      reparent: seafStencilReparent
+      modify: seafStencilDataMirrorModify
+  - id: wildcard_ta_services
+    listId: SEAF_Р41
+    schema: "seaf.company.ta.*"
+    execution: sync
+    handlers:
+      add: seafStencilAllAdd
+      reparent: seafStencilReparent
 ```
 
 ## Диагностика matching

@@ -10,7 +10,7 @@
 Скрипты в каталоге `examples/` остаются для локальной отладки и **не** подключаются из поставочных `main_menu.yaml` / `events.yaml` (см. [`examples/README.md`](examples/README.md)).
 
 - `events/all_add.py` — production orchestrator для `add`-событий: собирает контекст, вызывает OID-библиотеку и формирует `Response.commands[]` (новый OID только при отсутствии или пустом `data.OID`, чтобы второй `add` после смены слоя не сдвигал sequence).
-- `events/reparent.py` — при вызове пишет в stderr **`SEAF_INFO`** объект с `reparentScriptFired: true` и полным **`event`** из `REQUEST.payload.event` (без отдельной компоновки полей); `Response.commands` пустой. Для файла лога см. `CHANGELOG` 0.5.27–0.5.28 (`pluginLogLevel`, `scriptLogLevel`).
+- `events/reparent.py` — логирует полный `event` (`reparentScriptFired`) и возвращает **`Response.commands`** с принудительным layer-routing (`moveObjectsToLayer`, **`targetMode: "schemaCell"`**). Условия попадания INFO в файл — `pluginLogLevel` / `scriptLogLevel` (см. `CHANGELOG` 0.5.27–0.5.28).
 - `events/data_mirror.py` — production orchestrator для `modify`-синхронизации `schema+OID` (схемы `dcs`/`dc_offices`) через атомарную runtime-команду.
 - `context_menu/add_page.py` — production handler для команды «Создать страницу»: валидирует `selection.data.title`, проверяет дубли имен страниц и возвращает `commands[]` для create page + установки link на исходный стенсил.
 - `lib/oid/*` — модульная библиотека генерации/валидации OID и поиска конфликтов.

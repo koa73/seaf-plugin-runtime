@@ -13,8 +13,6 @@ rules:
     handlers:
       add: seafStencilAllAdd
       reparent: seafStencilReparent
-      remove: seafStencilSpecificRemove
-      modify: seafStencilSpecificModify
   - id: exact_dcs_data_mirror
     listId: SEAF_Р41
     schema: "seaf.company.ta.services.dcs"
@@ -22,7 +20,6 @@ rules:
     handlers:
       add: seafStencilAllAdd
       reparent: seafStencilReparent
-      remove: seafStencilAllRemove
       modify: seafStencilDataMirrorModify
   - id: exact_dc_offices_data_mirror
     listId: SEAF_Р41
@@ -31,7 +28,6 @@ rules:
     handlers:
       add: seafStencilAllAdd
       reparent: seafStencilReparent
-      remove: seafStencilAllRemove
       modify: seafStencilDataMirrorModify
   - id: wildcard_ta_services
     listId: SEAF_Р41
@@ -41,32 +37,6 @@ rules:
       add: seafStencilAllAdd
       reparent: seafStencilReparent
 commands:
-  - id: seafStencilSpecificRemove
-    title: SEAF Stencil Specific Remove
-    menu:
-      main:
-        enabled: false
-      context:
-        enabled: false
-    script: events/specific_remove.py
-    execution:
-      mode: sync
-      timeoutSec: 30
-    input:
-      includeDiagramXml: false
-  - id: seafStencilSpecificModify
-    title: SEAF Stencil Specific Modify
-    menu:
-      main:
-        enabled: false
-      context:
-        enabled: false
-    script: events/specific_modify.py
-    execution:
-      mode: sync
-      timeoutSec: 30
-    input:
-      includeDiagramXml: false
   - id: seafStencilAllAdd
     title: SEAF Stencil All Add
     menu:
@@ -88,32 +58,6 @@ commands:
       context:
         enabled: false
     script: events/reparent.py
-    execution:
-      mode: sync
-      timeoutSec: 30
-    input:
-      includeDiagramXml: false
-  - id: seafStencilAllRemove
-    title: SEAF Stencil All Remove
-    menu:
-      main:
-        enabled: false
-      context:
-        enabled: false
-    script: events/all_remove.py
-    execution:
-      mode: sync
-      timeoutSec: 30
-    input:
-      includeDiagramXml: false
-  - id: seafStencilAllModify
-    title: SEAF Stencil All Modify
-    menu:
-      main:
-        enabled: false
-      context:
-        enabled: false
-    script: events/all_modify.py
     execution:
       mode: sync
       timeoutSec: 30

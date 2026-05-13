@@ -26,7 +26,7 @@
 - `conf/main_menu.yaml` - описание main menu команд.
 - `conf/context_menu.yaml` - описание context menu правил (overrides по id).
 - `conf/env.yaml` - редактируемые переменные runtime (пути и режимы для Python-части).
-- `conf/events.yaml` - конфигурация auto-event processor (правила add/remove/modify + скрытые event handlers).
+- `conf/events.yaml` - конфигурация auto-event processor (правила по `add`/`reparent`/`modify` и скрытые event handlers).
 - `conf/stencils/libraries.json` - JSON-конфиг секций/библиотек фигур для окна `More Shapes`.
 - `conf/stencils/*.xml` - файлы библиотек фигур в формате `mxlibrary`.
 - `conf/stencils/config.yaml` - schema-based конфиг: layer-routing для auto add handlers, режим `edit_data` (`seaf|standard|both`), список `data_lock` защищённых атрибутов и зарезервированный ключ `fields` для Phase 2 rich-виджетов.
@@ -114,11 +114,11 @@
 - Кнопки `Cancel/Apply` и `Browse...` унифицированы с системным стилем draw.io (`geBtn`, `gePrimaryBtn`), как в стандартных диалогах (например, `Файл -> Печать`).
 - Скролл ограничен только областью полей формы, поэтому футер с action-кнопками всегда остается доступным.
 - В критических async-ветках включен fail-safe cleanup: polling ошибки обрабатываются явно, а interactive-terminal overlay завершается watchdog-ом при отсутствии terminal-closed события.
-- Auto-event processor подписывается на изменения модели и отправляет batch события `add/remove` для стенсилов из `events.yaml`.
+- Auto-event processor подписывается на изменения модели и формирует batch-события для стенсилов из `events.yaml` (типы `add` / `reparent` / `remove` / `modify` по модели; в Python уходят только операции, для которых в matched rule задан `handlers.<operation>`).
 - `modify` обрабатывается только в сценарии `Edit Data -> Apply` и только при реальном изменении данных.
 - Snapshot-сессия `EditDataSessionCoordinator` остаётся активной на время полного цикла Apply (включая промежуточные `CHANGE` и порядок `hideDialog` → `setValue` в штатном draw.io); завершение сессии выполняется отложенно при `ui.hideDialog` (`installEditDataSessionHideHook`), чтобы `modify` стабильно попадал в event pipeline и в `data_mirror`.
 - Маршрутизация событий идет по `rules` из `events.yaml` в рамках `listId` и `schema`-паттернов: приоритет `exact > wildcard > all`.
-- Для схем `seaf.company.ta.services.dcs` и `seaf.company.ta.services.dc_offices` в `events.yaml` заданы exact-правила: `add` → `seafStencilAllAdd`, `remove` → `seafStencilAllRemove`, `modify` → `seafStencilDataMirrorModify` (`python/scripts/events/data_mirror.py`); синхронизация зеркала по `schema+OID` на всех страницах текущей диаграммы выполняется только на `modify`.
+- Для схем `seaf.company.ta.services.dcs` и `seaf.company.ta.services.dc_offices` в `events.yaml` заданы exact-правила: `add` → `seafStencilAllAdd`, `modify` → `seafStencilDataMirrorModify` (`python/scripts/events/data_mirror.py`); синхронизация зеркала по `schema+OID` на всех страницах текущей диаграммы выполняется на `modify`. События `remove` для этих схем в Python не маршрутизируются (нет `handlers.remove`).
 - Синхронизация `data_mirror` выполняется атомарной UI-командой `mirrorDataByOidAtomic` (`precheck -> snapshot -> apply -> rollback`) с `suppressStencilEvents=true`, чтобы исключить рекурсивный цикл modify-событий.
 - При ошибке синхронизации runtime возвращает `status=error`, пишет диагностику в лог и показывает пользователю только ошибку с деталями `pageName` и `OID`; success-уведомление не показывается.
 - `rule.schema` поддерживает 3 режима: точное значение (например `seaf.company.ta.services.dc_azs`), wildcard с `*` (например `seaf.company.ta.*`) и `all`.
@@ -149,7 +149,7 @@
 - Для grouped stencils без **`targetMode`** исполнитель по-прежнему может поднимать цель до group-root (legacy); Python layer-routing для **`all_add`**, **`reparent`** и mirror **`add_page`** передаёт **`targetMode: "schemaCell"`**, чтобы не ломать структуру вложенных schema-объектов при переносе на слой.
 - Примерные Python handlers логируют извлеченные поля через `stderr`; поддержан протокол `SEAF_ERROR`/`SEAF_INFO`/`SEAF_LOG`.
 - В `seaf-plugin.log` записи получают префикс `[PYTHON][script.py][ERROR|INFO]`; `INFO` пишется только при `pluginLogLevel in {info, debug, trace}` (из `REQUEST.payload.env/arguments`), `ERROR` — всегда.
-- Значения `handlers` в `events.yaml` (например `seafStencilSpecificModify`) — это command id composed config; реальные скрипты задаются в `python/scripts/events/*.py` через скрытые `commands[]` в `events.yaml`.
+- Значения `handlers` в `events.yaml` (например `seafStencilDataMirrorModify`) — это command id composed config; реальные скрипты задаются в `python/scripts/events/*.py` через скрытые `commands[]` в `events.yaml`.
 - Для `seafStencilAllAdd` используется production orchestrator `python/scripts/events/all_add.py`; OID-алгоритм вынесен в библиотеку `python/scripts/lib/oid/*`, layer-routing работает по `conf/stencils/config.yaml` (`schema -> layer`), сервисная event-логика — в `python/scripts/lib/events/*`, а проверка уровней и emit logging-сообщений (`SEAF_INFO/SEAF_ERROR`) централизованы в `python/scripts/lib/logging/*`.
 - Детальная спецификация конфига и mapping `handler id -> command -> script` описаны в `conf/README.md`, а подробное поведение production event-скриптов — в `python/scripts/README.md` и в исходниках `python/scripts/events/`.
 

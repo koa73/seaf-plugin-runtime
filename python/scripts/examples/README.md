@@ -277,20 +277,17 @@
 6. Проверяет `import lib.io` с `PYTHONPATH=scripts_root`.
 7. Печатает итоговый статус и инструкции.
 
-## Содержимое примеров и соответствие пунктам меню
+## Содержимое примеров
 
-- `SEAF Reload Document` -> `examples/success_reload.py`
-- `SEAF Validate Selection` -> `examples/validate_selection.py`
-- `SEAF Async Background Task` -> `examples/async_background.py`
-- `SEAF Failure Demo` -> `examples/failure_demo.py`
-- `SEAF Timeout Demo` -> `examples/timeout_demo.py`
-- `SEAF Interactive Terminal Demo` -> `examples/interactive_terminal_demo.py`
-- `Python Dependency Installer Script` -> `examples/python_env_installer_terminal.py`
-- `SEAF Stencil Events (hidden handlers)` -> `examples/events/*.py`
+Скрипты в `examples/` можно запускать вручную с `PYTHONPATH=scripts` для отладки контракта `REQUEST`/`Response`. Поставочное меню (`conf/main_menu.yaml`) подключает только **`SEAF -> Edit Config`**; ранее использовавшиеся демо-команды (reload, validate, async, failure, timeout, interactive terminal) остались как файлы в `examples/*.py` без записи в ship-конфиг.
+
+- `examples/python_env_installer_terminal.py` — установщик зависимостей (см. раздел про installer ниже в этом README).
+
+Production batch-обработчики stencil events находятся в **`../events/*.py`** и задаются в `conf/events.yaml` (см. [`../README.md`](../README.md) в `python/scripts` и [`../../../conf/README.md`](../../../conf/README.md)).
 
 ## 8) `events/*` (batch handlers for stencil events)
 
-Демо-обработчики в `examples/events/`: `specific_add.py`, `specific_remove.py`, `specific_modify.py`, `all_add.py` (shim на production `events/all_add.py`), `all_remove.py`, `all_modify.py`. В типовом `conf/events.yaml` не регистрируется только `seafStencilSpecificAdd` (файл `specific_add.py` остаётся как пример).
+В `examples/events/` остаются **`specific_add.py`** (демо, в типовом `events.yaml` не зарегистрирован), **`all_add.py`** (shim на `events/all_add.py`), а также **`test_*.py`** для pytest. Маршрутизация stencil events в поставочном `events.yaml` использует только `events/all_add.py`, `events/reparent.py` и `events/data_mirror.py`.
 
 Скрипты получают payload с полями:
 - `event.eventType` (`add|remove|modify`)
