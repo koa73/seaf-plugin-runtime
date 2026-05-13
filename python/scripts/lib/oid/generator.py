@@ -77,7 +77,11 @@ def build_oid_updates_for_empty_oid_items(
     company_prefix: str,
     known_oids: Dict[str, Dict],
 ) -> Tuple[List[Dict], List[Dict]]:
-    """Build OID updates only for rows where OID attribute exists but is empty."""
+    """Build OID updates only when OID is missing or blank (never overwrite non-empty).
+
+    Used for stencil `add` so reparent/move-to-layer (second synthetic `add` with same cell)
+    does not bump the sequence.
+    """
     reserved: Dict[str, bool] = {}
     updates: List[Dict] = []
     assigned: List[Dict] = []
@@ -86,9 +90,9 @@ def build_oid_updates_for_empty_oid_items(
         if not object_id:
             continue
         data = item.get("data") if isinstance(item.get("data"), dict) else {}
-        if "OID" not in data:
-            continue
-        oid_raw = str(data.get("OID") or "").strip()
+        oid_raw = ""
+        if "OID" in data:
+            oid_raw = str(data.get("OID") or "").strip()
         if oid_raw:
             continue
         schema = item.get("schema") or ""

@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.21
+ * Runtime script version: 0.5.24
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -2398,6 +2398,58 @@ Draw.loadPlugin(function(ui)
 		};
 	}
 
+	function getLayerDisplayNameForAncestorChain(graph, startCell)
+	{
+		if (!graph || !graph.model || !startCell)
+		{
+			return '';
+		}
+		var model = graph.model;
+		var root = model.getRoot ? model.getRoot() : model.root;
+		var current = startCell;
+		var guard = 0;
+		while (current && guard < 128)
+		{
+			guard++;
+			if (typeof model.isLayer === 'function' && model.isLayer(current))
+			{
+				return String(graph.convertValueToString(current) || '').trim();
+			}
+			var parent = (typeof model.getParent === 'function') ? model.getParent(current) : current.parent;
+			if (!parent || parent === root)
+			{
+				break;
+			}
+			current = parent;
+		}
+		return '';
+	}
+
+	function getCellLayerDisplayName(graph, cell)
+	{
+		if (!graph || !graph.model || !cell)
+		{
+			return '';
+		}
+		var model = graph.model;
+		var root = model.getRoot ? model.getRoot() : model.root;
+		var current = cell;
+		while (current)
+		{
+			var parent = (typeof model.getParent === 'function') ? model.getParent(current) : current.parent;
+			if (!parent || parent === root)
+			{
+				break;
+			}
+			if (typeof model.isLayer === 'function' && model.isLayer(parent))
+			{
+				return String(graph.convertValueToString(parent) || '').trim();
+			}
+			current = parent;
+		}
+		return '';
+	}
+
 	function buildStencilItemSnapshot(cell, operation)
 	{
 		var graph = ui && ui.editor ? ui.editor.graph : null;
@@ -2416,6 +2468,7 @@ Draw.loadPlugin(function(ui)
 			geom = null;
 		}
 		var data = extractEditableDataFromCell(cell, graph);
+		var currentLayerName = getCellLayerDisplayName(graph, cell);
 		return {
 			id: cell.id || null,
 			objectId: cell.id || null,
@@ -2430,7 +2483,8 @@ Draw.loadPlugin(function(ui)
 			oid: getOidFromData(data),
 			companyPrefix: getCompanyPrefix(),
 			schemaCode: parseSchemaCode(meta.schema),
-			value: sanitizeForIpc(cell.value)
+			value: sanitizeForIpc(cell.value),
+			currentLayerName: currentLayerName
 		};
 	}
 
@@ -2962,9 +3016,13 @@ Draw.loadPlugin(function(ui)
 			if (change.child)
 			{
 				var operation = null;
-				if (change.parent != null && (change.previous == null || change.previous !== change.parent))
+				if (change.parent != null && change.previous == null)
 				{
 					operation = 'add';
+				}
+				else if (change.parent != null && change.previous != null && change.previous !== change.parent)
+				{
+					operation = 'reparent';
 				}
 				if (change.parent == null && change.previous != null)
 				{
@@ -2972,7 +3030,7 @@ Draw.loadPlugin(function(ui)
 				}
 				if (operation != null)
 				{
-					var targets = (operation === 'add') ? collectAddSnapshotTargets(change.child, graph) : [change.child];
+					var targets = (operation === 'remove') ? [change.child] : collectAddSnapshotTargets(change.child, graph);
 					for (var t = 0; t < targets.length; t++)
 					{
 						var targetCell = targets[t];
@@ -2985,6 +3043,12 @@ Draw.loadPlugin(function(ui)
 							upsertCellInStencilIndex(targetCell, graph);
 						}
 						var snapshot = buildStencilItemSnapshot(targetCell, operation);
+						if (operation === 'reparent' && snapshot && change.previous != null)
+						{
+							snapshot.previousParentId = change.previous && change.previous.id ? String(change.previous.id) : '';
+							snapshot.newParentId = change.parent && change.parent.id ? String(change.parent.id) : '';
+							snapshot.previousLayerName = getLayerDisplayNameForAncestorChain(graph, change.previous);
+						}
 						if (snapshot && snapshot.id)
 						{
 							var key = operation + ':' + snapshot.id;
@@ -5332,6 +5396,22 @@ Draw.loadPlugin(function(ui)
 					return {moved: 0, layerName: layerName, layerId: null};
 				}
 				var cells = resolveMoveTargetsByObjectIds(graph, args.objectIds || []);
+				var wantedLayer = layerName.trim();
+				var filteredCells = [];
+				for (var ci = 0; ci < cells.length; ci++)
+				{
+					var cMove = cells[ci];
+					if (!cMove)
+					{
+						continue;
+					}
+					if (getCellLayerDisplayName(graph, cMove) === wantedLayer)
+					{
+						continue;
+					}
+					filteredCells.push(cMove);
+				}
+				cells = filteredCells;
 				if (cells.length > 0)
 				{
 					if (args.suppressStencilEvents === true)

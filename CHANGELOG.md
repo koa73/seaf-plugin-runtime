@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.5.24
+
+- Stencil events: `mxChildChange` с непустым `previous` и сменой `parent` эмитится как **`reparent`**, а не `add`. Новая вставка остаётся `add` (`previous == null`).
+- `conf/events.yaml`: `handlers.reparent` → `seafStencilReparent` → `events/reparent.py` (только layer-routing, без OID; `moveObjectsToLayer` с `suppressStencilEvents: true`).
+- `events/all_add.py`: отказ от обработки при `eventType=reparent` (защита от ошибочного маршрута).
+- `examples/events/test_reparent.py`, тест в `test_all_add.py` на misroute.
+
+## 0.5.23
+
+- Stencil event items include `currentLayerName` (layer display name from the graph). `lib/events/layer_routing.py`: `moveObjectsToLayer` is not emitted for objects already on the configured target layer (same name as in `stencils/config.yaml`). `moveObjectsToLayer` UI handler skips cells whose containing layer already matches `layerName` (no-op move).
+- `examples/events/test_all_add.py`: tests for layer skip / partial move list.
+
+## 0.5.22
+
+- `events/all_add.py`: OID is assigned only when `data.OID` is missing or blank (`build_oid_updates_for_empty_oid_items`), so a synthetic second stencil `add` after `moveObjectsToLayer` / reparent no longer bumps the sequence. `lib/oid/generator.py`: treat missing `OID` key like empty for new cells.
+- `examples/events/test_all_add.py`: fix `@patch` target for `load_stencil_layer_config` to `lib.events.layer_routing`; add tests for non-empty OID skip and missing-OID assignment.
+
 ## 0.5.21
 
 - OID import collision detection (`collect_import_conflicts` / `all_add`): conflicts are reported only when another cell with the same OID lives on the **same page** as `payload.event.page.id`. Same OID on a different page (e.g. office + mirror) is no longer treated as a collision. Renderer snapshot `payload.event.index` now includes `objectPage` (`objectId` → `pageId`), filled when stencil index entries are built.

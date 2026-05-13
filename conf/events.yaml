@@ -12,6 +12,7 @@ rules:
     execution: sync
     handlers:
       add: seafStencilAllAdd
+      reparent: seafStencilReparent
       remove: seafStencilSpecificRemove
       modify: seafStencilSpecificModify
   - id: exact_dcs_data_mirror
@@ -20,6 +21,7 @@ rules:
     execution: sync
     handlers:
       add: seafStencilAllAdd
+      reparent: seafStencilReparent
       remove: seafStencilAllRemove
       modify: seafStencilDataMirrorModify
   - id: exact_dc_offices_data_mirror
@@ -28,6 +30,7 @@ rules:
     execution: sync
     handlers:
       add: seafStencilAllAdd
+      reparent: seafStencilReparent
       remove: seafStencilAllRemove
       modify: seafStencilDataMirrorModify
   - id: wildcard_ta_services
@@ -36,12 +39,14 @@ rules:
     execution: sync
     handlers:
       add: seafStencilAllAdd
+      reparent: seafStencilReparent
   - id: all
     listId: SEAF_Р41
     schema: all
     execution: sync
     handlers:
       add: seafStencilAllAdd
+      reparent: seafStencilReparent
       remove: seafStencilAllRemove
       modify: seafStencilAllModify
 commands:
@@ -79,6 +84,19 @@ commands:
       context:
         enabled: false
     script: events/all_add.py
+    execution:
+      mode: sync
+      timeoutSec: 30
+    input:
+      includeDiagramXml: false
+  - id: seafStencilReparent
+    title: SEAF Stencil Reparent
+    menu:
+      main:
+        enabled: false
+      context:
+        enabled: false
+    script: events/reparent.py
     execution:
       mode: sync
       timeoutSec: 30

@@ -17,7 +17,8 @@
 - `examples/interactive_terminal_demo.py` — пример интерактивного terminal-режима с `print(...)`, `input(...)` и симуляцией exception по подтверждению `Y/N`.
 - `examples/events/*.py` — примеры batch-обработчиков событий стенсилов (`specific` и `all` для `add/remove/modify`).
 - подробная документация по event handlers: [`examples/events/README.md`](examples/events/README.md).
-- `events/all_add.py` — production orchestrator для `add`-событий: собирает контекст, вызывает OID-библиотеку и формирует `Response.commands[]`.
+- `events/all_add.py` — production orchestrator для `add`-событий: собирает контекст, вызывает OID-библиотеку и формирует `Response.commands[]` (новый OID только при отсутствии или пустом `data.OID`, чтобы второй `add` после смены слоя не сдвигал sequence).
+- `events/reparent.py` — production handler для `reparent` (смена родителя/слоя): только `moveObjectsToLayer` по `layer_routing`, **без** OID; в `moveObjectsToLayer` для этого handler передаётся `suppressStencilEvents: true`.
 - `events/data_mirror.py` — production orchestrator для `modify`-синхронизации `schema+OID` (схемы `dcs`/`dc_offices`) через атомарную runtime-команду.
 - `context_menu/add_page.py` — production handler для команды «Создать страницу»: валидирует `selection.data.title`, проверяет дубли имен страниц и возвращает `commands[]` для create page + установки link на исходный стенсил.
 - `lib/oid/*` — модульная библиотека генерации/валидации OID и поиска конфликтов.
@@ -31,8 +32,8 @@
 3. Runtime выполняет `precheck -> snapshot -> apply -> rollback` и при ошибке возвращает список проблем с `pageName` и `OID`.
 
 Последовательность команд в `events/all_add.py`:
-1. `updateStencilDataBulk` (пакетное обновление `data` стенсилов).
-2. `moveObjectsToLayer` (create-or-get слоя по `schema -> layer` из `conf/stencils/config.yaml` и перенос объекта в этот слой).
+1. `updateStencilDataBulk` (пакетное обновление `data` стенсилов) — только для ячеек, где реально назначен новый `OID` (непустой существующий OID не перезаписывается).
+2. `moveObjectsToLayer` (create-or-get слоя по `schema -> layer` из `conf/stencils/config.yaml` и перенос объекта в этот слой) — объекты, у которых в событии `currentLayerName` уже совпадает с целевым слоем, в команду не попадают; исполнитель UI дополнительно не вызывает `moveCells` для ячеек, уже лежащих на нужном слое.
 
 Layer-routing правила:
 - источник управления: `conf/stencils/config.yaml`, секция `schemas.<schema>.layer`;
@@ -336,7 +337,7 @@ Auto-event processor передает event batch в Python handlers через 
 
 | Поле | Формат | Назначение |
 |---|---:|---|
-| `eventType` | `add \| remove \| modify` | Тип события |
+| `eventType` | `add \| remove \| modify \| reparent` | Тип события |
 | `ruleId` | `string` | matched rule из `event.yaml` |
 | `listId` | `string` | matched stencil list |
 | `txId` | `string` | идентификатор транзакции модели |
@@ -346,6 +347,7 @@ Auto-event processor передает event batch в Python handlers через 
 
 `items[]` обычно содержит:
 - `id`, `operation`, `label`, `schema`, `style`, `styleText`, `geometry`, `value`.
+- для `operation=reparent` дополнительно: `previousParentId`, `newParentId`, `previousLayerName`, `currentLayerName` (имя слоя после переноса).
 
 Примечание для grouped stencils:
 - если root group-ячейка добавления не содержит `schema`, runtime извлекает `add`-items из дочерних ячеек с валидным `schema`, чтобы `all_add` корректно формировал `moveObjectsToLayer`.

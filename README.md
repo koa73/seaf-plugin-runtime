@@ -129,7 +129,8 @@
 - Контекстное меню поддерживает 2 scope-режима: `canvas` (клик по полю) и `stencil` (клик по стенсилу).
 - В context menu попадают только команды с явным `menu.context.enabled: true`; main-only команды без context-конфига не отображаются.
 - Для stencil-режима поддержан `schemaPattern` с event-совместимым matching (`exact|wildcard|all`); фильтрация работает как `scope AND target AND schemaPattern`.
-- Для `add` событий назначение `OID` выполняется через event handlers (`events.yaml`): wildcard `seaf.company.ta.*` и/или explicit `add: seafStencilAllAdd` в exact-правилах (в т.ч. `dcs` / `dc_offices`) и обратный канал `Response.commands[]`.
+- Для `add` событий назначение `OID` выполняется через event handlers (`events.yaml`): wildcard `seaf.company.ta.*` и/или explicit `add: seafStencilAllAdd` в exact-правилах (в т.ч. `dcs` / `dc_offices`) и обратный канал `Response.commands[]`; handler не перезаписывает непустой `OID` (второй `add` после `moveObjectsToLayer`/reparent не увеличивает sequence).
+- Смена родителя в модели эмитится как **`reparent`** (не `add`) и маршрутизируется в `seafStencilReparent` / `events/reparent.py`: только выравнивание по слою из `stencils/config.yaml`, без назначения OID; `moveObjectsToLayer` вызывается с `suppressStencilEvents`.
 - Формат OID: `<companyPrefix>.<schemaCode>.<sequence>`, где `companyPrefix` читается из `env.yaml`, `schemaCode` — две последние части `schema`, fallback: `unknown`.
 - Область уникальности OID — строго текущая диаграмма; при import-коллизиях выполняется информирование пользователя таблицей конфликтов (`cellId`, `OID`, `schema`, `conflictWithCellId`, `conflictWithSchema`) без автодедупликации; детектор в `all_add` сравнивает конфликтующие ячейки **только в пределах одной страницы** (`payload.event.page.id` и карта `payload.event.index.objectPage`), чтобы пара «офис + зеркало на другой странице» с общим OID не считалась коллизией.
 - В renderer добавлен in-memory индекс (`byObjectId`, `bySchema`, `byOid`, `objectPage` в снимке для Python) для выборок, валидации OID и групповых операций.
@@ -138,7 +139,7 @@
 - Добавлена команда `updateStencilDataBulk` для пакетного обновления нескольких объектов в одной транзакции `beginUpdate/endUpdate`.
 - Добавлены batch API-команды `bulkUpdateByIds` и `bulkUpdateByCriteria` (поддержка `dryRun`, отчет `updated/skipped/errors/conflicts`).
 - Добавлена команда `ensureLayer` (create-or-get): находит слой по имени на странице или создает новый, делает его видимым и возвращает `layerId`.
-- Добавлена команда `moveObjectsToLayer`: create-or-get слоя + перенос указанных объектов в слой через `graph.moveCells(...)`.
+- Добавлена команда `moveObjectsToLayer`: create-or-get слоя + перенос указанных объектов в слой через `graph.moveCells(...)`; для ячеек, уже находящихся на слое с тем же именем, перенос не выполняется (и Python layer-routing не включает их в `objectIds`, если в item задан `currentLayerName`).
 - Возвращаемые значения UI-команд агрегируются в `result.payload.uiCommandResults`.
 - В event pipeline (`source=stencil_event_processor`) ответы Python handlers теперь также исполняют `Response.commands[]` через общий UI executor, поэтому `ensureLayer`/`updateStencilData` применяются не только в menu/system сценариях.
 - Для ошибок event pipeline действует явная политика видимости: каждая ошибка пишется в лог, а popup показывается только если handler вернул `payload.errorPolicy.userVisible=true`.

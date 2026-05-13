@@ -12,7 +12,7 @@ from lib.events import (
     resolve_company_prefix,
 )
 from lib.logging import build_script_logger
-from lib.oid import build_oid_updates, collect_import_conflicts
+from lib.oid import build_oid_updates_for_empty_oid_items, collect_import_conflicts
 
 
 def create_oid(payload: Dict, log_info: Callable[[Dict], None]) -> Tuple[List[Dict], List[Dict]]:
@@ -44,7 +44,7 @@ def create_oid(payload: Dict, log_info: Callable[[Dict], None]) -> Tuple[List[Di
             }
         )
 
-    updates, assigned = build_oid_updates(items, company_prefix, by_oid)
+    updates, assigned = build_oid_updates_for_empty_oid_items(items, company_prefix, by_oid)
     for row in assigned:
         log_info({"handler": "all_add", "action": "assign_oid", "objectId": row["objectId"], "OID": row["OID"]})
 
@@ -63,6 +63,15 @@ def create_layer_commands(payload: Dict, log_info: Callable[[Dict], None]) -> Li
 def build_commands(payload: Dict, log_info: Callable[[Dict], None] = lambda _payload: None) -> List[Dict]:
     """Build command list and keep explicit execution order."""
     event = payload.get("event") or {}
+    if str(event.get("eventType") or "").strip().lower() == "reparent":
+        log_info(
+            {
+                "handler": "all_add",
+                "action": "reject_reparent_misroute",
+                "count": len(event.get("items") or []),
+            }
+        )
+        return []
     page = event.get("page") or {}
     page_id = page.get("id")
 
@@ -84,6 +93,13 @@ def main() -> int:
         payload = req.get("payload") or {}
         logger = build_script_logger(payload)
         event = payload.get("event") or {}
+        if str(event.get("eventType") or "").strip().lower() == "reparent":
+            logger.error("all_add invoked for reparent event (routing misconfiguration)")
+            return write_response(
+                status="error",
+                message="all_add does not handle reparent; use seafStencilReparent",
+                payload=build_error_policy_payload({"handler": "all_add"}, user_visible=False),
+            )
         items = event.get("items") or []
         log_event_items("all_add", event, items, logger.info)
         commands = build_commands(payload, logger.info)

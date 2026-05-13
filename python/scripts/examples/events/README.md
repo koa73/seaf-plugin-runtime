@@ -12,7 +12,8 @@
 |---|---|---|
 | `seafStencilSpecificRemove` | `seafStencilSpecificRemove` | `specific_remove.py` |
 | `seafStencilSpecificModify` | `seafStencilSpecificModify` | `specific_modify.py` |
-| `seafStencilAllAdd` | `seafStencilAllAdd` | `all_add.py` |
+| `seafStencilAllAdd` | `seafStencilAllAdd` | `../events/all_add.py` |
+| `seafStencilReparent` | `seafStencilReparent` | `../events/reparent.py` |
 | `seafStencilAllRemove` | `seafStencilAllRemove` | `all_remove.py` |
 | `seafStencilAllModify` | `seafStencilAllModify` | `all_modify.py` |
 
@@ -44,7 +45,7 @@
 Event processor передает события в поле `REQUEST.payload.event`.
 
 Ожидаемые поля:
-- `eventType`: `add` | `remove` | `modify`
+- `eventType`: `add` | `remove` | `modify` | `reparent`
 - `ruleId`: id matched правила из `events.yaml`
 - `listId`: id matched списка стенсилов
 - `txId`: id транзакции модели
@@ -52,7 +53,7 @@ Event processor передает события в поле `REQUEST.payload.eve
 - `page`: `{id, name}`
 - `items[]`: список измененных объектов
 
-### `items[]` для `add/remove`
+### `items[]` для `add/remove/reparent`
 
 - `id`
 - `objectId` (алиас `id`)
