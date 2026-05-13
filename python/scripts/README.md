@@ -33,7 +33,7 @@
 
 Последовательность команд в `events/all_add.py`:
 1. `updateStencilDataBulk` (пакетное обновление `data` стенсилов) — только для ячеек, где реально назначен новый `OID` (непустой существующий OID не перезаписывается).
-2. `moveObjectsToLayer` (create-or-get слоя по `schema -> layer` из `conf/stencils/config.yaml` и перенос объекта в этот слой) — объекты, у которых в событии `currentLayerName` уже совпадает с целевым слоем, в команду не попадают; исполнитель UI дополнительно не вызывает `moveCells` для ячеек, уже лежащих на нужном слое.
+2. `moveObjectsToLayer` (create-or-get слоя по `schema -> layer` из `conf/stencils/config.yaml` и перенос объекта в этот слой) — в команду передаётся **`targetMode: "schemaCell"`** (перенос по конкретной schema-ячейке из `objectIds`); объекты, у которых в событии `currentLayerName` уже совпадает с целевым слоем, в команду не попадают (кроме принудительного режима `reparent`); исполнитель UI дополнительно не вызывает `moveCells` для ячеек, уже лежащих на нужном слое.
 
 Layer-routing правила:
 - источник управления: `conf/stencils/config.yaml`, секция `schemas.<schema>.layer`;
@@ -154,7 +154,7 @@ Runtime передает значения редактируемой конфи�
 | `updateStencilDataBulk` | `{ "pageId": "...", "updates": [{"objectId":"...","mode":"merge|replace","data":{...}}] }` | Пакетно обновляет данные объектов в одной транзакции. |
 | `mirrorDataByOidAtomic` | `{ "schema": "...", "oid": "...", "patch": {...}, "excludedFields": ["OID","schema"], "sourceRollbacks": [...], "suppressStencilEvents": true }` | Атомарно синхронизирует объекты с тем же `schema+OID` на всех страницах; при сбое откатывает изменения и возвращает `failures` с `pageName`/`OID`. |
 | `ensureLayer` | `{ "pageId": "...", "layerName": "...", "makeVisible": true }` | Находит или создает слой по имени и делает его видимым. |
-| `moveObjectsToLayer` | `{ "pageId": "...", "layerName": "...", "objectIds": ["id1"], "makeVisible": true }` | Находит/создает слой и переносит указанные объекты в него через `graph.moveCells(...)`. |
+| `moveObjectsToLayer` | `{ "pageId": "...", "layerName": "...", "objectIds": ["id1"], "makeVisible": true, "targetMode": "schemaCell" (опционально), "suppressStencilEvents": true (опционально) }` | Находит/создает слой и переносит объекты через `graph.moveCells(...)`. При **`targetMode: "schemaCell"`** двигается ячейка, соответствующая `objectId` (инвариант слоя по schema); без **`targetMode`** для совместимости используется подъём до group-root (как для grouped stencils). |
 | `moveLayerUnderLayer` | `{ "pageId": "...", "childLayerName": "...", "parentLayerName": "...", "makeVisible": true, "suppressStencilEvents": true }` | Вкладывает mxCell слоя `childLayerName` под слой `parentLayerName` (опционально для ручных сценариев; **не** вызывается из `events/reparent.py`). |
 | `createPage` | `{ "title": "...", "selectCreated": false }` | Создает страницу через штатные API draw.io (`ui.createPage` + `ui.insertPage`) с заданным именем; для сценария add-page рекомендуется `selectCreated=false`. |
 | `setCellLinkToPage` | `{ "objectId": "...", "targetPageId": "..." }` | Устанавливает ссылку `data:page/id,<pageId>` в выбранный объект через `graph.setLinkForCell(...)`; `targetPageId` должен быть валидным. |

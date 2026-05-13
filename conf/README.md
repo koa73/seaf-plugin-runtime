@@ -139,10 +139,10 @@ Compose-loader объединяет их в финальный `commands[]`.
 - `seaf.company.ta.services.dc_azs` — exact match только для одного schema.
 - `seaf.company.ta.*` — wildcard match для группы schema.
 - `all` — правило на все стенсилы выбранного `listId`.
-- Смена родителя в модели (`mxChildChange` с непустым `previous` и новым `parent`) классифицируется как **`operation: reparent`**, а не `add`: маршрут `handlers.reparent` → `seafStencilReparent` → `events/reparent.py`. Handler **только** пишет в лог полный `payload.event` (`reparentScriptFired`); **без** OID и **без** `Response.commands`. Слой группы из config задаётся на **`add`**. Реальная вставка — `operation: add` → `seafStencilAllAdd`.
+- Смена родителя в модели (`mxChildChange` с непустым `previous` и новым `parent`) классифицируется как **`operation: reparent`**, а не `add`: маршрут `handlers.reparent` → `seafStencilReparent` → `events/reparent.py`. Handler **без** OID: пишет в лог полный `payload.event` (`reparentScriptFired`) и возвращает **`Response.commands`** с `moveObjectsToLayer` (**`targetMode: "schemaCell"`**, `suppressStencilEvents: true`) для принудительного соблюдения `schema → layer`. Слой группы из config также задаётся на **`add`** (`all_add`). Реальная вставка — `operation: add` → `seafStencilAllAdd`.
 - Для auto-назначения `OID` при `add` используется `seafStencilAllAdd` из wildcard `seaf.company.ta.*` или из exact-правил, где явно указан `add` (в т.ч. `exact_dcs_data_mirror` / `exact_dc_offices_data_mirror`).
 - Повторный stencil `add` для того же `objectId` (например после reparent / `moveObjectsToLayer`) не должен менять уже назначенный OID: `events/all_add.py` заполняет `OID` только если в `data` ключ отсутствует или значение пустое.
-- В payload каждого stencil-item передаётся `currentLayerName` (имя слоя-контейнера в модели). Для `add` Python layer-routing не добавляет в `Response.commands` команду `moveObjectsToLayer` для ячеек, у которых `currentLayerName` уже совпадает с целевым слоем из `schemas.<schema>.layer` (повторный `add` после переноса не дублирует привязку).
+- В payload каждого stencil-item передаётся `currentLayerName` (имя слоя-контейнера в модели). Для `add` Python layer-routing не добавляет в `Response.commands` команду `moveObjectsToLayer` для ячеек, у которых `currentLayerName` уже совпадает с целевым слоем из `schemas.<schema>.layer` (повторный `add` после переноса не дублирует привязку); команды слоя из Python задают **`targetMode: "schemaCell"`** для переноса именно schema-ячейки.
 
 Приоритет матчинга внутри list:
 1. exact
@@ -366,10 +366,13 @@ rules:
   - `pageId` (optional),
   - `layerName` (required, fallback `unknown` на стороне Python orchestration),
   - `objectIds` (required): массив id объектов,
-  - `makeVisible` (optional, default `true`).
+  - `makeVisible` (optional, default `true`),
+  - `targetMode` (optional): при значении **`schemaCell`** переносится именно ячейка из `objectIds` (инвариант `schema → layer` при вложенности); если не задано — legacy-подъём до **group-root** для grouped stencil,
+  - `suppressStencilEvents` (optional): подавление stencil-events при массовых операциях.
 - Поведение:
   - слой создается/переиспользуется через create-or-get;
-  - для grouped stencil переносится целевой контейнер компонента (group-root), чтобы не разрывать внутренние `mxCell` по разным parent;
+  - при **`targetMode: "schemaCell"`** (команды из Python `lib/events/layer_routing.py` для `all_add` / `reparent` и mirror `add_page`) переносится указанная schema-ячейка;
+  - без **`targetMode`** для grouped stencil переносится целевой контейнер компонента (group-root), чтобы не разрывать внутренние `mxCell` по разным parent;
   - объекты/контейнеры переносятся в слой стандартным draw.io API `graph.moveCells(cells, 0, 0, false, targetLayer)`.
 
 ### Response.commands: moveLayerUnderLayer

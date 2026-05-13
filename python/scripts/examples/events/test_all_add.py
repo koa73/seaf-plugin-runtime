@@ -134,6 +134,7 @@ class AllAddOidTests(unittest.TestCase):
         move = next((c for c in commands if c.get("name") == "moveObjectsToLayer"), None)
         self.assertIsNotNone(move)
         self.assertEqual(move["args"]["layerName"], "Layer A")
+        self.assertEqual(move["args"].get("targetMode"), "schemaCell")
 
     @patch("lib.events.layer_routing.load_stencil_layer_config")
     def test_orchestrator_skips_move_when_current_layer_matches_target(self, mocked_load_config):
@@ -187,6 +188,7 @@ class AllAddOidTests(unittest.TestCase):
         move = next((c for c in commands if c.get("name") == "moveObjectsToLayer"), None)
         self.assertIsNotNone(move)
         self.assertEqual(move["args"]["objectIds"], ["off"])
+        self.assertEqual(move["args"].get("targetMode"), "schemaCell")
 
     @patch("lib.events.layer_routing.load_stencil_layer_config")
     def test_orchestrator_skips_layer_when_config_value_empty(self, mocked_load_config):
@@ -232,6 +234,7 @@ class AllAddOidTests(unittest.TestCase):
         move = next((c for c in commands if c.get("name") == "moveObjectsToLayer"), None)
         self.assertIsNotNone(move)
         self.assertEqual(move["args"]["layerName"], "Layer B")
+        self.assertEqual(move["args"].get("targetMode"), "schemaCell")
 
     @patch("lib.events.layer_routing.load_stencil_layer_config")
     def test_orchestrator_skips_layer_when_schema_absent_in_config(self, mocked_load_config):

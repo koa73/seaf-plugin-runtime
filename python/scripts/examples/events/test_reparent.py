@@ -28,7 +28,16 @@ class ReparentHandlerTests(unittest.TestCase):
         log = MagicMock()
         mock_logger_factory.return_value = log
         mock_build_layers.return_value = [
-            {"name": "moveObjectsToLayer", "args": {"pageId": "p1", "layerName": "Офисы", "objectIds": ["a"]}}
+            {
+                "name": "moveObjectsToLayer",
+                "args": {
+                    "pageId": "p1",
+                    "layerName": "Офисы",
+                    "objectIds": ["a"],
+                    "makeVisible": True,
+                    "targetMode": "schemaCell",
+                },
+            }
         ]
         mock_write.return_value = 0
         main()
@@ -69,7 +78,16 @@ class ReparentHandlerTests(unittest.TestCase):
         log = MagicMock()
         mock_logger_factory.return_value = log
         mock_build_layers.return_value = [
-            {"name": "moveObjectsToLayer", "args": {"pageId": "p1", "layerName": "Офисы", "objectIds": ["a"]}}
+            {
+                "name": "moveObjectsToLayer",
+                "args": {
+                    "pageId": "p1",
+                    "layerName": "Офисы",
+                    "objectIds": ["a"],
+                    "makeVisible": True,
+                    "targetMode": "schemaCell",
+                },
+            }
         ]
         mock_write.return_value = 0
         main()

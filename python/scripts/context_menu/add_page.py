@@ -131,6 +131,7 @@ def main() -> int:
                         "suppressStencilEvents": True,
                         "layerName": layer_name,
                         "makeVisible": True,
+                        "targetMode": "schemaCell",
                     },
                 },
             ]

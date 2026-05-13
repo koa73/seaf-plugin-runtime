@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.29
+ * Runtime script version: 0.5.30
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -4469,12 +4469,14 @@ Draw.loadPlugin(function(ui)
 		return cell;
 	}
 
-	function resolveMoveTargetsByObjectIds(graph, objectIds)
+	function resolveMoveTargetsByObjectIds(graph, objectIds, targetMode)
 	{
 		if (!graph || !Array.isArray(objectIds))
 		{
 			return [];
 		}
+		var mode = (typeof targetMode === 'string') ? targetMode.trim().toLowerCase() : '';
+		var useSchemaCell = (mode === 'schemacell');
 		var out = [];
 		var seen = {};
 		for (var i = 0; i < objectIds.length; i++)
@@ -4489,7 +4491,7 @@ Draw.loadPlugin(function(ui)
 			{
 				continue;
 			}
-			var target = resolveMoveTargetCell(cell, graph);
+			var target = useSchemaCell ? cell : resolveMoveTargetCell(cell, graph);
 			if (!target || !target.id || Object.prototype.hasOwnProperty.call(seen, target.id))
 			{
 				continue;
@@ -5540,7 +5542,8 @@ Draw.loadPlugin(function(ui)
 				{
 					return {moved: 0, layerName: layerName, layerId: null};
 				}
-				var cells = resolveMoveTargetsByObjectIds(graph, args.objectIds || []);
+				var moveTargetMode = (typeof args.targetMode === 'string') ? args.targetMode : '';
+				var cells = resolveMoveTargetsByObjectIds(graph, args.objectIds || [], moveTargetMode);
 				var wantedLayer = layerName.trim();
 				var filteredCells = [];
 				for (var ci = 0; ci < cells.length; ci++)

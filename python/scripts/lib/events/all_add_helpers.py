@@ -74,6 +74,7 @@ def build_move_objects_to_layer_command(
     object_ids: List[str],
     *,
     suppress_stencil_events: bool = False,
+    target_mode: str | None = None,
 ) -> Dict[str, Any]:
     """Build command payload to move explicit objects to a layer."""
     args: Dict[str, Any] = {
@@ -82,6 +83,8 @@ def build_move_objects_to_layer_command(
         "objectIds": object_ids,
         "makeVisible": True,
     }
+    if target_mode and str(target_mode).strip():
+        args["targetMode"] = str(target_mode).strip()
     if suppress_stencil_events:
         args["suppressStencilEvents"] = True
     return {

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.30
+
+- **`moveObjectsToLayer` / `plugin/seaf.plugin.js`**: опциональный аргумент **`targetMode: "schemaCell"`** — перенос выполняется по **конкретной ячейке** из `objectIds` (как в `Edit Data`), без подъёма до group-root; по умолчанию (без аргумента) сохраняется прежнее поведение **group-root** для обратной совместимости.
+- **`lib/events/layer_routing.py`** и **`build_move_objects_to_layer_command`**: команды слоя из Python для **`all_add`** и **`reparent`** всегда передают **`targetMode: "schemaCell"`**, чтобы инвариант `schema → layer` из `stencils/config.yaml` не ломался при вложенности (например `dc_offices` внутри `dc_azs`).
+- **`context_menu/add_page.py`**: mirror-ветка `moveObjectsToLayer` также задаёт **`targetMode: "schemaCell"`**.
+
 ## 0.5.28
 
 - **`reparent` / `events/reparent.py`**: убрана вся промежуточная обработка payload; один вызов **`logger.info`** с полями `reparentScriptFired: true` и **`event`** из `REQUEST.payload.event` как есть (включая `items` с `currentLayerName` и прочими полями снимка). Нет проверки `eventType`, нет компактных билдеров — только лог + `commands=[]`. Условия попадания INFO в файл — по-прежнему `pluginLogLevel` / `scriptLogLevel` (см. 0.5.27).
