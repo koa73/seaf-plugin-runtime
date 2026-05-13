@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.21
+
+- OID import collision detection (`collect_import_conflicts` / `all_add`): conflicts are reported only when another cell with the same OID lives on the **same page** as `payload.event.page.id`. Same OID on a different page (e.g. office + mirror) is no longer treated as a collision. Renderer snapshot `payload.event.index` now includes `objectPage` (`objectId` → `pageId`), filled when stencil index entries are built.
+
 ## 0.5.20
 
 - `events.yaml`: rules `exact_dcs_data_mirror` and `exact_dc_offices_data_mirror` now declare `add: seafStencilAllAdd` and `remove: seafStencilAllRemove` alongside `modify: seafStencilDataMirrorModify`, so exact mirror rules no longer shadow wildcard/`all` for `add`/`remove` (OID assignment on insert works again). Removed unused registered command `seafStencilSpecificAdd` (script `examples/events/specific_add.py` remains in the tree for reference).

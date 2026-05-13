@@ -21,10 +21,18 @@ def create_oid(payload: Dict, log_info: Callable[[Dict], None]) -> Tuple[List[Di
     items = event.get("items") or []
     index = event.get("index") or {}
     by_oid = index.get("byOid") or {}
+    object_page = index.get("objectPage") or {}
+    page = event.get("page") or {}
+    event_page_id = str(page.get("id") or "").strip()
     company_prefix = resolve_company_prefix(payload)
 
     commands: List[Dict] = []
-    conflicts = collect_import_conflicts(items, by_oid)
+    conflicts = collect_import_conflicts(
+        items,
+        by_oid,
+        object_page=object_page if isinstance(object_page, dict) else None,
+        event_page_id=event_page_id,
+    )
     if conflicts:
         commands.append(
             {

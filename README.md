@@ -131,8 +131,8 @@
 - Для stencil-режима поддержан `schemaPattern` с event-совместимым matching (`exact|wildcard|all`); фильтрация работает как `scope AND target AND schemaPattern`.
 - Для `add` событий назначение `OID` выполняется через event handlers (`events.yaml`): wildcard `seaf.company.ta.*` и/или explicit `add: seafStencilAllAdd` в exact-правилах (в т.ч. `dcs` / `dc_offices`) и обратный канал `Response.commands[]`.
 - Формат OID: `<companyPrefix>.<schemaCode>.<sequence>`, где `companyPrefix` читается из `env.yaml`, `schemaCode` — две последние части `schema`, fallback: `unknown`.
-- Область уникальности OID — строго текущая диаграмма; при import-коллизиях выполняется информирование пользователя таблицей конфликтов (`cellId`, `OID`, `schema`, `conflictWithCellId`, `conflictWithSchema`) без автодедупликации.
-- В renderer добавлен in-memory индекс (`byObjectId`, `bySchema`, `byOid`) для выборок, валидации OID и групповых операций.
+- Область уникальности OID — строго текущая диаграмма; при import-коллизиях выполняется информирование пользователя таблицей конфликтов (`cellId`, `OID`, `schema`, `conflictWithCellId`, `conflictWithSchema`) без автодедупликации; детектор в `all_add` сравнивает конфликтующие ячейки **только в пределах одной страницы** (`payload.event.page.id` и карта `payload.event.index.objectPage`), чтобы пара «офис + зеркало на другой странице» с общим OID не считалась коллизией.
+- В renderer добавлен in-memory индекс (`byObjectId`, `bySchema`, `byOid`, `objectPage` в снимке для Python) для выборок, валидации OID и групповых операций.
 - В `Response.commands[]` поддержана команда `updateStencilData` для обновления атрибутов выбранного стенсила по `pageId/objectId`.
 - Команда поддерживает режимы `merge` (частичное обновление) и `replace` (полная перезапись data-словаря).
 - Добавлена команда `updateStencilDataBulk` для пакетного обновления нескольких объектов в одной транзакции `beginUpdate/endUpdate`.

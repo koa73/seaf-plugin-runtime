@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.20
+ * Runtime script version: 0.5.21
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -2213,12 +2213,25 @@ Draw.loadPlugin(function(ui)
 		var schemaMeta = extractShapeSchema(cell, graph);
 		var schema = schemaMeta && typeof schemaMeta.schema === 'string' ? schemaMeta.schema.trim() : '';
 		var oid = getOidFromData(data);
+		var pageId = '';
+		try
+		{
+			if (ui && ui.currentPage && typeof ui.currentPage.getId === 'function')
+			{
+				pageId = String(ui.currentPage.getId() || '').trim();
+			}
+		}
+		catch (ePage)
+		{
+			pageId = '';
+		}
 		return {
 			objectId: cell.id,
 			schema: schema,
 			schemaCode: parseSchemaCode(schema),
 			oid: oid,
-			data: sanitizeForIpc(data)
+			data: sanitizeForIpc(data),
+			pageId: pageId
 		};
 	}
 
@@ -2367,10 +2380,21 @@ Draw.loadPlugin(function(ui)
 			}
 			byOid[oid] = Object.keys(state.stencilIndex.byOid[oid]);
 		}
+		var objectPage = {};
+		for (var objId in state.stencilIndex.byObjectId)
+		{
+			if (!Object.prototype.hasOwnProperty.call(state.stencilIndex.byObjectId, objId))
+			{
+				continue;
+			}
+			var ent = state.stencilIndex.byObjectId[objId];
+			objectPage[objId] = (ent && typeof ent.pageId === 'string') ? ent.pageId : '';
+		}
 		return {
 			total: state.stencilIndex.total,
 			bySchema: bySchema,
-			byOid: byOid
+			byOid: byOid,
+			objectPage: objectPage
 		};
 	}
 
