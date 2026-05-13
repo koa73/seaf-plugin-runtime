@@ -66,7 +66,7 @@ Event processor передает события в поле `REQUEST.payload.eve
 - `data` (атрибуты объекта по модели `Edit Data`)
 - `value`
 
-Для `reparent` дополнительно: `previousParentId`, `newParentId`, `previousLayerName`, `currentLayerName`, `targetParentLayerName` (в аудит-лог handler передаёт компактный снимок; `currentLayerName` — слой в графе после перемещения).
+Для `reparent` дополнительно: поля в `items[]` приходят из renderer (в т.ч. `currentLayerName`); `reparent.py` логирует весь `event` целиком (`reparentScriptFired`).
 
 ### `items[]` для `modify`
 
