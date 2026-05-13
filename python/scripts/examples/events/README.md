@@ -66,7 +66,7 @@ Event processor передает события в поле `REQUEST.payload.eve
 - `data` (атрибуты объекта по модели `Edit Data`)
 - `value`
 
-Для `reparent` дополнительно: `previousParentId`, `newParentId`, `previousLayerName`, `currentLayerName`, `targetParentLayerName` (диагностика; handler не меняет слои).
+Для `reparent` дополнительно: `previousParentId`, `newParentId`, `previousLayerName`, `currentLayerName`, `targetParentLayerName` (в аудит-лог handler передаёт компактный снимок; `currentLayerName` — слой в графе после перемещения).
 
 ### `items[]` для `modify`
 

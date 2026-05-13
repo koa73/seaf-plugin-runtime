@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.27
+
+- **`reparent` / `events/reparent.py`**: только аудит — одна структурированная запись **`logger.info`** (`action=reparent_move_audit`) с `page` и компактным списком `items` (`objectId`, `schema`, `OID`, **`currentLayerName`** как слой после перемещения в снимке, плюс опционально `previousParentId`, `newParentId`, `previousLayerName`, `targetParentLayerName`). `Response.commands` всегда пустой. Чтобы строка попала в `seaf-plugin.log`, в `REQUEST.payload.env` нужен **`pluginLogLevel`** не ниже `info` (эмиссия `SEAF_INFO` из Python); в `env.yaml` для записи INFO из скриптов в файл — **`scriptLogLevel: info`** (см. `seafPluginService`).
+
 ## 0.5.26
 
 - **`reparent` / `events/reparent.py`**: больше **не** эмитит UI-команды слоя (`moveLayerUnderLayer`, `moveObjectsToLayer`). Семантический слой из `schemas.<schema>.layer` задаётся только на **`add`** (`all_add`); смена `mxCell` parent при перетаскивании не перестраивает дерево слоёв и не «перепривязывает» слой группы (например «Офис») под другой страничный слой. Контур `reparent` по-прежнему отделён от `add` и **без OID**.
