@@ -1,6 +1,6 @@
 # Stencil Event Handlers (`examples/events`)
 
-Этот каталог содержит 6 тестовых Python-обработчиков для auto-event processor.
+Этот каталог содержит примеры Python-обработчиков для auto-event processor (часть из них зарегистрирована в `conf/events.yaml`, см. ниже).
 
 Важно:
 - `events.yaml` хранит **handler id** (например, `seafStencilSpecificModify`), а не путь к `.py`.
@@ -10,7 +10,6 @@
 
 | Handler id (`events.yaml`) | Command id (`events.yaml`) | Script file |
 |---|---|---|
-| `seafStencilSpecificAdd` | `seafStencilSpecificAdd` | `specific_add.py` |
 | `seafStencilSpecificRemove` | `seafStencilSpecificRemove` | `specific_remove.py` |
 | `seafStencilSpecificModify` | `seafStencilSpecificModify` | `specific_modify.py` |
 | `seafStencilAllAdd` | `seafStencilAllAdd` | `all_add.py` |
@@ -19,7 +18,7 @@
 
 ## Что делают эти скрипты
 
-Все 6 скриптов используют одинаковый шаблон:
+Все перечисленные ниже скрипты используют одинаковый шаблон:
 1. Читают входной `REQUEST` через `lib.io.read_request()`.
 2. Извлекают `payload.event.items`.
 3. Пишут диагностику по каждому item в `stderr` (попадает в plugin log).
@@ -76,8 +75,8 @@ Event processor передает события в поле `REQUEST.payload.eve
 
 ## По скриптам отдельно
 
-- `specific_add.py`:
-  - обрабатывает событие `add` для specific-rule.
+- `specific_add.py` (демо, в типовом `events.yaml` не зарегистрирован):
+  - пример обработки `add` для specific-rule; при необходимости добавьте `commands[].id: seafStencilSpecificAdd` и handler в правило.
 - `specific_remove.py`:
   - обрабатывает событие `remove` для specific-rule.
 - `specific_modify.py`:
@@ -85,7 +84,7 @@ Event processor передает события в поле `REQUEST.payload.eve
 - `all_add.py`:
   - shim-обертка, проксирует выполнение в production handler `python/scripts/events/all_add.py`;
   - fallback-обработчик `add` для правила `all`;
-  - назначает `OID` через event-механизм (правило wildcard `seaf.company.ta.*`);
+  - назначает `OID` через event-механизм (wildcard `seaf.company.ta.*` или exact-правила `exact_dcs_data_mirror` / `exact_dc_offices_data_mirror` с `add: seafStencilAllAdd`);
   - формат OID: `<companyPrefix>.<schemaCode>.<sequence>`, где `schemaCode` = две последние части `schema`, fallback `unknown`;
   - для обновления нескольких элементов использует `commands[].name=updateStencilDataBulk`.
   - проверяет коллизии при import и выводит информационную таблицу конфликтов без автодедупликации.

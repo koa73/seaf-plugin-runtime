@@ -138,7 +138,7 @@ Compose-loader объединяет их в финальный `commands[]`.
 - `seaf.company.ta.services.dc_azs` — exact match только для одного schema.
 - `seaf.company.ta.*` — wildcard match для группы schema.
 - `all` — правило на все стенсилы выбранного `listId`.
-- Для auto-назначения `OID` при `add` следует использовать wildcard-правило `seaf.company.ta.*`.
+- Для auto-назначения `OID` при `add` используется `seafStencilAllAdd` из wildcard `seaf.company.ta.*` или из exact-правил, где явно указан `add` (в т.ч. `exact_dcs_data_mirror` / `exact_dc_offices_data_mirror`).
 
 Приоритет матчинга внутри list:
 1. exact
@@ -161,7 +161,6 @@ Compose-loader объединяет их в финальный `commands[]`.
 
 | Handler id | Script |
 |---|---|
-| `seafStencilSpecificAdd` | `examples/events/specific_add.py` |
 | `seafStencilSpecificRemove` | `examples/events/specific_remove.py` |
 | `seafStencilSpecificModify` | `examples/events/specific_modify.py` |
 | `seafStencilAllAdd` | `events/all_add.py` |
@@ -169,14 +168,16 @@ Compose-loader объединяет их в финальный `commands[]`.
 | `seafStencilAllModify` | `examples/events/all_modify.py` |
 | `seafStencilDataMirrorModify` | `events/data_mirror.py` |
 
-`seafStencilDataMirrorModify` применяется для `modify` по схемам:
+Правила `exact_dcs_data_mirror` и `exact_dc_offices_data_mirror`: `add` → `seafStencilAllAdd`, `remove` → `seafStencilAllRemove`, `modify` → `seafStencilDataMirrorModify` для схем:
 - `seaf.company.ta.services.dcs`
 - `seaf.company.ta.services.dc_offices`
 
-Логика handler:
+Логика `modify` (`seafStencilDataMirrorModify` / `data_mirror.py`):
 - синхронизация атрибутов по `schema+OID` на всех страницах текущей диаграммы;
 - служебные ключи `OID` и `schema` не переписываются;
 - успех не показывает popup, ошибка возвращает `status=error` c деталями `pageName` и `OID`.
+
+Для `add` / `remove` в тех же правилах используются те же обработчики, что и в правиле `all`: `seafStencilAllAdd` (назначение OID, слои) и `seafStencilAllRemove`.
 
 ---
 
@@ -246,7 +247,7 @@ rules:
     schema: "seaf.company.ta.services.dc_azs"
     execution: sync
     handlers:
-      add: seafStencilSpecificAdd
+      add: seafStencilAllAdd
       remove: seafStencilSpecificRemove
       modify: seafStencilSpecificModify
   - id: wildcard_ta_services
@@ -254,7 +255,7 @@ rules:
     schema: "seaf.company.ta.*"
     execution: async
     handlers:
-      add: seafStencilSpecificAdd
+      add: seafStencilAllAdd
   - id: all
     listId: SEAF_Р41
     schema: all

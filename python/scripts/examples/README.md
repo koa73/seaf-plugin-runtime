@@ -290,9 +290,7 @@
 
 ## 8) `events/*` (batch handlers for stencil events)
 
-Набор из 6 обработчиков для auto-event processor:
-- `specific_add.py`, `specific_remove.py`, `specific_modify.py`
-- `all_add.py`, `all_remove.py`, `all_modify.py`
+Демо-обработчики в `examples/events/`: `specific_add.py`, `specific_remove.py`, `specific_modify.py`, `all_add.py` (shim на production `events/all_add.py`), `all_remove.py`, `all_modify.py`. В типовом `conf/events.yaml` не регистрируется только `seafStencilSpecificAdd` (файл `specific_add.py` остаётся как пример).
 
 Скрипты получают payload с полями:
 - `event.eventType` (`add|remove|modify`)

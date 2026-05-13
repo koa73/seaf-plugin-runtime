@@ -117,7 +117,7 @@
 - `modify` обрабатывается только в сценарии `Edit Data -> Apply` и только при реальном изменении данных.
 - Snapshot-сессия `EditDataSessionCoordinator` остаётся активной на время полного цикла Apply (включая промежуточные `CHANGE` и порядок `hideDialog` → `setValue` в штатном draw.io); завершение сессии выполняется отложенно при `ui.hideDialog` (`installEditDataSessionHideHook`), чтобы `modify` стабильно попадал в event pipeline и в `data_mirror`.
 - Маршрутизация событий идет по `rules` из `events.yaml` в рамках `listId` и `schema`-паттернов: приоритет `exact > wildcard > all`.
-- Для схем `seaf.company.ta.services.dcs` и `seaf.company.ta.services.dc_offices` `modify` маршрутизируется в `seafStencilDataMirrorModify` (`python/scripts/events/data_mirror.py`) для синхронизации по `schema+OID` на всех страницах текущей диаграммы.
+- Для схем `seaf.company.ta.services.dcs` и `seaf.company.ta.services.dc_offices` в `events.yaml` заданы exact-правила: `add` → `seafStencilAllAdd`, `remove` → `seafStencilAllRemove`, `modify` → `seafStencilDataMirrorModify` (`python/scripts/events/data_mirror.py`); синхронизация зеркала по `schema+OID` на всех страницах текущей диаграммы выполняется только на `modify`.
 - Синхронизация `data_mirror` выполняется атомарной UI-командой `mirrorDataByOidAtomic` (`precheck -> snapshot -> apply -> rollback`) с `suppressStencilEvents=true`, чтобы исключить рекурсивный цикл modify-событий.
 - При ошибке синхронизации runtime возвращает `status=error`, пишет диагностику в лог и показывает пользователю только ошибку с деталями `pageName` и `OID`; success-уведомление не показывается.
 - `rule.schema` поддерживает 3 режима: точное значение (например `seaf.company.ta.services.dc_azs`), wildcard с `*` (например `seaf.company.ta.*`) и `all`.
@@ -129,7 +129,7 @@
 - Контекстное меню поддерживает 2 scope-режима: `canvas` (клик по полю) и `stencil` (клик по стенсилу).
 - В context menu попадают только команды с явным `menu.context.enabled: true`; main-only команды без context-конфига не отображаются.
 - Для stencil-режима поддержан `schemaPattern` с event-совместимым matching (`exact|wildcard|all`); фильтрация работает как `scope AND target AND schemaPattern`.
-- Для `add` событий по шаблону `seaf.company.ta.*` назначение `OID` выполняется через event handlers (`events.yaml`) и обратный канал `Response.commands[]`.
+- Для `add` событий назначение `OID` выполняется через event handlers (`events.yaml`): wildcard `seaf.company.ta.*` и/или explicit `add: seafStencilAllAdd` в exact-правилах (в т.ч. `dcs` / `dc_offices`) и обратный канал `Response.commands[]`.
 - Формат OID: `<companyPrefix>.<schemaCode>.<sequence>`, где `companyPrefix` читается из `env.yaml`, `schemaCode` — две последние части `schema`, fallback: `unknown`.
 - Область уникальности OID — строго текущая диаграмма; при import-коллизиях выполняется информирование пользователя таблицей конфликтов (`cellId`, `OID`, `schema`, `conflictWithCellId`, `conflictWithSchema`) без автодедупликации.
 - В renderer добавлен in-memory индекс (`byObjectId`, `bySchema`, `byOid`) для выборок, валидации OID и групповых операций.

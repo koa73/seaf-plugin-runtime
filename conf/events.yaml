@@ -19,12 +19,16 @@ rules:
     schema: "seaf.company.ta.services.dcs"
     execution: sync
     handlers:
+      add: seafStencilAllAdd
+      remove: seafStencilAllRemove
       modify: seafStencilDataMirrorModify
   - id: exact_dc_offices_data_mirror
     listId: SEAF_Р41
     schema: "seaf.company.ta.services.dc_offices"
     execution: sync
     handlers:
+      add: seafStencilAllAdd
+      remove: seafStencilAllRemove
       modify: seafStencilDataMirrorModify
   - id: wildcard_ta_services
     listId: SEAF_Р41
@@ -41,19 +45,6 @@ rules:
       remove: seafStencilAllRemove
       modify: seafStencilAllModify
 commands:
-  - id: seafStencilSpecificAdd
-    title: SEAF Stencil Specific Add
-    menu:
-      main:
-        enabled: false
-      context:
-        enabled: false
-    script: examples/events/specific_add.py
-    execution:
-      mode: sync
-      timeoutSec: 30
-    input:
-      includeDiagramXml: false
   - id: seafStencilSpecificRemove
     title: SEAF Stencil Specific Remove
     menu:

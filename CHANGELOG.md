@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.20
+
+- `events.yaml`: rules `exact_dcs_data_mirror` and `exact_dc_offices_data_mirror` now declare `add: seafStencilAllAdd` and `remove: seafStencilAllRemove` alongside `modify: seafStencilDataMirrorModify`, so exact mirror rules no longer shadow wildcard/`all` for `add`/`remove` (OID assignment on insert works again). Removed unused registered command `seafStencilSpecificAdd` (script `examples/events/specific_add.py` remains in the tree for reference).
+
 ## 0.5.19
 
 - Stencil `modify` detection: `collectStencilEventsFromModelChange` now treats a real Edit Data change when the **editable attribute map** (`dataBefore` vs `dataAfter` from `extractEditableDataFrom*`) differs, not only when `JSON.stringify(sanitizeForIpc(value))` differs — `sanitizeForIpc` over DOM/XML nodes could drop attributes and suppress `modify` (breaking `seafStencilDataMirrorModify` / `data_mirror`). Added debug log `Stencil modify candidate evaluated` with `diffKeys`, and `info` log `Stencil event handler started` at the beginning of `runStencilEventCommand`.
