@@ -1,7 +1,18 @@
-from typing import Dict, List
+from typing import Any, Dict, List
 
 
-def collect_import_conflicts(items: List[Dict], known_oids: Dict[str, Dict]) -> List[Dict]:
+def normalize_known_oid_entry(entry: Any) -> List[str]:
+    """Normalize known OID registry entry to list of object ids."""
+    if isinstance(entry, list):
+        return [str(row).strip() for row in entry if str(row).strip()]
+    if isinstance(entry, dict):
+        object_ids = entry.get("objectIds")
+        if isinstance(object_ids, list):
+            return [str(row).strip() for row in object_ids if str(row).strip()]
+    return []
+
+
+def collect_import_conflicts(items: List[Dict], known_oids: Dict[str, Any]) -> List[Dict]:
     conflicts: List[Dict] = []
     for item in items:
         data = item.get("data") or {}
@@ -9,8 +20,8 @@ def collect_import_conflicts(items: List[Dict], known_oids: Dict[str, Dict]) -> 
         oid = str(data.get("OID", "")).strip()
         if not oid:
             continue
-        existing = known_oids.get(oid) or {}
-        existing_ids = existing.get("objectIds") or []
+        existing = known_oids.get(oid)
+        existing_ids = normalize_known_oid_entry(existing)
         for existing_id in existing_ids:
             if existing_id == object_id:
                 continue

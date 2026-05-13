@@ -283,6 +283,13 @@ rules:
 4. Если нет handler для eventType -> dispatch пропускается.
 5. `execution: sync` ждет ответ, `execution: async` отправляет fire-and-forget и пишет отдельный trace.
 
+### Видимость ошибок event handlers
+
+- Любая ошибка handler всегда логируется в `seaf-plugin.log`.
+- Для `source=stencil_event_processor` popup пользователю показывается только если в ответе есть
+  `payload.errorPolicy.userVisible=true`.
+- При отсутствии этого флага ошибка остается технической (`log-only`) и не поднимается как всплывающее окно.
+
 ### Важное уточнение по порядку правил
 
 - Выбор идет не по принципу "первое совпавшее сверху", а по **специфичности**:

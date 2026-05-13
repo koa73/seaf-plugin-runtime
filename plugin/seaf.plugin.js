@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.15
+ * Runtime script version: 0.5.16
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -2536,6 +2536,17 @@ Draw.loadPlugin(function(ui)
 		return {rule: null, reason: 'no_rule_match'};
 	}
 
+	function isEventErrorUserVisible(result)
+	{
+		if (result == null || typeof result !== 'object')
+		{
+			return false;
+		}
+		var payload = (result.payload && typeof result.payload === 'object') ? result.payload : {};
+		var policy = (payload.errorPolicy && typeof payload.errorPolicy === 'object') ? payload.errorPolicy : {};
+		return policy.userVisible === true;
+	}
+
 	async function runStencilEventCommand(commandId, eventPayload)
 	{
 		if (typeof commandId !== 'string' || commandId.trim().length === 0)
@@ -2588,9 +2599,13 @@ Draw.loadPlugin(function(ui)
 				commandId: commandId.trim(),
 				eventType: eventPayload && eventPayload.eventType ? eventPayload.eventType : '',
 				ruleId: eventPayload && eventPayload.ruleId ? eventPayload.ruleId : '',
-				message: errorMessage
+				message: errorMessage,
+				userVisible: isEventErrorUserVisible(result)
 			});
-			showError('stencil_event_processor: ' + errorMessage);
+			if (isEventErrorUserVisible(result))
+			{
+				showError('stencil_event_processor: ' + errorMessage);
+			}
 		}
 		return response;
 	}
@@ -5955,6 +5970,11 @@ Draw.loadPlugin(function(ui)
 		}
 		result.status = 'error';
 		result.message = 'Синхронизация данных не выполнена:\n' + lines.join('\n');
+		if (result.payload == null || typeof result.payload !== 'object')
+		{
+			result.payload = {};
+		}
+		result.payload.errorPolicy = {userVisible: true};
 		if (!Array.isArray(result.errors))
 		{
 			result.errors = [];

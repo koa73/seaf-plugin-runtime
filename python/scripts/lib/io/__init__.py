@@ -39,6 +39,17 @@ def emit_progress(progress: int, phase: Optional[str] = None, message: Optional[
     sys.stderr.flush()
 
 
+def build_error_policy_payload(
+    payload: Optional[Dict[str, Any]] = None,
+    user_visible: bool = False,
+) -> Dict[str, Any]:
+    """Attach unified error visibility policy to payload."""
+    base = payload if isinstance(payload, dict) else {}
+    next_payload = dict(base)
+    next_payload["errorPolicy"] = {"userVisible": user_visible is True}
+    return next_payload
+
+
 def write_response(
     status: str,
     message: str,

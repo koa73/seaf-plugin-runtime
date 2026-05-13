@@ -3,7 +3,7 @@
 
 from typing import Any, Callable, Dict, List, Tuple
 
-from lib.io import read_request, write_response
+from lib.io import build_error_policy_payload, read_request, write_response
 from lib.events import (
     build_layer_commands_for_items,
     build_collision_message,
@@ -88,7 +88,11 @@ def main() -> int:
     except Exception as exc:
         logger = build_script_logger({})
         logger.error(f"all_add failed: {exc}")
-        return write_response(status="error", message=f"all_add failed: {exc}", payload={"handler": "all_add"})
+        return write_response(
+            status="error",
+            message=f"all_add failed: {exc}",
+            payload=build_error_policy_payload({"handler": "all_add"}, user_visible=False),
+        )
 
 
 if __name__ == "__main__":

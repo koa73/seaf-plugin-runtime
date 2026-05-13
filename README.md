@@ -139,6 +139,7 @@
 - Добавлена команда `moveObjectsToLayer`: create-or-get слоя + перенос указанных объектов в слой через `graph.moveCells(...)`.
 - Возвращаемые значения UI-команд агрегируются в `result.payload.uiCommandResults`.
 - В event pipeline (`source=stencil_event_processor`) ответы Python handlers теперь также исполняют `Response.commands[]` через общий UI executor, поэтому `ensureLayer`/`updateStencilData` применяются не только в menu/system сценариях.
+- Для ошибок event pipeline действует явная политика видимости: каждая ошибка пишется в лог, а popup показывается только если handler вернул `payload.errorPolicy.userVisible=true`.
 - Исправлен extraction `add`-событий для grouped stencils: если root group не содержит `schema`, runtime использует дочерние schema-bearing ячейки для routing, чтобы layer-routing/`moveObjectsToLayer` срабатывал стабильно.
 - Для grouped stencils `moveObjectsToLayer` теперь переносит компонент целиком через target container resolution (group-root), чтобы не ломать структуру и очередность внутренних `mxCell`.
 - Примерные Python handlers логируют извлеченные поля через `stderr`; поддержан протокол `SEAF_ERROR`/`SEAF_INFO`/`SEAF_LOG`.

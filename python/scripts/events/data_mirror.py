@@ -11,7 +11,7 @@ from lib.events import (
     log_event_items,
     sanitize_patch_data,
 )
-from lib.io import read_request, write_response
+from lib.io import build_error_policy_payload, read_request, write_response
 from lib.logging import build_script_logger
 
 EXCLUDED_FIELDS = ("OID", "schema")
@@ -121,8 +121,7 @@ def main() -> int:
         return write_response(
             status="error",
             message=message,
-            payload={"handler": "data_mirror"},
-            commands=[{"name": "showMessage", "args": {"level": "error", "text": message}}],
+            payload=build_error_policy_payload({"handler": "data_mirror"}, user_visible=True),
         )
 
 
