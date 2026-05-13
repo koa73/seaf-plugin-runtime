@@ -7,16 +7,8 @@
 - Скрипт печатает **в stdout** JSON‑объект `Response`.
 - По `Response` UI выполняет интерактивные команды (`commands[]`) и показывает пользователю сообщение.
 
-Примеры entrypoint-скриптов находятся в подпапке `examples/`:
-- подробная документация по каждому примеру: [`examples/README.md`](examples/README.md);
-- `examples/success_reload.py` — успешный ответ + команды `showMessage` и `reloadDocument`.
-- `examples/validate_selection.py` — валидация выделения + команда `selectCells`.
-- `examples/async_background.py` — имитация фоновой задачи (использует `arguments.simulateDurationSec`).
-- `examples/failure_demo.py` — пример ошибки (error‑response).
-- `examples/timeout_demo.py` — пример «долгого» выполнения (для демонстрации таймаута).
-- `examples/interactive_terminal_demo.py` — пример интерактивного terminal-режима с `print(...)`, `input(...)` и симуляцией exception по подтверждению `Y/N`.
-- `examples/events/*.py` — примеры batch-обработчиков событий стенсилов (`specific` и `all` для `add/remove/modify`).
-- подробная документация по event handlers: [`examples/events/README.md`](examples/events/README.md).
+Скрипты в каталоге `examples/` остаются для локальной отладки и **не** подключаются из поставочных `main_menu.yaml` / `events.yaml` (см. [`examples/README.md`](examples/README.md)).
+
 - `events/all_add.py` — production orchestrator для `add`-событий: собирает контекст, вызывает OID-библиотеку и формирует `Response.commands[]` (новый OID только при отсутствии или пустом `data.OID`, чтобы второй `add` после смены слоя не сдвигал sequence).
 - `events/reparent.py` — при вызове пишет в stderr **`SEAF_INFO`** объект с `reparentScriptFired: true` и полным **`event`** из `REQUEST.payload.event` (без отдельной компоновки полей); `Response.commands` пустой. Для файла лога см. `CHANGELOG` 0.5.27–0.5.28 (`pluginLogLevel`, `scriptLogLevel`).
 - `events/data_mirror.py` — production orchestrator для `modify`-синхронизации `schema+OID` (схемы `dcs`/`dc_offices`) через атомарную runtime-команду.

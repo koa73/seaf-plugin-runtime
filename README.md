@@ -9,7 +9,8 @@
 - `full runtime` (для разработки и релиза runtime):
   - `plugin/seaf.plugin.js`
   - `conf/plugin.yaml`
-  - `python/scripts/examples/*`
+  - `python/scripts/events/*`
+  - `python/scripts/examples/*` (локальные демо, не из поставочного `main_menu.yaml`)
   - `python/scripts/lib/*`
   - `runtime/version.json`
 - `minimal runtime` (для встраивания в пакет drawio):
@@ -30,7 +31,7 @@
 - `conf/stencils/*.xml` - файлы библиотек фигур в формате `mxlibrary`.
 - `conf/stencils/config.yaml` - schema-based конфиг: layer-routing для auto add handlers, режим `edit_data` (`seaf|standard|both`), список `data_lock` защищённых атрибутов и зарезервированный ключ `fields` для Phase 2 rich-виджетов.
 - `conf/README.md` - документация формата `plugin.yaml`.
-- `python/scripts/examples/*.py` - Python entrypoint-скрипты команд full runtime (демо/примеры).
+- `python/scripts/examples/*.py` - локальные демо-скрипты (не подключаются из поставочного `main_menu.yaml` / `events.yaml`).
 - `python/scripts/events/*.py` - production event handlers (оркестраторы event-логики).
 - `python/scripts/lib/*` - общие Python-модули, которые импортируются entrypoint-скриптами.
 - `python/requirements.txt` - зависимости для автоматической установки в выбранный Python интерпретатор.
@@ -148,9 +149,9 @@
 - Для grouped stencils без **`targetMode`** исполнитель по-прежнему может поднимать цель до group-root (legacy); Python layer-routing для **`all_add`**, **`reparent`** и mirror **`add_page`** передаёт **`targetMode: "schemaCell"`**, чтобы не ломать структуру вложенных schema-объектов при переносе на слой.
 - Примерные Python handlers логируют извлеченные поля через `stderr`; поддержан протокол `SEAF_ERROR`/`SEAF_INFO`/`SEAF_LOG`.
 - В `seaf-plugin.log` записи получают префикс `[PYTHON][script.py][ERROR|INFO]`; `INFO` пишется только при `pluginLogLevel in {info, debug, trace}` (из `REQUEST.payload.env/arguments`), `ERROR` — всегда.
-- Значения `handlers` в `events.yaml` (например `seafStencilSpecificModify`) — это command id composed config; реальные скрипты задаются в `python/scripts/examples/events/*.py` через скрытые commands в `events.yaml`.
+- Значения `handlers` в `events.yaml` (например `seafStencilSpecificModify`) — это command id composed config; реальные скрипты задаются в `python/scripts/events/*.py` через скрытые `commands[]` в `events.yaml`.
 - Для `seafStencilAllAdd` используется production orchestrator `python/scripts/events/all_add.py`; OID-алгоритм вынесен в библиотеку `python/scripts/lib/oid/*`, layer-routing работает по `conf/stencils/config.yaml` (`schema -> layer`), сервисная event-логика — в `python/scripts/lib/events/*`, а проверка уровней и emit logging-сообщений (`SEAF_INFO/SEAF_ERROR`) централизованы в `python/scripts/lib/logging/*`.
-- Детальная спецификация конфига и mapping `handler id -> command -> script` описаны в `conf/README.md`, а подробное поведение скриптов — в `python/scripts/examples/events/README.md`.
+- Детальная спецификация конфига и mapping `handler id -> command -> script` описаны в `conf/README.md`, а подробное поведение production event-скриптов — в `python/scripts/README.md` и в исходниках `python/scripts/events/`.
 
 ## SEAF Edit Data dialog (data_lock)
 

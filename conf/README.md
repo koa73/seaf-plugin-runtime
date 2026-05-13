@@ -147,7 +147,7 @@ Compose-loader объединяет их в финальный `commands[]`.
 Приоритет матчинга внутри list:
 1. exact
 2. wildcard
-3. all
+3. `schema: all` — если в конфиге присутствует такое правило, оно применяется после wildcard как наименее специфичное.
 
 ### Что такое handler id
 
@@ -156,7 +156,7 @@ Compose-loader объединяет их в финальный `commands[]`.
 Маршрут:
 1. `events.yaml.rules[].handlers.modify` -> `seafStencilSpecificModify`
 2. compose config ищет command с `id=seafStencilSpecificModify`
-3. command указывает `script: examples/events/specific_modify.py`
+3. command указывает `script: events/specific_modify.py`
 4. service runner запускает этот Python script
 
 ---
@@ -165,12 +165,12 @@ Compose-loader объединяет их в финальный `commands[]`.
 
 | Handler id | Script |
 |---|---|
-| `seafStencilSpecificRemove` | `examples/events/specific_remove.py` |
-| `seafStencilSpecificModify` | `examples/events/specific_modify.py` |
+| `seafStencilSpecificRemove` | `events/specific_remove.py` |
+| `seafStencilSpecificModify` | `events/specific_modify.py` |
 | `seafStencilAllAdd` | `events/all_add.py` |
 | `seafStencilReparent` | `events/reparent.py` |
-| `seafStencilAllRemove` | `examples/events/all_remove.py` |
-| `seafStencilAllModify` | `examples/events/all_modify.py` |
+| `seafStencilAllRemove` | `events/all_remove.py` |
+| `seafStencilAllModify` | `events/all_modify.py` |
 | `seafStencilDataMirrorModify` | `events/data_mirror.py` |
 
 Правила `exact_dcs_data_mirror` и `exact_dc_offices_data_mirror`: `add` → `seafStencilAllAdd`, `remove` → `seafStencilAllRemove`, `modify` → `seafStencilDataMirrorModify` для схем:
@@ -182,7 +182,7 @@ Compose-loader объединяет их в финальный `commands[]`.
 - служебные ключи `OID` и `schema` не переписываются;
 - успех не показывает popup, ошибка возвращает `status=error` c деталями `pageName` и `OID`.
 
-Для `add` / `remove` в тех же правилах используются те же обработчики, что и в правиле `all`: `seafStencilAllAdd` (назначение OID, слои) и `seafStencilAllRemove`. Для `reparent` используется `seafStencilReparent` (лог полного `event`, без команд).
+Для `add` / `remove` в тех же правилах используются `seafStencilAllAdd` и `seafStencilAllRemove`; `modify` — `seafStencilDataMirrorModify`.
 
 ---
 

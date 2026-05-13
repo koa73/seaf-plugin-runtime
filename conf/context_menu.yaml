@@ -1,16 +1,5 @@
 version: 1
 commands:
-  - id: seafInteractiveTerminalDemo
-    menu:
-      context:
-        enabled: true
-        scope: canvas
-        target: any
-  - id: seafReloadDocument
-    menu:
-      context:
-        enabled: false
-        target: selection_non_empty
   - id: seafAddPage
     title: Создать страницу
     script: context_menu/add_page.py

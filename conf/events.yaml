@@ -1,7 +1,7 @@
 version: 1
 enabled: true
 schemaPrefix: "seaf."
-defaultRuleId: "all"
+defaultRuleId: "wildcard_ta_services"
 stencilLists:
   - id: SEAF_Р41
     title: "SEAF_Р41"
@@ -40,15 +40,6 @@ rules:
     handlers:
       add: seafStencilAllAdd
       reparent: seafStencilReparent
-  - id: all
-    listId: SEAF_Р41
-    schema: all
-    execution: sync
-    handlers:
-      add: seafStencilAllAdd
-      reparent: seafStencilReparent
-      remove: seafStencilAllRemove
-      modify: seafStencilAllModify
 commands:
   - id: seafStencilSpecificRemove
     title: SEAF Stencil Specific Remove
@@ -57,7 +48,7 @@ commands:
         enabled: false
       context:
         enabled: false
-    script: examples/events/specific_remove.py
+    script: events/specific_remove.py
     execution:
       mode: sync
       timeoutSec: 30
@@ -70,7 +61,7 @@ commands:
         enabled: false
       context:
         enabled: false
-    script: examples/events/specific_modify.py
+    script: events/specific_modify.py
     execution:
       mode: sync
       timeoutSec: 30
@@ -109,7 +100,7 @@ commands:
         enabled: false
       context:
         enabled: false
-    script: examples/events/all_remove.py
+    script: events/all_remove.py
     execution:
       mode: sync
       timeoutSec: 30
@@ -122,7 +113,7 @@ commands:
         enabled: false
       context:
         enabled: false
-    script: examples/events/all_modify.py
+    script: events/all_modify.py
     execution:
       mode: sync
       timeoutSec: 30

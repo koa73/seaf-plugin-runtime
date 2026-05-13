@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.31
+
+- **`conf/events.yaml`**: удалено catch-all правило `id: all` (`schema: all` для `SEAF_Р41`); `defaultRuleId` указывает на `wildcard_ta_services`. Скрытые команды `seafStencilSpecificRemove` / `seafStencilSpecificModify` / `seafStencilAllRemove` / `seafStencilAllModify` перенесены на production-скрипты в `python/scripts/events/` (`specific_remove.py`, `specific_modify.py`, `all_remove.py`, `all_modify.py`).
+- **`conf/main_menu.yaml`**, **`conf/context_menu.yaml`**: из поставочного меню убраны команды, чей `script` указывал на `python/scripts/examples/...` (демо reload/validate/async/failure/timeout/interactive terminal и overrides контекстного меню для удалённых id).
+
 ## 0.5.30
 
 - **`moveObjectsToLayer` / `plugin/seaf.plugin.js`**: опциональный аргумент **`targetMode: "schemaCell"`** — перенос выполняется по **конкретной ячейке** из `objectIds` (как в `Edit Data`), без подъёма до group-root; по умолчанию (без аргумента) сохраняется прежнее поведение **group-root** для обратной совместимости.
