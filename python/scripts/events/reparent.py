@@ -1,12 +1,30 @@
 #!/usr/bin/env python3
-"""reparent handler: write one audit log line with the event payload; no commands."""
+"""reparent handler: audit event and enforce schema-based layer routing."""
 
+from typing import Callable, Dict, List
+
+from lib.events import build_layer_commands_for_items
 from lib.io import build_error_policy_payload, read_request, write_response
 from lib.logging import build_script_logger
 
 
+def create_layer_commands(payload: Dict, log_info: Callable[[Dict], None]) -> List[Dict]:
+    """Build layer-routing commands for reparented items (forced re-apply)."""
+    event = payload.get("event") or {}
+    page = event.get("page") or {}
+    page_id = page.get("id")
+    items = event.get("items") or []
+    return build_layer_commands_for_items(
+        page_id,
+        items,
+        log_info,
+        "reparent",
+        force_reassign_layer=True,
+    )
+
+
 def main() -> int:
-    """Log that this script ran and attach `payload.event` as-is; return success with empty commands."""
+    """Log event payload and return forced layer-routing commands."""
     try:
         req = read_request()
         payload = req.get("payload") or {}
@@ -20,11 +38,12 @@ def main() -> int:
             }
         )
         items = event.get("items") if isinstance(event.get("items"), list) else []
+        commands = create_layer_commands(payload, logger.info)
         return write_response(
             status="success",
-            message="reparent logged",
-            payload={"handler": "reparent", "count": len(items)},
-            commands=[],
+            message="reparent processed",
+            payload={"handler": "reparent", "count": len(items), "layerCommandsCount": len(commands)},
+            commands=commands,
         )
     except Exception as exc:
         logger = build_script_logger({})

@@ -20,6 +20,7 @@ def build_layer_commands_for_items(
     items: Iterable[Dict[str, Any]],
     log_info: Callable[[Dict[str, Any]], None],
     handler: str,
+    force_reassign_layer: bool = False,
 ) -> List[Dict[str, Any]]:
     """Build move-to-layer commands by grouping object ids per resolved layer."""
     layer_config = load_stencil_layer_config()
@@ -57,7 +58,7 @@ def build_layer_commands_for_items(
             )
             continue
         current = _item_current_layer_name(item)
-        if current and current == layer_name:
+        if (not force_reassign_layer) and current and current == layer_name:
             log_info(
                 {
                     "handler": handler,
@@ -68,6 +69,16 @@ def build_layer_commands_for_items(
                 }
             )
             continue
+        if force_reassign_layer and current and current == layer_name:
+            log_info(
+                {
+                    "handler": handler,
+                    "action": "layer_reassign_forced",
+                    "objectId": object_id,
+                    "schema": schema,
+                    "layerName": layer_name,
+                }
+            )
         grouped.setdefault(layer_name, []).append(object_id)
 
     suppress_move_events = handler == "reparent"
