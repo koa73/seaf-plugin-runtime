@@ -115,6 +115,7 @@
 - В критических async-ветках включен fail-safe cleanup: polling ошибки обрабатываются явно, а interactive-terminal overlay завершается watchdog-ом при отсутствии terminal-closed события.
 - Auto-event processor подписывается на изменения модели и отправляет batch события `add/remove` для стенсилов из `events.yaml`.
 - `modify` обрабатывается только в сценарии `Edit Data -> Apply` и только при реальном изменении данных.
+- Snapshot-сессия `EditDataSessionCoordinator` остаётся активной на время полного цикла Apply (включая промежуточные `CHANGE` и порядок `hideDialog` → `setValue` в штатном draw.io); завершение сессии выполняется отложенно при `ui.hideDialog` (`installEditDataSessionHideHook`), чтобы `modify` стабильно попадал в event pipeline и в `data_mirror`.
 - Маршрутизация событий идет по `rules` из `events.yaml` в рамках `listId` и `schema`-паттернов: приоритет `exact > wildcard > all`.
 - Для схем `seaf.company.ta.services.dcs` и `seaf.company.ta.services.dc_offices` `modify` маршрутизируется в `seafStencilDataMirrorModify` (`python/scripts/events/data_mirror.py`) для синхронизации по `schema+OID` на всех страницах текущей диаграммы.
 - Синхронизация `data_mirror` выполняется атомарной UI-командой `mirrorDataByOidAtomic` (`precheck -> snapshot -> apply -> rollback`) с `suppressStencilEvents=true`, чтобы исключить рекурсивный цикл modify-событий.
@@ -159,6 +160,7 @@
   - В любом режиме plugin не добавляет стандартный `Edit Data` вручную: единственный источник standard-пункта — базовый draw.io popup.
 - Для grouped stencil-элементов mode для RMB/`seafEditData` теперь вычисляется не только по кликнутой дочерней ячейке, но и по ближайшему родителю со `schema`; это устраняет ситуацию, когда пункт SEAF не показывался из-за клика в служебный внутренний `mxCell`.
 - Реинжиниринг v2: Edit Data логика декомпозирована на слои `EditDataModeEngine` (policy/intent), `ContextMenuPresenter` (отрисовка RMB), `EditDataDialogRouter` (маршрутизация entry-points) и `EditDataSessionCoordinator` (явный lifecycle snapshot-сессии).
+- Завершение snapshot-сессии привязано к `ui.hideDialog` (отложенный `reset` через `setTimeout(0)` в `installEditDataSessionHideHook`), а не к каждому `mxEvent.CHANGE` модели — иначе промежуточные изменения или штатный порядок Apply обнуляли бы сессию до `setValue` и `modify` не формировался бы (в т.ч. для `data_mirror` по OID).
 - Конфигурация — `conf/stencils/config.yaml`: `schemas.<schema>.edit_data` (`seaf|standard|both`) и `schemas.<schema>.data_lock` (список защищённых атрибутов).
 - Fallback policy: если `conf/stencils/config.yaml` не загрузился (битый файл, отсутствует, ошибка IPC) или схема не описана в config, для любой schema, начинающейся на `seaf.`, plugin всё равно использует `mode=seaf` и `data_lock=[OID, schema]`. Не-`seaf.` схемы по-прежнему получают штатный диалог.
 - Защита `data_lock` (по умолчанию `[OID, schema]` для каждой schema, перечисленной в config или попавшей под seaf-prefix fallback) — поле дизейблится, кнопка «X» удаления отсутствует, добавление атрибута с защищённым именем блокируется alert'ом.

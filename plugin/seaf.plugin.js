@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.16
+ * Runtime script version: 0.5.17
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -37,6 +37,7 @@ Draw.loadPlugin(function(ui)
 		editDataSessionActive: false,
 		editDataBeforeByCell: {},
 		editDataDialogRouterInstalled: false,
+		editDataSessionHideHookInstalled: false,
 		originalShowDataDialog: null,
 		contextMenuLastCell: null,
 		stencilsLayerConfig: null,
@@ -2945,16 +2946,40 @@ Draw.loadPlugin(function(ui)
 					error: e && e.message ? e.message : String(e)
 				});
 			}
-			finally
-			{
-				if (state.editDataSessionActive)
-				{
-					state.editDataSessionActive = false;
-					state.editDataBeforeByCell = {};
-				}
-			}
 		});
 		state.stencilModelListenerInstalled = true;
+	}
+
+	// End Edit Data snapshot session after the dialog stack unwinds. Clearing the session in the
+	// model CHANGE listener breaks both native and SEAF Apply: hideDialog often emits intermediate
+	// CHANGE events, and native EditDataDialog calls hideDialog before setValue.
+	function installEditDataSessionHideHook()
+	{
+		if (state.editDataSessionHideHookInstalled === true)
+		{
+			return;
+		}
+		if (ui == null || typeof ui.hideDialog !== 'function')
+		{
+			return;
+		}
+		var originalHideDialog = ui.hideDialog.bind(ui);
+		ui.hideDialog = function()
+		{
+			var ret = originalHideDialog.apply(ui, arguments);
+			if (state.editDataSessionActive === true)
+			{
+				window.setTimeout(function()
+				{
+					if (state.editDataSessionActive === true)
+					{
+						EditDataSessionCoordinator.reset();
+					}
+				}, 0);
+			}
+			return ret;
+		};
+		state.editDataSessionHideHookInstalled = true;
 	}
 
 	function ensureSeafEditDataResources()
@@ -6979,6 +7004,7 @@ Draw.loadPlugin(function(ui)
 				return Promise.resolve();
 			}, false);
 			await runInitStep('install_stencil_model_listener', installStencilModelListener, false);
+			await runInitStep('install_edit_data_session_hide_hook', installEditDataSessionHideHook, false);
 			await runInitStep('install_edit_data_dialog_router', function()
 			{
 				installEditDataDialogRouter();

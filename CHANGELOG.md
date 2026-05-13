@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.17
+
+- Fixed Edit Data snapshot session lifecycle: the stencil model `CHANGE` listener no longer clears `editDataSessionActive` after every change (that dropped `modify` events when `hideDialog` emitted intermediate updates or when the session was cleared before Apply’s `setValue`). Session end is deferred to `ui.hideDialog` (`setTimeout(0)`) so both SEAF and native `Edit Data -> Apply` paths reliably emit `modify` for `data_mirror` and related handlers.
+
 ## 0.5.14
 
 - Restored final `assignEmptyOidOnPage` step in `seafAddPage` flow (`context_menu/add_page.py`): on the created page, all objects that have an `OID` attribute with an empty value receive calculated OIDs via the same generator as `all_add` (`companyPrefix` + `schemaCode` + sequence).
