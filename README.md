@@ -29,7 +29,7 @@
 - `conf/events.yaml` - конфигурация auto-event processor (правила по `add`/`reparent`/`modify` и скрытые event handlers).
 - `conf/stencils/libraries.json` - JSON-конфиг секций/библиотек фигур для окна `More Shapes`.
 - `conf/stencils/*.xml` - файлы библиотек фигур в формате `mxlibrary`.
-- `conf/stencils/config.yaml` - schema-based конфиг: layer-routing для auto add handlers, режим `edit_data` (`seaf|standard|both`), список `data_lock` защищённых атрибутов и зарезервированный ключ `fields` для Phase 2 rich-виджетов.
+- `conf/stencils/config.yaml` - schema-based конфиг: layer-routing для auto add handlers, режим `edit_data` (`seaf|standard|both`), список `data_lock` защищённых атрибутов, опциональный `data_hidden` (атрибуты не показываются в SEAF Edit Data, но сохраняются при Apply) и зарезервированный ключ `fields` для Phase 2 rich-виджетов.
 - `conf/README.md` - документация формата `plugin.yaml`.
 - `python/scripts/examples/*.py` - локальные демо-скрипты (не подключаются из поставочного `main_menu.yaml` / `events.yaml`).
 - `python/scripts/events/*.py` - production event handlers (оркестраторы event-логики).
@@ -153,7 +153,7 @@
 - Для `seafStencilAllAdd` используется production orchestrator `python/scripts/events/all_add.py`; OID-алгоритм вынесен в библиотеку `python/scripts/lib/oid/*`, layer-routing работает по `conf/stencils/config.yaml` (`schema -> layer`), сервисная event-логика — в `python/scripts/lib/events/*`, а проверка уровней и emit logging-сообщений (`SEAF_INFO/SEAF_ERROR`) централизованы в `python/scripts/lib/logging/*`.
 - Детальная спецификация конфига и mapping `handler id -> command -> script` описаны в `conf/README.md`, а подробное поведение production event-скриптов — в `python/scripts/README.md` и в исходниках `python/scripts/events/`.
 
-## SEAF Edit Data dialog (data_lock)
+## SEAF Edit Data dialog (data_lock / data_hidden)
 
 - Для P41-стенсилов штатный диалог draw.io «Edit Data» заменяется собственным `SeafEditDataDialog`, реализованным в `plugin/seaf.plugin.js`.
 - Каноническая точка маршрутизации — переопределение `EditorUi.prototype.showDataDialog` (`installEditDataDialogRouter`). Это покрывает все пути одинаково: правое меню → штатный action `editData`, кнопка «Edit Data» в Format panel и горячая клавиша Ctrl+M.
@@ -166,9 +166,9 @@
 - Реинжиниринг v2: Edit Data логика декомпозирована на слои `EditDataModeEngine` (policy/intent), `ContextMenuPresenter` (отрисовка RMB), `EditDataDialogRouter` (маршрутизация entry-points) и `EditDataSessionCoordinator` (явный lifecycle snapshot-сессии).
 - Завершение snapshot-сессии привязано к `ui.hideDialog` (отложенный `reset` через `setTimeout(0)` в `installEditDataSessionHideHook`), а не к каждому `mxEvent.CHANGE` модели — иначе промежуточные изменения или штатный порядок Apply обнуляли бы сессию до `setValue` и `modify` не формировался бы (в т.ч. для `data_mirror` по OID).
 - В `SeafEditDataDialog` Apply снимок «до» для `modify` берётся по **целевой ячейке** из модели (`captureEditDataBeforeForCellIds`), а не по текущему selection: после `hideDialog` выделение часто пустое, из‑за чего прежний `captureEditDataBeforeSnapshots` не находил `before`-состояние; построение `clone` из полей формы выполняется до закрытия диалога.
-- Конфигурация — `conf/stencils/config.yaml`: `schemas.<schema>.edit_data` (`seaf|standard|both`) и `schemas.<schema>.data_lock` (список защищённых атрибутов).
-- Fallback policy: если `conf/stencils/config.yaml` не загрузился (битый файл, отсутствует, ошибка IPC) или схема не описана в config, для любой schema, начинающейся на `seaf.`, plugin всё равно использует `mode=seaf` и `data_lock=[OID, schema]`. Не-`seaf.` схемы по-прежнему получают штатный диалог.
-- Защита `data_lock` (по умолчанию `[OID, schema]` для каждой schema, перечисленной в config или попавшей под seaf-prefix fallback) — поле дизейблится, кнопка «X» удаления отсутствует, добавление атрибута с защищённым именем блокируется alert'ом.
+- Конфигурация — `conf/stencils/config.yaml`: `schemas.<schema>.edit_data` (`seaf|standard|both`), `schemas.<schema>.data_lock` (список защищённых атрибутов), опционально `schemas.<schema>.data_hidden` (атрибуты скрыты из формы, в XML не трогаются при Apply).
+- Fallback policy: если `conf/stencils/config.yaml` не загрузился (битый файл, отсутствует, ошибка IPC) или схема не описана в config, для любой schema, начинающейся на `seaf.`, plugin всё равно использует `mode=seaf` и `data_lock=[OID, schema]`. Не-`seaf.` схемы по-прежнему получают штатный диалог. Для `data_hidden` prefix-fallback **нет**: без записи в config список скрытых пустой.
+- Защита `data_lock` (по умолчанию `[OID, schema]` для каждой schema, перечисленной в config или попавшей под seaf-prefix fallback) — поле дизейблится, кнопка «X» удаления отсутствует, добавление атрибута с защищённым именем блокируется alert'ом. `data_hidden` задаётся только явно в YAML для нужных schema (пример: `link` скрыт для `dcs` и `dc_offices`).
 - Apply SEAF-диалога вызывает `graph.getModel().setValue(cell, clonedXml)`, поэтому существующий event processor (`collectStencilEventsFromModelChange`) ловит `modify`-события без изменений.
 - Диагностика: при загрузке `stencils/config.yaml`, установке router'а и формировании RMB (`resolvedMode`, `resolvedCell`, `statePresent`, `isEditable`) пишутся `info`/`debug`-сообщения в `seaf-plugin.log` (при `pluginLogLevel=info|debug`; при `pluginLogLevel=none` эти записи не выводятся).
 - Технически `stencils/config.yaml` читается через typed IPC action `getSeafStencilConfig` (main-process `seafPluginService`); legacy `readSeafPluginFile` остается как backup path под feature flag на миграционный период.

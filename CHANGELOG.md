@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.33
+
+- **`conf/stencils/config.yaml`**: опциональный список **`data_hidden`** (формат как у `data_lock`) — атрибуты не показываются в `SeafEditDataDialog`, не удаляются при Apply; добавление свойства с таким именем блокируется. Для `seaf.company.ta.services.dcs` и `seaf.company.ta.services.dc_offices` по умолчанию скрыт атрибут **`link`**. Если имя есть и в `data_lock`, и в `data_hidden`, приоритет у **`data_hidden`**.
+- **`plugin/seaf.plugin.js`**: `getDataHiddenForSchema`, `hiddenList` в `resolveSchemaPolicy` / `buildEditDataIntent`, ресурс `seafEditDataHiddenAddAlert`.
+
 ## 0.5.32
 
 - **`conf/events.yaml`**: удалены скрытые команды и ссылки `handlers.remove` / `handlers.modify`, которые обслуживали только диагностические скрипты (`seafStencilSpecificRemove`, `seafStencilSpecificModify`, `seafStencilAllRemove`, `seafStencilAllModify`). Для `dcs` / `dc_offices` остаются `add`, `reparent` и `modify` → `seafStencilDataMirrorModify`; для `dc_azs` — только `add` и `reparent`. События `remove` без handler по-прежнему отфильтровываются в renderer (см. `missing handler for operation` в debug log).

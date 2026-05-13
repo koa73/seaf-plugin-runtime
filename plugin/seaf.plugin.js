@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.32
+ * Runtime script version: 0.5.33
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -1208,6 +1208,30 @@ Draw.loadPlugin(function(ui)
 		return ['OID', 'schema'];
 	}
 
+	function getDataHiddenForSchema(schema)
+	{
+		var entry = getSchemaConfigEntry(schema);
+		if (entry == null)
+		{
+			return [];
+		}
+		var raw = entry.data_hidden;
+		if (Array.isArray(raw))
+		{
+			var out = [];
+			for (var i = 0; i < raw.length; i++)
+			{
+				var name = (raw[i] == null) ? '' : String(raw[i]).trim();
+				if (name.length > 0 && out.indexOf(name) < 0)
+				{
+					out.push(name);
+				}
+			}
+			return out;
+		}
+		return [];
+	}
+
 	function normalizeSchemaKey(rawSchema)
 	{
 		if (typeof rawSchema === 'string')
@@ -1369,6 +1393,7 @@ Draw.loadPlugin(function(ui)
 			schema: key,
 			mode: mode,
 			lockList: getDataLockForSchema(key),
+			hiddenList: getDataHiddenForSchema(key),
 			policySource: policySource
 		};
 	}
@@ -1389,6 +1414,7 @@ Draw.loadPlugin(function(ui)
 			schema: policy.schema,
 			mode: policy.mode,
 			lockList: Array.isArray(policy.lockList) ? policy.lockList : [],
+			hiddenList: Array.isArray(policy.hiddenList) ? policy.hiddenList : [],
 			policySource: policy.policySource
 		};
 	}
@@ -3181,6 +3207,7 @@ Draw.loadPlugin(function(ui)
 		{
 			mxResources.parse('seafEditDataLockTooltip=Поле защищено data_lock и недоступно для изменения или удаления');
 			mxResources.parse('seafEditDataLockedAddAlert=Имя свойства защищено data_lock и не может быть добавлено');
+			mxResources.parse('seafEditDataHiddenAddAlert=Имя свойства скрыто data_hidden и не может быть добавлено');
 		}
 	}
 
@@ -3237,10 +3264,31 @@ Draw.loadPlugin(function(ui)
 		return 'Имя свойства защищено data_lock и не может быть добавлено';
 	}
 
+	function getSeafEditDataHiddenAddAlert()
+	{
+		try
+		{
+			if (typeof mxResources !== 'undefined' && typeof mxResources.get === 'function')
+			{
+				var s = mxResources.get('seafEditDataHiddenAddAlert');
+				if (typeof s === 'string' && s.length > 0 && s !== 'seafEditDataHiddenAddAlert')
+				{
+					return s;
+				}
+			}
+		}
+		catch (e)
+		{
+			// fall through
+		}
+		return 'Имя свойства скрыто data_hidden и не может быть добавлено';
+	}
+
 	// SEAF Edit Data dialog. Mirrors the standard EditDataDialog UX (XML object node attributes,
 	// Apply/Cancel/Export, optional placeholders checkbox), but with first-class support for:
 	//   - data_lock list per schema (locked rows are disabled and have no remove button)
-	//   - blocking add of properties whose name is in data_lock
+	//   - data_hidden list per schema (rows omitted; attributes preserved on Apply)
+	//   - blocking add of properties whose name is in data_lock or data_hidden
 	//   - Phase 2 hook: schemas.<x>.fields.<attr>.widget (combo/radio/...) - currently fallback to textarea
 	function SeafEditDataDialog(uiRef, cell, optionalGraph)
 	{
@@ -3266,6 +3314,9 @@ Draw.loadPlugin(function(ui)
 		var lockList = getDataLockForSchema(schemaKey);
 		var lockSet = {};
 		for (var li = 0; li < lockList.length; li++) { lockSet[lockList[li]] = true; }
+		var hiddenList = getDataHiddenForSchema(schemaKey);
+		var hiddenSet = {};
+		for (var hi = 0; hi < hiddenList.length; hi++) { hiddenSet[hiddenList[hi]] = true; }
 
 		var div = document.createElement('div');
 		var top = document.createElement('div');
@@ -3342,6 +3393,10 @@ Draw.loadPlugin(function(ui)
 
 		function addPropertyRow(name, val)
 		{
+			if (hiddenSet[name] === true)
+			{
+				return null;
+			}
 			var locked = !!lockSet[name];
 			// Phase 1: always textarea; Phase 2 will branch on schemas.<x>.fields.<name>.widget
 			var input = form.addTextarea(name + ':', val, 2);
@@ -3412,6 +3467,10 @@ Draw.loadPlugin(function(ui)
 
 		for (var ti = 0; ti < temp.length; ti++)
 		{
+			if (hiddenSet[temp[ti].name] === true)
+			{
+				continue;
+			}
 			addPropertyRow(temp[ti].name, temp[ti].value);
 		}
 		top.appendChild(form.table);
@@ -3451,6 +3510,11 @@ Draw.loadPlugin(function(ui)
 			if (lockSet[name] === true)
 			{
 				mxUtils.alert(getSeafEditDataLockedAddAlert());
+				return;
+			}
+			if (hiddenSet[name] === true)
+			{
+				mxUtils.alert(getSeafEditDataHiddenAddAlert());
 				return;
 			}
 			// If property with this name already exists in current state, focus it
@@ -3627,7 +3691,7 @@ Draw.loadPlugin(function(ui)
 					{
 						var an = clone.attributes[k] && clone.attributes[k].nodeName ? clone.attributes[k].nodeName : '';
 						if (!an || an === 'label' || an === 'placeholders' || an === 'id') continue;
-						if (lockSet[an] === true) continue;
+						if (lockSet[an] === true || hiddenSet[an] === true) continue;
 						if (!seenNames[an])
 						{
 							toRemove.push(an);

@@ -29,6 +29,8 @@ schemas:
     data_lock:
       - OID
       - schema
+    data_hidden:
+      - link
   seaf.company.ta.services.dcs:
     layer: "ЦОД"
     edit_data: seaf
@@ -39,6 +41,8 @@ schemas:
     data_lock:
       - OID
       - schema
+    data_hidden:
+      - link
   seaf.company.ta.services.network_segments:
     layer: "Зоны безопасности"
     edit_data: seaf

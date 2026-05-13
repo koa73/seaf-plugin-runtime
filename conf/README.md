@@ -11,7 +11,7 @@
 | `main_menu.yaml` | Описание команд/пунктов главного меню |
 | `context_menu.yaml` | Описание правил контекстного меню |
 | `events.yaml` | Правила event processor и скрытые event handlers (`add/remove/modify`) |
-| `stencils/config.yaml` | Метаданные стенсилов: `layer`, `edit_data`, `data_lock` (и резерв `fields`) |
+| `stencils/config.yaml` | Метаданные стенсилов: `layer`, `edit_data`, `data_lock`, опционально `data_hidden` (и резерв `fields`) |
 
 ---
 
@@ -390,7 +390,7 @@ rules:
 - `layer` может быть строкой или списком строк (для конфликтов/ручного разруливания).
 - Если `layer` отсутствует или пустой, слой не создается и объект не переносится.
 
-### Stencil metadata: edit_data + data_lock
+### Stencil metadata: edit_data + data_lock + data_hidden
 
 В том же файле `conf/stencils/config.yaml` для каждой schema можно описать поведение
 диалога «Редактировать данные» (Edit Data). Используется plugin'ом для P41-стенсилов;
@@ -402,10 +402,11 @@ rules:
 |---|---|---|---|
 | `schemas.<schema>.edit_data` | `string` | Режим Edit Data: `seaf` \| `standard` \| `both` | `seaf`, если schema присутствует в config или её ключ начинается на `seaf.`; иначе `standard` |
 | `schemas.<schema>.data_lock` | `array<string>` | Имена атрибутов, защищённых от edit/remove/add-with-same-name | `[OID, schema]` для всех seaf-схем (включая prefix-fallback) |
+| `schemas.<schema>.data_hidden` | `array<string>` | Имена атрибутов, **не показываемых** в SEAF Edit Data; значения сохраняются в XML при Apply | `[]` (только если ключ задан в config для этой schema) |
 
 Семантика `edit_data`:
 
-- `seaf` — штатный пункт «Edit Data» в context menu скрыт, в контекстное меню добавляется отдельный пункт «Редактировать данные (SEAF)…» (action `seafEditData`); Right-click, Ctrl+M и Format panel открывают SEAF-диалог `SeafEditDataDialog` с поддержкой `data_lock`.
+- `seaf` — штатный пункт «Edit Data» в context menu скрыт, в контекстное меню добавляется отдельный пункт «Редактировать данные (SEAF)…» (action `seafEditData`); Right-click, Ctrl+M и Format panel открывают SEAF-диалог `SeafEditDataDialog` с поддержкой `data_lock` и опционального `data_hidden`.
 - `standard` — в context menu остается один штатный `Edit Data` (enabled), SEAF-пункт отображается disabled.
 - `both` — в context menu ровно два пункта: штатный `Edit Data` (enabled) и `Редактировать данные (SEAF)…` (enabled).
 - Для grouped stencil-элементов при RMB mode/target определяются по ближайшему родителю со `schema`, если клик пришелся в дочерний служебный `mxCell` без schema.
@@ -431,12 +432,19 @@ Fallback policy (когда `conf/stencils/config.yaml` не загрузилс�
 
 - Список имён атрибутов (строки). Для каждого защищённого имени:
   - textarea/input в SEAF-диалоге дизейблен (`disabled`), нельзя изменить значение;
-  - кнопка «X» удаления отсутствует, удалить атрибут невозможно;
+  - кнопка «X» удаления для него отсутствует, удалить атрибут невозможно;
   - попытка добавить новый атрибут с этим же именем блокируется alert'ом.
 - Если ключ `data_lock` отсутствует у schema, перечисленной в config, по умолчанию защищаются `OID` и `schema`.
 - Schemas, отсутствующие в `config.yaml`:
   - имена с префиксом `seaf.` -> `data_lock=[OID, schema]` (prefix fallback);
   - прочие -> `data_lock=[]` (`mode=standard`).
+
+Семантика `data_hidden`:
+
+- Опциональный список имён атрибутов (как у `data_lock`). Если ключ отсутствует, массив пустой или schema не в config — **ничего не скрывается** (в отличие от prefix-fallback для `data_lock`, для `data_hidden` fallback всегда `[]`).
+- Для каждого скрытого имени строка в форме **не создаётся**; атрибут остаётся в XML и **не удаляется** при Apply (тот же механизм сохранения, что для `data_lock`).
+- Добавление нового атрибута с именем из `data_hidden` блокируется alert'ом.
+- Если одно и то же имя указано и в `data_lock`, и в `data_hidden`, применяется **`data_hidden`**: поле не отображается, на Apply значение сохраняется без изменений из формы.
 
 ### Stencil metadata: fields (зарезервировано, Phase 2)
 
@@ -469,7 +477,8 @@ schemas:
 
 - маршрутизации объектов по слоям (`layer`);
 - поведения диалога Edit Data (`edit_data`);
-- блокировки редактирования/удаления критичных атрибутов (`data_lock`).
+- блокировки редактирования/удаления критичных атрибутов (`data_lock`);
+- опционального скрытия атрибутов в форме (`data_hidden`).
 
 ### Структура
 
@@ -479,6 +488,7 @@ schemas:
     layer: "<layer-name>"        # string | array<string>
     edit_data: seaf              # seaf | standard | both
     data_lock: [OID, schema]     # array<string>
+    data_hidden: []              # optional array<string>, omit or [] = show all non-lock UI fields
     # fields: ...                # резерв под Phase 2
 ```
 
@@ -489,6 +499,7 @@ schemas:
 | `schemas.<schema>.layer` | `string` \| `array<string>` | Целевой слой для `ensureLayer/moveObjectsToLayer` | отсутствует (слой не назначается) |
 | `schemas.<schema>.edit_data` | `string` | Режим Edit Data: `seaf` \| `standard` \| `both` | `seaf` для `seaf.*`, иначе `standard` |
 | `schemas.<schema>.data_lock` | `array<string>` | Имена атрибутов, запрещённых для редактирования/удаления в SEAF-диалоге | `[OID, schema]` для `seaf.*`, иначе `[]` |
+| `schemas.<schema>.data_hidden` | `array<string>` | Имена атрибутов, не показываемых в SEAF Edit Data (сохраняются при Apply) | `[]` |
 | `schemas.<schema>.fields` | `object` | Будущая схема rich-виджетов (`combo/radio/checkbox`) | не используется в Phase 1 |
 
 ### Минимальный пример
@@ -510,4 +521,5 @@ schemas:
   - поле становится read-only;
   - кнопка удаления для него скрыта;
   - добавление нового поля с тем же именем блокируется.
+- Если `data_hidden` содержит имя поля — строка в форме не показывается, атрибут в XML сохраняется при Apply; добавление свойства с этим именем блокируется.
 - Для схем без префикса `seaf.` по умолчанию используется штатный режим `standard`.
