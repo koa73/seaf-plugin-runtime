@@ -18,7 +18,7 @@
 - `examples/events/*.py` — примеры batch-обработчиков событий стенсилов (`specific` и `all` для `add/remove/modify`).
 - подробная документация по event handlers: [`examples/events/README.md`](examples/events/README.md).
 - `events/all_add.py` — production orchestrator для `add`-событий: собирает контекст, вызывает OID-библиотеку и формирует `Response.commands[]` (новый OID только при отсутствии или пустом `data.OID`, чтобы второй `add` после смены слоя не сдвигал sequence).
-- `events/reparent.py` — production handler для `reparent` (смена родителя в модели): эмитит **`moveLayerUnderLayer`** (семантический слой из `schemas.<schema>.layer` под страничный слой из `targetParentLayerName` в item), **без** OID; `suppressStencilEvents: true`.
+- `events/reparent.py` — production handler для `reparent` (смена `mxCell` parent): **без** OID и **без** команд слоя в `Response.commands[]` (семантический слой из `schemas.<schema>.layer` фиксируется на `add`, перетаскивание не перестраивает дерево слоёв).
 - `events/data_mirror.py` — production orchestrator для `modify`-синхронизации `schema+OID` (схемы `dcs`/`dc_offices`) через атомарную runtime-команду.
 - `context_menu/add_page.py` — production handler для команды «Создать страницу»: валидирует `selection.data.title`, проверяет дубли имен страниц и возвращает `commands[]` для create page + установки link на исходный стенсил.
 - `lib/oid/*` — модульная библиотека генерации/валидации OID и поиска конфликтов.
@@ -155,7 +155,7 @@ Runtime передает значения редактируемой конфи�
 | `mirrorDataByOidAtomic` | `{ "schema": "...", "oid": "...", "patch": {...}, "excludedFields": ["OID","schema"], "sourceRollbacks": [...], "suppressStencilEvents": true }` | Атомарно синхронизирует объекты с тем же `schema+OID` на всех страницах; при сбое откатывает изменения и возвращает `failures` с `pageName`/`OID`. |
 | `ensureLayer` | `{ "pageId": "...", "layerName": "...", "makeVisible": true }` | Находит или создает слой по имени и делает его видимым. |
 | `moveObjectsToLayer` | `{ "pageId": "...", "layerName": "...", "objectIds": ["id1"], "makeVisible": true }` | Находит/создает слой и переносит указанные объекты в него через `graph.moveCells(...)`. |
-| `moveLayerUnderLayer` | `{ "pageId": "...", "childLayerName": "...", "parentLayerName": "...", "makeVisible": true, "suppressStencilEvents": true }` | Вкладывает mxCell слоя `childLayerName` под слой `parentLayerName` (двухуровневая модель; используется `reparent`). |
+| `moveLayerUnderLayer` | `{ "pageId": "...", "childLayerName": "...", "parentLayerName": "...", "makeVisible": true, "suppressStencilEvents": true }` | Вкладывает mxCell слоя `childLayerName` под слой `parentLayerName` (опционально для ручных сценариев; **не** вызывается из `events/reparent.py`). |
 | `createPage` | `{ "title": "...", "selectCreated": false }` | Создает страницу через штатные API draw.io (`ui.createPage` + `ui.insertPage`) с заданным именем; для сценария add-page рекомендуется `selectCreated=false`. |
 | `setCellLinkToPage` | `{ "objectId": "...", "targetPageId": "..." }` | Устанавливает ссылку `data:page/id,<pageId>` в выбранный объект через `graph.setLinkForCell(...)`; `targetPageId` должен быть валидным. |
 | `insertStencilFromP41ByTitle` | `{ "pageId": "...", "mirrorTitle": "...", "x": 20, "y": 20, "sourceSchema": "..." }` | Ищет элемент в библиотеке `SEAF_Р41` по `title`, вставляет группу на страницу; в `objectId` возвращает первую вставленную ячейку, у которой `schema` совпадает с `sourceSchema` (для последующего `updateStencilDataBulk`). Если такой ячейки нет — `status: error`, `reason: mirror_not_found`. |
@@ -348,11 +348,11 @@ Auto-event processor передает event batch в Python handlers через 
 
 `items[]` обычно содержит:
 - `id`, `operation`, `label`, `schema`, `style`, `styleText`, `geometry`, `value`.
-- для `operation=reparent` дополнительно: `previousParentId`, `newParentId`, `previousLayerName`, `currentLayerName`, **`targetParentLayerName`** (имя ближайшего страничного слоя над новым родителем — цель вложения для `moveLayerUnderLayer`).
+- для `operation=reparent` дополнительно: `previousParentId`, `newParentId`, `previousLayerName`, `currentLayerName`, **`targetParentLayerName`** (ближайший страничный слой над новым родителем — только для логов/диагностики; handler `reparent` не меняет слои).
 
 Примечание для grouped stencils:
 - если root group-ячейка добавления не содержит `schema`, runtime извлекает `add`-items из дочерних ячеек с валидным `schema`, чтобы `all_add` корректно формировал `moveObjectsToLayer`.
-- при `reparent` Python handler группирует уникальные пары `(семантический слой из config, targetParentLayerName)` и возвращает `moveLayerUnderLayer`, без `moveObjectsToLayer` по `objectIds`.
+- при `reparent` Python handler **не** добавляет команды слоя: привязка к семантическому слою остаётся той, что была задана на `add`.
 
 Для `eventType=modify` добавляются:
 - `dataBefore`, `dataAfter`.

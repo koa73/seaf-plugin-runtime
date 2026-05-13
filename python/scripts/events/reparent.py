@@ -1,99 +1,34 @@
 #!/usr/bin/env python3
-"""Handle stencil `reparent` events: two-level layer tree (semantic layer under page layer), no OID."""
+"""Handle stencil `reparent` events: no OID, no layer UI commands (semantic layer fixed after `add`)."""
 
-from typing import Any, Callable, Dict, List, Set, Tuple
+from typing import Any, Callable, Dict, List
 
-from lib.events import build_move_layer_under_layer_command, log_event_items, resolve_layer_for_schema
+from lib.events import log_event_items
 from lib.io import build_error_policy_payload, read_request, write_response
 from lib.logging import build_script_logger
 
 
 def build_commands(payload: Dict[str, Any], log_info: Callable[[Dict[str, Any]], None]) -> List[Dict[str, Any]]:
-    """Emit `moveLayerUnderLayer` for unique (semantic layer, target parent layer) pairs; never assigns OID."""
+    """Do not emit `moveLayerUnderLayer` / `moveObjectsToLayer` on reparent.
+
+    Semantic layer name from `schemas.<schema>.layer` is assigned on `add` only; moving a stencil
+    in the graph (new mx parent under another container) must not rewire layer cells or OID.
+    """
     event = payload.get("event") or {}
-    page = event.get("page") or {}
-    page_id = page.get("id")
     items = event.get("items") or []
-    seen: Set[Tuple[str, str]] = set()
-    commands: List[Dict[str, Any]] = []
-
-    for item in items:
-        if not isinstance(item, dict):
-            continue
-        schema = str(item.get("schema") or "").strip()
-        if not schema:
-            data = item.get("data") or {}
-            if isinstance(data, dict):
-                schema = str(data.get("schema") or "").strip()
-        object_id = str(item.get("objectId") or item.get("id") or "").strip()
-        if not schema:
-            log_info({"handler": "reparent", "action": "layer_skip_schema_missing", "objectId": object_id or None})
-            continue
-
-        semantic_layer, has_multiple = resolve_layer_for_schema(schema)
-        if has_multiple:
-            log_info(
-                {
-                    "handler": "reparent",
-                    "action": "layer_config_multiple_values",
-                    "schema": schema,
-                    "selectedLayer": semantic_layer,
-                }
-            )
-        if not semantic_layer:
-            log_info(
-                {
-                    "handler": "reparent",
-                    "action": "layer_skip_missing_mapping",
-                    "schema": schema,
-                    "objectId": object_id or None,
-                }
-            )
-            continue
-
-        target_parent = str(item.get("targetParentLayerName") or "").strip()
-        if not target_parent:
-            log_info(
-                {
-                    "handler": "reparent",
-                    "action": "reparent_skip_missing_target_parent",
-                    "schema": schema,
-                    "objectId": object_id or None,
-                    "semanticLayer": semantic_layer,
-                }
-            )
-            continue
-
-        sem = semantic_layer.strip()
-        if sem == target_parent:
-            log_info(
-                {
-                    "handler": "reparent",
-                    "action": "reparent_skip_same_child_and_parent_name",
-                    "schema": schema,
-                    "layerName": sem,
-                }
-            )
-            continue
-
-        key = (sem, target_parent)
-        if key in seen:
-            continue
-        seen.add(key)
-        commands.append(
-            build_move_layer_under_layer_command(
-                page_id,
-                sem,
-                target_parent,
-                suppress_stencil_events=True,
-            )
+    if items:
+        log_info(
+            {
+                "handler": "reparent",
+                "action": "reparent_no_layer_commands_semantic_layer_fixed_after_add",
+                "itemCount": len(items),
+            }
         )
-
-    return commands
+    return []
 
 
 def main() -> int:
-    """Read request, validate event type, emit layer-under-layer commands only."""
+    """Read request, validate event type; reparent returns success with no layer commands."""
     try:
         req = read_request()
         payload = req.get("payload") or {}
@@ -116,6 +51,7 @@ def main() -> int:
             payload={
                 "handler": "reparent",
                 "count": len(items),
+                "layerPolicy": "semantic_fixed_no_commands_on_reparent",
                 "note": "uiCommandResults are attached by renderer after command execution",
             },
             commands=commands,

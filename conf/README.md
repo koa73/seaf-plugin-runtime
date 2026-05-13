@@ -139,7 +139,7 @@ Compose-loader объединяет их в финальный `commands[]`.
 - `seaf.company.ta.services.dc_azs` — exact match только для одного schema.
 - `seaf.company.ta.*` — wildcard match для группы schema.
 - `all` — правило на все стенсилы выбранного `listId`.
-- Смена родителя в модели (`mxChildChange` с непустым `previous` и новым `parent`) классифицируется как **`operation: reparent`**, а не `add`: маршрут `handlers.reparent` → `seafStencilReparent` → `events/reparent.py` (**без** назначения OID). Handler эмитит **`moveLayerUnderLayer`**: mxCell семантического слоя (`schemas.<schema>.layer`) становится дочерним элементом целевого страничного слоя из поля item **`targetParentLayerName`** (ближайший предок-слой над новым родителем в графе). Реальная вставка новой ячейки остаётся `operation: add` → `seafStencilAllAdd`.
+- Смена родителя в модели (`mxChildChange` с непустым `previous` и новым `parent`) классифицируется как **`operation: reparent`**, а не `add`: маршрут `handlers.reparent` → `seafStencilReparent` → `events/reparent.py` (**без** назначения OID, **без** команд слоя в `Response.commands`). Семантический слой из `schemas.<schema>.layer` закрепляется при **`add`** (`seafStencilAllAdd` / `moveObjectsToLayer`); `reparent` не переносит mxCell слоёв и не меняет привязку слоя группы при перетаскивании стенсила. В snapshot по-прежнему можно передавать `targetParentLayerName` для диагностики. Реальная вставка новой ячейки остаётся `operation: add` → `seafStencilAllAdd`.
 - Для auto-назначения `OID` при `add` используется `seafStencilAllAdd` из wildcard `seaf.company.ta.*` или из exact-правил, где явно указан `add` (в т.ч. `exact_dcs_data_mirror` / `exact_dc_offices_data_mirror`).
 - Повторный stencil `add` для того же `objectId` (например после reparent / `moveObjectsToLayer`) не должен менять уже назначенный OID: `events/all_add.py` заполняет `OID` только если в `data` ключ отсутствует или значение пустое.
 - В payload каждого stencil-item передаётся `currentLayerName` (имя слоя-контейнера в модели). Для `add` Python layer-routing не добавляет в `Response.commands` команду `moveObjectsToLayer` для ячеек, у которых `currentLayerName` уже совпадает с целевым слоем из `schemas.<schema>.layer` (повторный `add` после переноса не дублирует привязку).
@@ -182,7 +182,7 @@ Compose-loader объединяет их в финальный `commands[]`.
 - служебные ключи `OID` и `schema` не переписываются;
 - успех не показывает popup, ошибка возвращает `status=error` c деталями `pageName` и `OID`.
 
-Для `add` / `remove` в тех же правилах используются те же обработчики, что и в правиле `all`: `seafStencilAllAdd` (назначение OID, слои) и `seafStencilAllRemove`. Для `reparent` используется `seafStencilReparent` (вложение семантического слоя под страничный слой через `moveLayerUnderLayer`, без OID).
+Для `add` / `remove` в тех же правилах используются те же обработчики, что и в правиле `all`: `seafStencilAllAdd` (назначение OID, слои) и `seafStencilAllRemove`. Для `reparent` используется `seafStencilReparent` (без OID, без команд перестройки слоёв — слой группы фиксируется на `add`).
 
 ---
 
@@ -374,13 +374,13 @@ rules:
 
 ### Response.commands: moveLayerUnderLayer
 
-- UI-команда для **`reparent`**: вложить слой под слой (двухуровневая модель).
+- UI-команда для **ручного** сценария «слой под слой» (вложенные страничные слои). Текущий handler **`reparent` её не вызывает**: при перетаскивании стенсила слой группы из `schemas.<schema>.layer` не перестраивается.
 - Аргументы:
   - `pageId` (optional),
-  - `childLayerName` (required): имя mxCell слоя, соответствующее семантическому слою из `schemas.<schema>.layer`,
-  - `parentLayerName` (required): имя целевого **страничного** слоя (родитель в дереве слоёв),
+  - `childLayerName` (required): имя mxCell дочернего слоя,
+  - `parentLayerName` (required): имя mxCell родительского слоя,
   - `makeVisible` (optional, default `true`),
-  - `suppressStencilEvents` (optional): для event-loop — `true` из `events/reparent.py`.
+  - `suppressStencilEvents` (optional): для подавления stencil-events при массовых операциях.
 - Поведение: `ensureLayer` для обоих имён, поиск слоя под `root` (в т.ч. вложенный), `model.add(parentLayer, childLayer, ...)` если дочерний слой ещё не под указанным родителем; при уже корректной иерархии — no-op.
 
 ### Stencil metadata: layer

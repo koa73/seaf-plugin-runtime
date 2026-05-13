@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.26
+
+- **`reparent` / `events/reparent.py`**: больше **не** эмитит UI-команды слоя (`moveLayerUnderLayer`, `moveObjectsToLayer`). Семантический слой из `schemas.<schema>.layer` задаётся только на **`add`** (`all_add`); смена `mxCell` parent при перетаскивании не перестраивает дерево слоёв и не «перепривязывает» слой группы (например «Офис») под другой страничный слой. Контур `reparent` по-прежнему отделён от `add` и **без OID**.
+
 ## 0.5.25
 
 - Двухуровневая модель слоёв для **`reparent`**: семантический слой из `schemas.<schema>.layer` остаётся именем группы; при смене родителя Python handler эмитит **`moveLayerUnderLayer`** (`childLayerName` = семантический слой, `parentLayerName` = целевой страничный слой из item `targetParentLayerName`), а не `moveObjectsToLayer` по `objectIds`. Команда UI: `ensureLayer` для обоих имён, затем `model.add` слоя-потомка под слой-родитель; `suppressStencilEvents: true`.
