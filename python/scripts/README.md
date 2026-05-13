@@ -354,3 +354,5 @@ Auto-event processor передает event batch в Python handlers через 
 Для `eventType=modify` добавляются:
 - `dataBefore`, `dataAfter`.
 
+Renderer (`plugin/seaf.plugin.js`) эмитит `modify` только при реальном изменении: сравнивается нормализованная карта атрибутов `dataBefore`/`dataAfter` (плюс резервное сравнение сериализованного `value`), чтобы изменения полей не терялись до вызова Python handler.
+

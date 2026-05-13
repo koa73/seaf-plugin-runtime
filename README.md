@@ -124,6 +124,7 @@
 - `rule.execution` задает режим вызова handler: `sync` (ожидание ответа) или `async` (fire-and-forget с отдельным trace в логе).
 - Event payload для Python handlers обогащен полями `objectId`, `geometry(x,y,width,height)` и `data` (атрибуты объекта по модели `Edit Data`).
 - Для modify дополнительно передаются `valueBefore/valueAfter` и `dataBefore/dataAfter`.
+- Решение «есть ли реальный modify» в `collectStencilEventsFromModelChange` принимается по изменению карты редактируемых атрибутов (`dataBefore` vs `dataAfter`, стабильная сортировка ключей) и при необходимости по прежнему снимку `sanitizeForIpc(value)`; в лог пишется `Stencil modify candidate evaluated` (`emitModify`, `diffKeys`). Перед вызовом Python пишется `Stencil event handler started` (`commandId`, `ruleId`, `txId`).
 - В payload команд контекстного меню (`selection[]`) передаются те же ключевые поля: `objectId`, `geometry`, `data`.
 - Контекстное меню поддерживает 2 scope-режима: `canvas` (клик по полю) и `stencil` (клик по стенсилу).
 - В context menu попадают только команды с явным `menu.context.enabled: true`; main-only команды без context-конфига не отображаются.

@@ -19,16 +19,12 @@ rules:
     schema: "seaf.company.ta.services.dcs"
     execution: sync
     handlers:
-      add: seafStencilAllAdd
-      remove: seafStencilAllRemove
       modify: seafStencilDataMirrorModify
   - id: exact_dc_offices_data_mirror
     listId: SEAF_Р41
     schema: "seaf.company.ta.services.dc_offices"
     execution: sync
     handlers:
-      add: seafStencilAllAdd
-      remove: seafStencilAllRemove
       modify: seafStencilDataMirrorModify
   - id: wildcard_ta_services
     listId: SEAF_Р41

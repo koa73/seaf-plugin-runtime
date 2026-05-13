@@ -304,6 +304,7 @@ rules:
 - Event processor передает enriched `payload.event.items[]`:
   - `id`, `objectId`, `schema`, `geometry`, `data`, `value`;
   - для modify также: `valueBefore`, `valueAfter`, `dataBefore`, `dataAfter`.
+  - эмиссия `modify` в renderer сравнивает `dataBefore` и `dataAfter` (нормализованная карта атрибутов из `Edit Data`), чтобы не терять изменения из‑за сериализации XML-узла через `sanitizeForIpc`; при успешном матче в логе появляются `Stencil modify candidate evaluated` и далее `Stencil event handler started` перед `runSeafPluginCommand`.
 - Команды контекстного меню получают те же ключевые поля в `payload.selection[]`:
   - `id`, `objectId`, `geometry`, `data`.
 - Это позволяет Python-скриптам использовать единый контракт для event и context сценариев.

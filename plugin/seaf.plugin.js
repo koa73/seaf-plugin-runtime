@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.18
+ * Runtime script version: 0.5.19
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -2586,12 +2586,21 @@ Draw.loadPlugin(function(ui)
 		{
 			return null;
 		}
+		var trimmedCmd = commandId.trim();
+		await writeLog('info', 'Stencil event handler started', {
+			commandId: trimmedCmd,
+			eventType: eventPayload && eventPayload.eventType ? eventPayload.eventType : '',
+			ruleId: eventPayload && eventPayload.ruleId ? eventPayload.ruleId : '',
+			listId: eventPayload && eventPayload.listId ? eventPayload.listId : '',
+			txId: eventPayload && eventPayload.txId ? eventPayload.txId : '',
+			itemCount: eventPayload && Array.isArray(eventPayload.items) ? eventPayload.items.length : 0
+		});
 		var response = await requestAsync({
 			action: 'runSeafPluginCommand',
 			configPath: state.configPath,
-			commandId: commandId.trim(),
+			commandId: trimmedCmd,
 			payload: {
-				commandId: commandId.trim(),
+				commandId: trimmedCmd,
 				source: 'stencil_event_processor',
 				timestamp: new Date().toISOString(),
 				selection: [],
@@ -2613,14 +2622,14 @@ Draw.loadPlugin(function(ui)
 		catch (uiErr)
 		{
 			await writeLog('error', 'Stencil event UI command execution failed', {
-				commandId: commandId.trim(),
+				commandId: trimmedCmd,
 				error: uiErr && uiErr.message ? uiErr.message : String(uiErr)
 			});
 		}
 		if (uiResults.length > 0)
 		{
 			await writeLog('info', 'Stencil event UI commands executed', {
-				commandId: commandId.trim(),
+				commandId: trimmedCmd,
 				count: uiResults.length
 			});
 		}
@@ -2629,7 +2638,7 @@ Draw.loadPlugin(function(ui)
 			var errorMessage = (typeof result.message === 'string' && result.message.trim().length > 0) ?
 				result.message.trim() : 'stencil_event_handler_failed';
 			await writeLog('error', 'Stencil event handler returned error status', {
-				commandId: commandId.trim(),
+				commandId: trimmedCmd,
 				eventType: eventPayload && eventPayload.eventType ? eventPayload.eventType : '',
 				ruleId: eventPayload && eventPayload.ruleId ? eventPayload.ruleId : '',
 				message: errorMessage,
@@ -2846,6 +2855,55 @@ Draw.loadPlugin(function(ui)
 		flushStencilBatches();
 	}
 
+	// Deterministic stringify for Edit Data attribute maps (object XML attributes -> plain key/value).
+	function stableStringifyEditableData(data)
+	{
+		var src = (data && typeof data === 'object' && !Array.isArray(data)) ? data : {};
+		var keys = Object.keys(src).sort();
+		var sorted = {};
+		for (var si = 0; si < keys.length; si++)
+		{
+			var k = keys[si];
+			sorted[k] = src[k];
+		}
+		return JSON.stringify(sorted);
+	}
+
+	function diffEditableDataKeys(beforeData, afterData)
+	{
+		var b = (beforeData && typeof beforeData === 'object' && !Array.isArray(beforeData)) ? beforeData : {};
+		var a = (afterData && typeof afterData === 'object' && !Array.isArray(afterData)) ? afterData : {};
+		var keySet = {};
+		var k;
+		for (k in b)
+		{
+			if (Object.prototype.hasOwnProperty.call(b, k))
+			{
+				keySet[k] = true;
+			}
+		}
+		for (k in a)
+		{
+			if (Object.prototype.hasOwnProperty.call(a, k))
+			{
+				keySet[k] = true;
+			}
+		}
+		var names = Object.keys(keySet).sort();
+		var out = [];
+		for (var i = 0; i < names.length; i++)
+		{
+			var name = names[i];
+			var bv = Object.prototype.hasOwnProperty.call(b, name) ? String(b[name]) : '';
+			var av = Object.prototype.hasOwnProperty.call(a, name) ? String(a[name]) : '';
+			if (bv !== av)
+			{
+				out.push(name);
+			}
+		}
+		return out;
+	}
+
 	function collectStencilEventsFromModelChange(evt)
 	{
 		var result = [];
@@ -2927,9 +2985,23 @@ Draw.loadPlugin(function(ui)
 					beforeState.data : {};
 				var afterValue = sanitizeForIpc(change.value);
 				var afterData = extractEditableDataFromValue(change.value, graph, change.cell);
+				var dataBeforeStr = stableStringifyEditableData(beforeData);
+				var dataAfterStr = stableStringifyEditableData(afterData);
+				var dataChanged = (dataBeforeStr !== dataAfterStr);
+				var diffKeys = diffEditableDataKeys(beforeData, afterData);
 				var beforeJson = JSON.stringify(beforeValue);
 				var afterJson = JSON.stringify(afterValue);
-				if (beforeJson !== afterJson)
+				var valueSnapshotChanged = (beforeJson !== afterJson);
+				var emitModify = dataChanged || valueSnapshotChanged;
+				writeLog('debug', 'Stencil modify candidate evaluated', {
+					cellId: change.cell && change.cell.id ? change.cell.id : '',
+					emitModify: emitModify,
+					dataChanged: dataChanged,
+					valueSnapshotChanged: valueSnapshotChanged,
+					diffKeys: diffKeys,
+					hasBeforeState: !!(beforeState && typeof beforeState === 'object')
+				});
+				if (emitModify)
 				{
 					var modifySnapshot = buildStencilItemSnapshot(change.cell, 'modify');
 					if (modifySnapshot && modifySnapshot.id)

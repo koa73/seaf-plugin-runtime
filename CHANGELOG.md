@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.19
+
+- Stencil `modify` detection: `collectStencilEventsFromModelChange` now treats a real Edit Data change when the **editable attribute map** (`dataBefore` vs `dataAfter` from `extractEditableDataFrom*`) differs, not only when `JSON.stringify(sanitizeForIpc(value))` differs — `sanitizeForIpc` over DOM/XML nodes could drop attributes and suppress `modify` (breaking `seafStencilDataMirrorModify` / `data_mirror`). Added debug log `Stencil modify candidate evaluated` with `diffKeys`, and `info` log `Stencil event handler started` at the beginning of `runStencilEventCommand`.
+
 ## 0.5.18
 
 - SEAF Edit Data Apply: build the attribute clone **before** `hideDialog` (inputs stay valid while DOM is attached); snapshot `valueBefore` via `model.getValue(cell)` for the **edited cell** instead of `getSelectionCells()` (selection is often cleared when the dialog closes, which broke `modify` / `data_mirror`).
