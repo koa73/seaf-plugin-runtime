@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.17
+ * Runtime script version: 0.5.18
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -1532,6 +1532,38 @@ Draw.loadPlugin(function(ui)
 		catch (e)
 		{
 			// ignore pre-snapshot errors
+		}
+		return map;
+	}
+
+	// Snapshot explicit cells (by id) from the live model — unlike captureEditDataBeforeSnapshots(selection),
+	// does not depend on graph selection (hideDialog often clears selection before Apply writes the value).
+	function captureEditDataBeforeForCellIds(graph, cells)
+	{
+		var map = {};
+		try
+		{
+			if (!graph || !graph.getModel || !Array.isArray(cells))
+			{
+				return map;
+			}
+			var model = graph.getModel();
+			for (var ci = 0; ci < cells.length; ci++)
+			{
+				var c = cells[ci];
+				if (!c || !c.id || !model || typeof model.getValue !== 'function')
+				{
+					continue;
+				}
+				map[c.id] = {
+					value: sanitizeForIpc(model.getValue(c)),
+					data: extractEditableDataFromCell(c, graph)
+				};
+			}
+		}
+		catch (e)
+		{
+			// ignore
 		}
 		return map;
 	}
@@ -3360,6 +3392,11 @@ Draw.loadPlugin(function(ui)
 
 		var cancelBtn = mxUtils.button(mxResources.get('cancel'), function()
 		{
+			try
+			{
+				EditDataSessionCoordinator.reset();
+			}
+			catch (eCancelReset) { /* ignore */ }
 			uiRef.hideDialog.apply(uiRef, arguments);
 		});
 		cancelBtn.setAttribute('title', 'Escape');
@@ -3393,8 +3430,7 @@ Draw.loadPlugin(function(ui)
 		{
 			try
 			{
-				uiRef.hideDialog.apply(uiRef, arguments);
-
+				// Read form and build clone while dialog DOM is still mounted (hideDialog may detach the form).
 				var clone = value.cloneNode(true);
 				var removeLabel = false;
 				var seenNames = {};
@@ -3458,13 +3494,16 @@ Draw.loadPlugin(function(ui)
 					clone.removeAttribute('label');
 				}
 
-				// Snapshot before-state so existing event processor sees a "modify" for this set
+				// Before-state for modify must use the edited cell from the model, not current selection:
+				// hideDialog() often clears selection, so captureEditDataBeforeSnapshots(graph) was empty/wrong.
 				try
 				{
 					state.editDataSessionActive = true;
-					state.editDataBeforeByCell = captureEditDataBeforeSnapshots(graph);
+					state.editDataBeforeByCell = captureEditDataBeforeForCellIds(graph, [cell]);
 				}
 				catch (eSnap) { /* ignore */ }
+
+				uiRef.hideDialog.apply(uiRef, arguments);
 
 				if (model && typeof model.setValue === 'function')
 				{
@@ -3474,6 +3513,14 @@ Draw.loadPlugin(function(ui)
 			catch (e)
 			{
 				mxUtils.alert(e && e.message ? e.message : String(e));
+			}
+			finally
+			{
+				try
+				{
+					EditDataSessionCoordinator.reset();
+				}
+				catch (eApplyReset) { /* ignore */ }
 			}
 		});
 		applyBtn.setAttribute('title', 'Ctrl+Enter');
