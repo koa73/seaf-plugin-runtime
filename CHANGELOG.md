@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.35
+
+- **`plugin/seaf.plugin.js`**: для userObject с `schema` под префиксом из `events.yaml` (`schemaPrefix`, по умолчанию `seaf.`) в карту `data` при `modify` включается атрибут **`label`** (раньше отфильтровывался как у обычных ячеек), чтобы Python `title_label_sync` видел правку подписи из SEAF Edit Data.
+- **`plugin/seaf.plugin.js`**: при смене user value **без** активной сессии Edit Data (например правка подписи на схеме) для тех же SEAF-стенсилов эмитится **`modify`** с `dataBefore`/`dataAfter` из `change.previous` / `change.value` (лог `inplaceSeafValueChange: true`).
+- **Проверка вручную**: SEAF Edit Data — смена только `label` → в логе `diffKeys` содержит `label`, Python обновляет `title`; in-place подпись → тот же эффект при `pluginLogLevel=debug`. Обычная фигура без `schema` под `schemaPrefix` — `label` по-прежнему не включается в `data` (как в draw.io по умолчанию).
+
 ## 0.5.34
 
 - **`lib/events/title_label_sync.py`**: общая политика согласования **`title`/`label`** при stencil `modify` (если в одной транзакции меняются оба — побеждает **title**); опциональная отладочная трассировка через `ScriptLogger.debug` при `pluginLogLevel: debug|trace`.

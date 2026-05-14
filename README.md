@@ -21,7 +21,7 @@
 
 ## Layout
 
-- `plugin/seaf.plugin.js` - полный renderer plugin (меню, IPC, async, системный update).
+- `plugin/seaf.plugin.js` - полный renderer plugin (меню, IPC, async, системный update); при эмиссии stencil `modify` для userObject с `schema` под `events.schemaPrefix` в `dataBefore`/`dataAfter` включается **`label`**; in-place смена подписи на схеме для таких ячеек также может эмитить `modify` (см. `CHANGELOG` 0.5.35).
 - `conf/plugin.yaml` - core-конфигурация full runtime (общие настройки + includes).
 - `conf/main_menu.yaml` - описание main menu команд.
 - `conf/context_menu.yaml` - описание context menu правил (overrides по id).

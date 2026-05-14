@@ -1986,6 +1986,58 @@ Draw.loadPlugin(function(ui)
 		};
 	}
 
+	function getEventsSchemaPrefix()
+	{
+		try
+		{
+			var ev = state.eventConfig && state.eventConfig.events ? state.eventConfig.events : null;
+			if (ev && typeof ev.schemaPrefix === 'string')
+			{
+				var p = ev.schemaPrefix.trim();
+				if (p.length > 0)
+				{
+					return p;
+				}
+			}
+		}
+		catch (e)
+		{
+			// ignore
+		}
+		return 'seaf.';
+	}
+
+	function isSchemaUnderEventsPrefix(schema)
+	{
+		var sch = String(schema || '').trim();
+		if (sch.length === 0)
+		{
+			return false;
+		}
+		var prefix = getEventsSchemaPrefix();
+		return sch.indexOf(prefix) === 0;
+	}
+
+	function isSeafStencilUserValue(value)
+	{
+		try
+		{
+			if (value && typeof value.getAttribute === 'function')
+			{
+				return isSchemaUnderEventsPrefix(value.getAttribute('schema'));
+			}
+			if (value && typeof value === 'object' && !Array.isArray(value))
+			{
+				return isSchemaUnderEventsPrefix(value.schema);
+			}
+		}
+		catch (e2)
+		{
+			return false;
+		}
+		return false;
+	}
+
 	function extractEditableDataFromValue(value, graph, cell)
 	{
 		var out = {};
@@ -2009,6 +2061,10 @@ Draw.loadPlugin(function(ui)
 		catch (e)
 		{
 			allowLabel = false;
+		}
+		if (!allowLabel && isSeafStencilUserValue(value))
+		{
+			allowLabel = true;
 		}
 
 		if (value && typeof value.getAttribute === 'function' && value.attributes)
@@ -3089,47 +3145,97 @@ Draw.loadPlugin(function(ui)
 				}
 			}
 
-			if (state.editDataSessionActive === true && change.cell && Object.prototype.hasOwnProperty.call(change, 'value'))
+			if (change.cell && !change.child &&
+				Object.prototype.hasOwnProperty.call(change, 'value') &&
+				Object.prototype.hasOwnProperty.call(change, 'previous') &&
+				!Object.prototype.hasOwnProperty.call(change, 'geometry') &&
+				!Object.prototype.hasOwnProperty.call(change, 'style') &&
+				!Object.prototype.hasOwnProperty.call(change, 'terminal'))
 			{
-				upsertCellInStencilIndex(change.cell, graph);
-				var beforeKey = change.cell.id || '';
-				var beforeState = state.editDataBeforeByCell[beforeKey];
-				var beforeValue = (beforeState && typeof beforeState === 'object' && Object.prototype.hasOwnProperty.call(beforeState, 'value')) ?
-					beforeState.value : beforeState;
-				var beforeData = (beforeState && typeof beforeState === 'object' && Object.prototype.hasOwnProperty.call(beforeState, 'data')) ?
-					beforeState.data : {};
-				var afterValue = sanitizeForIpc(change.value);
-				var afterData = extractEditableDataFromValue(change.value, graph, change.cell);
-				var dataBeforeStr = stableStringifyEditableData(beforeData);
-				var dataAfterStr = stableStringifyEditableData(afterData);
-				var dataChanged = (dataBeforeStr !== dataAfterStr);
-				var diffKeys = diffEditableDataKeys(beforeData, afterData);
-				var beforeJson = JSON.stringify(beforeValue);
-				var afterJson = JSON.stringify(afterValue);
-				var valueSnapshotChanged = (beforeJson !== afterJson);
-				var emitModify = dataChanged || valueSnapshotChanged;
-				writeLog('debug', 'Stencil modify candidate evaluated', {
-					cellId: change.cell && change.cell.id ? change.cell.id : '',
-					emitModify: emitModify,
-					dataChanged: dataChanged,
-					valueSnapshotChanged: valueSnapshotChanged,
-					diffKeys: diffKeys,
-					hasBeforeState: !!(beforeState && typeof beforeState === 'object')
-				});
-				if (emitModify)
+				if (state.editDataSessionActive === true)
 				{
-					var modifySnapshot = buildStencilItemSnapshot(change.cell, 'modify');
-					if (modifySnapshot && modifySnapshot.id)
+					upsertCellInStencilIndex(change.cell, graph);
+					var beforeKey = change.cell.id || '';
+					var beforeState = state.editDataBeforeByCell[beforeKey];
+					var beforeValue = (beforeState && typeof beforeState === 'object' && Object.prototype.hasOwnProperty.call(beforeState, 'value')) ?
+						beforeState.value : beforeState;
+					var beforeData = (beforeState && typeof beforeState === 'object' && Object.prototype.hasOwnProperty.call(beforeState, 'data')) ?
+						beforeState.data : {};
+					var afterValue = sanitizeForIpc(change.value);
+					var afterData = extractEditableDataFromValue(change.value, graph, change.cell);
+					var dataBeforeStr = stableStringifyEditableData(beforeData);
+					var dataAfterStr = stableStringifyEditableData(afterData);
+					var dataChanged = (dataBeforeStr !== dataAfterStr);
+					var diffKeys = diffEditableDataKeys(beforeData, afterData);
+					var beforeJson = JSON.stringify(beforeValue);
+					var afterJson = JSON.stringify(afterValue);
+					var valueSnapshotChanged = (beforeJson !== afterJson);
+					var emitModify = dataChanged || valueSnapshotChanged;
+					writeLog('debug', 'Stencil modify candidate evaluated', {
+						cellId: change.cell && change.cell.id ? change.cell.id : '',
+						emitModify: emitModify,
+						dataChanged: dataChanged,
+						valueSnapshotChanged: valueSnapshotChanged,
+						diffKeys: diffKeys,
+						hasBeforeState: !!(beforeState && typeof beforeState === 'object')
+					});
+					if (emitModify)
 					{
-						var mKey = 'modify:' + modifySnapshot.id;
-						if (!Object.prototype.hasOwnProperty.call(seen, mKey))
+						var modifySnapshot = buildStencilItemSnapshot(change.cell, 'modify');
+						if (modifySnapshot && modifySnapshot.id)
 						{
-							seen[mKey] = true;
-							modifySnapshot.valueBefore = beforeValue;
-							modifySnapshot.valueAfter = afterValue;
-							modifySnapshot.dataBefore = beforeData;
-							modifySnapshot.dataAfter = afterData;
-							result.push(modifySnapshot);
+							var mKey = 'modify:' + modifySnapshot.id;
+							if (!Object.prototype.hasOwnProperty.call(seen, mKey))
+							{
+								seen[mKey] = true;
+								modifySnapshot.valueBefore = beforeValue;
+								modifySnapshot.valueAfter = afterValue;
+								modifySnapshot.dataBefore = beforeData;
+								modifySnapshot.dataAfter = afterData;
+								result.push(modifySnapshot);
+							}
+						}
+					}
+				}
+				else if (isSeafStencilUserValue(change.value) || isSeafStencilUserValue(change.previous))
+				{
+					var beforeRaw = change.previous;
+					var afterRaw = change.value;
+					upsertCellInStencilIndex(change.cell, graph);
+					var beforeDataIp = extractEditableDataFromValue(beforeRaw, graph, change.cell);
+					var afterDataIp = extractEditableDataFromValue(afterRaw, graph, change.cell);
+					var dataBeforeStrIp = stableStringifyEditableData(beforeDataIp);
+					var dataAfterStrIp = stableStringifyEditableData(afterDataIp);
+					var dataChangedIp = (dataBeforeStrIp !== dataAfterStrIp);
+					var diffKeysIp = diffEditableDataKeys(beforeDataIp, afterDataIp);
+					var beforeJsonIp = JSON.stringify(sanitizeForIpc(beforeRaw));
+					var afterJsonIp = JSON.stringify(sanitizeForIpc(afterRaw));
+					var valueSnapshotChangedIp = (beforeJsonIp !== afterJsonIp);
+					var emitModifyIp = dataChangedIp || valueSnapshotChangedIp;
+					writeLog('debug', 'Stencil modify candidate evaluated', {
+						cellId: change.cell && change.cell.id ? change.cell.id : '',
+						emitModify: emitModifyIp,
+						dataChanged: dataChangedIp,
+						valueSnapshotChanged: valueSnapshotChangedIp,
+						diffKeys: diffKeysIp,
+						hasBeforeState: false,
+						inplaceSeafValueChange: true
+					});
+					if (emitModifyIp)
+					{
+						var modifySnapshotIp = buildStencilItemSnapshot(change.cell, 'modify');
+						if (modifySnapshotIp && modifySnapshotIp.id)
+						{
+							var mKeyIp = 'modify:' + modifySnapshotIp.id;
+							if (!Object.prototype.hasOwnProperty.call(seen, mKeyIp))
+							{
+								seen[mKeyIp] = true;
+								modifySnapshotIp.valueBefore = sanitizeForIpc(beforeRaw);
+								modifySnapshotIp.valueAfter = sanitizeForIpc(afterRaw);
+								modifySnapshotIp.dataBefore = beforeDataIp;
+								modifySnapshotIp.dataAfter = afterDataIp;
+								result.push(modifySnapshotIp);
+							}
 						}
 					}
 				}

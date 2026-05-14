@@ -182,6 +182,8 @@ Compose-loader объединяет их в финальный `commands[]`.
 - служебные ключи `OID` и `schema` не переписываются;
 - успех не показывает popup, ошибка возвращает `status=error` c деталями `pageName` и `OID`.
 
+Renderer при эмиссии `modify`: для ячеек с `schema` под `events.schemaPrefix` в `items[].dataBefore` / `dataAfter` участвует и **`label`** (видимая подпись userObject), чтобы Python-handlers могли согласовать `title`↔`label`; правка подписи на схеме без открытого Edit Data также может дать `modify` (см. `CHANGELOG` 0.5.35).
+
 Логика `modify` (`seafStencilLabelTitleSync` / `label_title.py`):
 - при необходимости дописывает парное поле на той же ячейке через **`updateStencilDataBulk`** с **`suppressStencilEvents: true`**;
 - если правки не нужны, возвращает пустой `commands[]`.
