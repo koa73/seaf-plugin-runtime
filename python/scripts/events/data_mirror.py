@@ -6,6 +6,7 @@ from __future__ import annotations
 from typing import Any, Callable, Dict, List, Tuple
 
 from lib.events import (
+    apply_title_label_sync,
     build_data_mirror_atomic_command,
     format_data_mirror_error_details,
     log_event_items,
@@ -31,7 +32,11 @@ def _extract_source_item(item: Dict[str, Any]) -> Tuple[str, str, Dict[str, Any]
     return schema, oid, data_after, data_before
 
 
-def build_commands(payload: Dict[str, Any], log_info: Callable[[Dict[str, Any]], None]) -> List[Dict[str, Any]]:
+def build_commands(
+    payload: Dict[str, Any],
+    log_info: Callable[[Dict[str, Any]], None],
+    log_debug: Callable[[Dict[str, Any]], None] | None = None,
+) -> List[Dict[str, Any]]:
     event = payload.get("event") or {}
     items = event.get("items") or []
     commands: List[Dict[str, Any]] = []
@@ -48,7 +53,14 @@ def build_commands(payload: Dict[str, Any], log_info: Callable[[Dict[str, Any]],
         if not oid:
             log_info({"handler": "data_mirror", "action": "skip_oid_missing", "schema": schema, "objectId": object_id})
             continue
-        patch = sanitize_patch_data(data_after, EXCLUDED_FIELDS)
+        data_after_for_patch = dict(data_after) if isinstance(data_after, dict) else {}
+        apply_title_label_sync(
+            schema,
+            data_before,
+            data_after_for_patch,
+            log_debug=log_debug,
+        )
+        patch = sanitize_patch_data(data_after_for_patch, EXCLUDED_FIELDS)
         if not patch:
             log_info({"handler": "data_mirror", "action": "skip_empty_patch", "schema": schema, "OID": oid, "objectId": object_id})
             continue
@@ -93,7 +105,7 @@ def main() -> int:
         event = payload.get("event") or {}
         items = event.get("items") or []
         log_event_items("data_mirror", event, items, logger.info)
-        commands = build_commands(payload, logger.info)
+        commands = build_commands(payload, logger.info, logger.debug)
         if not commands:
             return write_response(
                 status="success",

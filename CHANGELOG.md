@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.34
+
+- **`lib/events/title_label_sync.py`**: общая политика согласования **`title`/`label`** при stencil `modify` (если в одной транзакции меняются оба — побеждает **title**); опциональная отладочная трассировка через `ScriptLogger.debug` при `pluginLogLevel: debug|trace`.
+- **`lib/logging`**: метод **`ScriptLogger.debug`** — пишет `SEAF_INFO` только для `debug`/`trace`.
+- **`events/data_mirror.py`**: перед санитизацией patch применяется `title_label_sync` для зеркалирования `dcs`/`dc_offices`.
+- **`events/label_title.py`**, **`conf/events.yaml`**: wildcard `modify` → `seafStencilLabelTitleSync` с `updateStencilDataBulk` и **`suppressStencilEvents: true`** при необходимости дописать парное поле.
+- **`lib/events/all_add_helpers.py`**: `build_update_stencil_data_bulk_command(..., suppress_stencil_events=...)`.
+- **`conf/stencils/config.yaml`**: опциональный флаг **`sync_title_with_label`** (пример для `dcs`/`dc_offices`).
+
 ## 0.5.33
 
 - **`conf/stencils/config.yaml`**: опциональный список **`data_hidden`** (формат как у `data_lock`) — атрибуты не показываются в `SeafEditDataDialog`, не удаляются при Apply; добавление свойства с таким именем блокируется. Для `seaf.company.ta.services.dcs` и `seaf.company.ta.services.dc_offices` по умолчанию скрыт атрибут **`link`**. Если имя есть и в `data_lock`, и в `data_hidden`, приоритет у **`data_hidden`**.

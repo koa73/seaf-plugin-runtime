@@ -23,6 +23,7 @@ schemas:
     layer: "Офис"
     edit_data: seaf
     mirror: "Сегменты офиса"
+    sync_title_with_label: true
     parent:
       schema: seaf.company.ta.services.dc_regions
       field: region
@@ -35,6 +36,7 @@ schemas:
     layer: "ЦОД"
     edit_data: seaf
     mirror: "Сегменты ЦОД"
+    sync_title_with_label: true
     parent:
       schema: seaf.company.ta.services.dc_azs
       field: availabilityzone

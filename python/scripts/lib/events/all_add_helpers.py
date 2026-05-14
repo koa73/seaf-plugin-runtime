@@ -57,14 +57,22 @@ def build_collision_message(conflicts: List[Dict[str, Any]]) -> str:
     )
 
 
-def build_update_stencil_data_bulk_command(page_id: Any, updates: List[Dict[str, Any]]) -> Dict[str, Any]:
+def build_update_stencil_data_bulk_command(
+    page_id: Any,
+    updates: List[Dict[str, Any]],
+    *,
+    suppress_stencil_events: bool = False,
+) -> Dict[str, Any]:
     """Build command payload for batched stencil data updates."""
+    args: Dict[str, Any] = {
+        "pageId": page_id,
+        "updates": updates,
+    }
+    if suppress_stencil_events:
+        args["suppressStencilEvents"] = True
     return {
         "name": "updateStencilDataBulk",
-        "args": {
-            "pageId": page_id,
-            "updates": updates,
-        },
+        "args": args,
     }
 
 

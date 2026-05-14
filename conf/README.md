@@ -168,15 +168,23 @@ Compose-loader объединяет их в финальный `commands[]`.
 | `seafStencilAllAdd` | `events/all_add.py` |
 | `seafStencilReparent` | `events/reparent.py` |
 | `seafStencilDataMirrorModify` | `events/data_mirror.py` |
+| `seafStencilLabelTitleSync` | `events/label_title.py` |
 
 Правила `exact_dcs_data_mirror` и `exact_dc_offices_data_mirror`: `add` → `seafStencilAllAdd`, `modify` → `seafStencilDataMirrorModify` для схем:
 - `seaf.company.ta.services.dcs`
 - `seaf.company.ta.services.dc_offices`
 
+Правило `wildcard_ta_services` (`seaf.company.ta.*`): `add` → `seafStencilAllAdd`, `reparent` → `seafStencilReparent`, `modify` → `seafStencilLabelTitleSync` (для схем с exact `modify` выше матчится только exact-правило).
+
 Логика `modify` (`seafStencilDataMirrorModify` / `data_mirror.py`):
+- выравнивание **`title`/`label`** в копии `dataAfter` перед построением patch (при конфликте в одной транзакции побеждает **title**; отключение: `schemas.<schema>.sync_title_with_label: false` в `stencils/config.yaml`);
 - синхронизация атрибутов по `schema+OID` на всех страницах текущей диаграммы;
 - служебные ключи `OID` и `schema` не переписываются;
 - успех не показывает popup, ошибка возвращает `status=error` c деталями `pageName` и `OID`.
+
+Логика `modify` (`seafStencilLabelTitleSync` / `label_title.py`):
+- при необходимости дописывает парное поле на той же ячейке через **`updateStencilDataBulk`** с **`suppressStencilEvents: true`**;
+- если правки не нужны, возвращает пустой `commands[]`.
 
 Правило `exact_dc_azs`: `add` → `seafStencilAllAdd`, `reparent` → `seafStencilReparent` (без Python handler для `remove` — события удаления не маршрутизируются).
 
@@ -489,6 +497,7 @@ schemas:
     edit_data: seaf              # seaf | standard | both
     data_lock: [OID, schema]     # array<string>
     data_hidden: []              # optional array<string>, omit or [] = show all non-lock UI fields
+    sync_title_with_label: true # optional; false отключает связку title/label в modify-handlers
     # fields: ...                # резерв под Phase 2
 ```
 
@@ -500,6 +509,7 @@ schemas:
 | `schemas.<schema>.edit_data` | `string` | Режим Edit Data: `seaf` \| `standard` \| `both` | `seaf` для `seaf.*`, иначе `standard` |
 | `schemas.<schema>.data_lock` | `array<string>` | Имена атрибутов, запрещённых для редактирования/удаления в SEAF-диалоге | `[OID, schema]` для `seaf.*`, иначе `[]` |
 | `schemas.<schema>.data_hidden` | `array<string>` | Имена атрибутов, не показываемых в SEAF Edit Data (сохраняются при Apply) | `[]` |
+| `schemas.<schema>.sync_title_with_label` | `boolean` | Синхронизация `title`↔`label` в Python modify-handlers (`data_mirror`, `label_title`) | `true` для `seaf.company.ta.*` при отсутствии ключа; явное `false` отключает |
 | `schemas.<schema>.fields` | `object` | Будущая схема rich-виджетов (`combo/radio/checkbox`) | не используется в Phase 1 |
 
 ### Минимальный пример

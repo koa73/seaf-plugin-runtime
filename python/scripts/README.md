@@ -11,17 +11,19 @@
 
 - `events/all_add.py` — production orchestrator для `add`-событий: собирает контекст, вызывает OID-библиотеку и формирует `Response.commands[]` (новый OID только при отсутствии или пустом `data.OID`, чтобы второй `add` после смены слоя не сдвигал sequence).
 - `events/reparent.py` — логирует полный `event` (`reparentScriptFired`) и возвращает **`Response.commands`** с принудительным layer-routing (`moveObjectsToLayer`, **`targetMode: "schemaCell"`**). Условия попадания INFO в файл — `pluginLogLevel` / `scriptLogLevel` (см. `CHANGELOG` 0.5.27–0.5.28).
-- `events/data_mirror.py` — production orchestrator для `modify`-синхронизации `schema+OID` (схемы `dcs`/`dc_offices`) через атомарную runtime-команду.
+- `events/data_mirror.py` — production orchestrator для `modify`-синхронизации `schema+OID` (схемы `dcs`/`dc_offices`) через атомарную runtime-команду; перед санитизацией patch выравнивает `title`/`label` через `lib/events/title_label_sync.py`.
+- `events/label_title.py` — wildcard `modify` для остальных `seaf.company.ta.*`: при необходимости дописывает парное поле через `updateStencilDataBulk` с `suppressStencilEvents: true`.
 - `context_menu/add_page.py` — production handler для команды «Создать страницу»: валидирует `selection.data.title`, проверяет дубли имен страниц и возвращает `commands[]` для create page + установки link на исходный стенсил.
 - `lib/oid/*` — модульная библиотека генерации/валидации OID и поиска конфликтов.
 - `lib/diagram/*` — библиотека переиспользуемых helper-функций для context-menu сценариев создания страниц и установки page links.
 - `lib/events/*` — service helper-слой для event handlers (`SEAF_INFO/SEAF_ERROR` логирование, сообщения о коллизиях, резолв env/arguments параметров).
-- `lib/logging/*` — централизованный слой логирования runtime-скриптов (уровни и emit `SEAF_INFO/SEAF_ERROR`).
+- `lib/logging/*` — централизованный слой логирования runtime-скриптов (уровни и emit `SEAF_INFO/SEAF_ERROR`); метод `ScriptLogger.debug` пишет `SEAF_INFO` только при `pluginLogLevel: debug|trace` (для трассировки `title_label_sync` и др.).
 
 Последовательность команд в `events/data_mirror.py`:
-1. Санитизация patch (`dataAfter` без `OID`/`schema`).
-2. Формирование `commands[].name=mirrorDataByOidAtomic` для каждой пары `schema+OID`.
-3. Runtime выполняет `precheck -> snapshot -> apply -> rollback` и при ошибке возвращает список проблем с `pageName` и `OID`.
+1. Выравнивание `title`/`label` в копии `dataAfter` (общий модуль `title_label_sync`; отключение точечно: `sync_title_with_label: false` в `conf/stencils/config.yaml` для схемы).
+2. Санитизация patch (`dataAfter` без `OID`/`schema`).
+3. Формирование `commands[].name=mirrorDataByOidAtomic` для каждой пары `schema+OID`.
+4. Runtime выполняет `precheck -> snapshot -> apply -> rollback` и при ошибке возвращает список проблем с `pageName` и `OID`.
 
 Последовательность команд в `events/all_add.py`:
 1. `updateStencilDataBulk` (пакетное обновление `data` стенсилов) — только для ячеек, где реально назначен новый `OID` (непустой существующий OID не перезаписывается).

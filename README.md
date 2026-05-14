@@ -29,7 +29,7 @@
 - `conf/events.yaml` - конфигурация auto-event processor (правила по `add`/`reparent`/`modify` и скрытые event handlers).
 - `conf/stencils/libraries.json` - JSON-конфиг секций/библиотек фигур для окна `More Shapes`.
 - `conf/stencils/*.xml` - файлы библиотек фигур в формате `mxlibrary`.
-- `conf/stencils/config.yaml` - schema-based конфиг: layer-routing для auto add handlers, режим `edit_data` (`seaf|standard|both`), список `data_lock` защищённых атрибутов, опциональный `data_hidden` (атрибуты не показываются в SEAF Edit Data, но сохраняются при Apply) и зарезервированный ключ `fields` для Phase 2 rich-виджетов.
+- `conf/stencils/config.yaml` - schema-based конфиг: layer-routing для auto add handlers, режим `edit_data` (`seaf|standard|both`), список `data_lock` защищённых атрибутов, опциональный `data_hidden` (атрибуты не показываются в SEAF Edit Data, но сохраняются при Apply), опциональный **`sync_title_with_label`** (по умолчанию включена синхронизация `title`↔`label` для всех `seaf.company.ta.*`, явное `false` отключает для схемы) и зарезервированный ключ `fields` для Phase 2 rich-виджетов.
 - `conf/README.md` - документация формата `plugin.yaml`.
 - `python/scripts/examples/*.py` - локальные демо-скрипты (не подключаются из поставочного `main_menu.yaml` / `events.yaml`).
 - `python/scripts/events/*.py` - production event handlers (оркестраторы event-логики).

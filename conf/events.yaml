@@ -36,6 +36,7 @@ rules:
     handlers:
       add: seafStencilAllAdd
       reparent: seafStencilReparent
+      modify: seafStencilLabelTitleSync
 commands:
   - id: seafStencilAllAdd
     title: SEAF Stencil All Add
@@ -71,6 +72,19 @@ commands:
       context:
         enabled: false
     script: events/data_mirror.py
+    execution:
+      mode: sync
+      timeoutSec: 30
+    input:
+      includeDiagramXml: false
+  - id: seafStencilLabelTitleSync
+    title: SEAF Stencil Title Label Sync
+    menu:
+      main:
+        enabled: false
+      context:
+        enabled: false
+    script: events/label_title.py
     execution:
       mode: sync
       timeoutSec: 30
