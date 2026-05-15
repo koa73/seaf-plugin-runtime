@@ -103,7 +103,9 @@
 
 Подменю `examples` не поддерживается. Имена подменю и состав пунктов задаются только конфигом; в JS нет жёстко прошитых `P41` / `Tools` / `Examples`.
 
-**Export (`seafP41Export`):** в `input` задайте `includeSchemaObjects: true` (и опционально `includePages: true`). Renderer передаёт `payload.schemaObjects[]`; Python пишет JSON в `outputSeafFile` (или `inputSeafFile` при `useSameOutputFile`). Формат файла: `{ "<schema>": { "<OID>": { ...attrs } } }`.
+**Export (`seafP41Export`):** в `input` задайте `includeSchemaObjects: true` (и опционально `includePages: true`). Renderer передаёт `payload.schemaObjects[]`. Выходной путь в `outputSeafFile` (или `inputSeafFile` при `useSameOutputFile`):
+- **файл** (`.yaml` / `.json`) — один файл со всей картой `{schema: {OID: attrs}}` (YAML по умолчанию);
+- **каталог** (существующий каталог, путь без расширения или с `/` на конце) — по одному `.yaml` на schema; имя файла = последние два компонента schema, например `seaf.company.ta.services.network_segments` → `services.network_segments.yaml`, содержимое: `{OID: attrs}`.
 
 Пример (P41 / Tools в `main_menu.yaml`):
 

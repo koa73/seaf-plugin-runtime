@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.40
+
+- **`lib/main_menu/export_helpers.py`**: если `outputSeafFile` указывает **каталог**, Export создаёт по файлу `.yaml` на каждую schema; имя = последние два компонента schema (`services.network_segments.yaml` и т.д.); одиночный файл — YAML (`.json` по расширению).
+
 ## 0.5.39
 
 - **`plugin/seaf.plugin.js`**: при `status=error` не дублировать popup, если Python уже вернул `commands[]` с `showMessage` (`level: error`) — исправляет двойной вывод ошибки Export при пустом `outputSeafFile`.
