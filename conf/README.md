@@ -91,19 +91,31 @@
 
 Именно здесь хранится `seafEditConfig` schema для `Edit Config`.
 
+### Поля `menu.main.*`
+
+| Параметр | Тип | Назначение |
+|---|---|---|
+| `menu.main.enabled` | `boolean` | Показывать команду в главном меню `SEAF` (`true` — только явное включение) |
+| `menu.main.section` | `string` | Секция верхнего меню (обычно `seaf`) |
+| `menu.main.sectionTitle` | `string` | Заголовок секции |
+| `menu.main.submenu` | `string` | Идентификатор подменю (например `p41`, `tools`); без поля — пункт в корне `SEAF` |
+| `menu.main.submenuTitle` | `string` | Подпись подменю в UI (если не задана — используется `submenu`) |
+
+Подменю `examples` не поддерживается. Имена подменю и состав пунктов задаются только конфигом; в JS нет жёстко прошитых `P41` / `Tools` / `Examples`.
+
 ---
 
 ## 4) `context_menu.yaml`
 
-Содержит `commands[]`-overrides по `id` для секции `menu.context.*`.
+Содержит `commands[]` для контекстного меню (полные команды или overrides по `id`).
 
-Пример идеи:
-- в `main_menu.yaml` лежит полное описание команды;
-- в `context_menu.yaml` лежат override-поля:
-  - `id`
-  - `menu.context.enabled`
-  - `menu.context.target`
-  - при необходимости `title/script/input/execution` (например, для отдельной context-only команды `Создать страницу` -> `context_menu/add_page.py`).
+Для context-only команд (например `seafAddPage` / «Создать страницу») задайте:
+- `menu.context.enabled: true` и правила `scope` / `schemaPattern` / `target`;
+- `menu.main.enabled: false` — чтобы команда **не** попала в главное меню `SEAF`.
+
+Пример идеи для split-конфигурации:
+- в `main_menu.yaml` — полное описание команды с `menu.main.enabled: true`;
+- в `context_menu.yaml` — override `menu.context.*` по тому же `id`.
 
 Compose-loader объединяет их в финальный `commands[]`.
 

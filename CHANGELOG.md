@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.36
+
+- **`plugin/seaf.plugin.js`**: главное меню `SEAF` строится только из команд с `menu.main.enabled: true`; подменю создаются динамически по `menu.main.submenu` / `menu.main.submenuTitle`; удалены хардкод `P41` / `Tools` / `Examples` и эвристика по префиксу `SEAF` в `title`.
+- **`conf/context_menu.yaml`**: для `seafAddPage` явно `menu.main.enabled: false` — «Создать страницу» только в контекстном меню.
+- **`drawio-standalone/.../Menus.js`**, **`ElectronApp.js`**: удалены placeholder-пункты `Download` / `Create P41` / `Upload`; контейнер `seaf` пустой (наполняется runtime plugin).
+
 ## 0.5.35
 
 - **`plugin/seaf.plugin.js`**: для userObject с `schema` под префиксом из `events.yaml` (`schemaPrefix`, по умолчанию `seaf.`) в карту `data` при `modify` включается атрибут **`label`** (раньше отфильтровывался как у обычных ячеек), чтобы Python `title_label_sync` видел правку подписи из SEAF Edit Data.

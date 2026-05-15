@@ -11,6 +11,8 @@ commands:
       includeCurrentPage: true
       includePages: true
     menu:
+      main:
+        enabled: false
       context:
         enabled: true
         scope: stencil

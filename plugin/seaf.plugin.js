@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.33
+ * Runtime script version: 0.5.36
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -7139,9 +7139,8 @@ Draw.loadPlugin(function(ui)
 		var commands = state.config.commands || [];
 		ensureTopLevelMenu('seaf', 'SEAF');
 		var rootItems = [];
-		var p41Items = [];
-		var toolsItems = [];
-		var examplesItems = [];
+		var submenuBuckets = {};
+		var submenuOrder = [];
 
 		var normalizeSubmenu = function(value)
 		{
@@ -7149,66 +7148,73 @@ Draw.loadPlugin(function(ui)
 			return out;
 		};
 
+		var submenuMenuId = function(submenuKey)
+		{
+			return 'seafSubmenu_' + submenuKey.replace(/[^a-z0-9_]/gi, '_');
+		};
+
 		for (var i = 0; i < commands.length; i++)
 		{
 			var cmd = commands[i];
-			if (cmd.id === 'seafUpdatePlugin')
+			if (cmd.id === 'seafUpdatePlugin' || cmd.id === 'seafSystemUpdatePlugin')
 			{
 				continue;
 			}
 			var mainCfg = (cmd.menu && cmd.menu.main) ? cmd.menu.main : {};
-			if (mainCfg.enabled === false)
+			if (mainCfg.enabled !== true)
 			{
 				continue;
 			}
 
-			var title = (typeof cmd.title === 'string') ? cmd.title : '';
-			var submenu = normalizeSubmenu(mainCfg.submenu);
-			var target = rootItems;
-
-			if (title.indexOf('SEAF') === 0 || submenu === 'examples')
+			var submenuKey = normalizeSubmenu(mainCfg.submenu);
+			if (submenuKey === 'examples')
 			{
-				target = examplesItems;
-			}
-			else if (submenu === 'p41')
-			{
-				target = p41Items;
-			}
-			else if (submenu === 'tools')
-			{
-				target = toolsItems;
+				continue;
 			}
 
-			if (mxUtils.indexOf(target, cmd.id) < 0)
+			if (submenuKey.length > 0)
 			{
-				target.push(cmd.id);
+				if (submenuBuckets[submenuKey] == null)
+				{
+					submenuBuckets[submenuKey] = {
+						title: submenuKey,
+						items: [],
+						menuId: submenuMenuId(submenuKey)
+					};
+					submenuOrder.push(submenuKey);
+				}
+				var bucket = submenuBuckets[submenuKey];
+				if (typeof mainCfg.submenuTitle === 'string' && mainCfg.submenuTitle.trim().length > 0)
+				{
+					bucket.title = mainCfg.submenuTitle.trim();
+				}
+				if (mxUtils.indexOf(bucket.items, cmd.id) < 0)
+				{
+					bucket.items.push(cmd.id);
+				}
+			}
+			else if (mxUtils.indexOf(rootItems, cmd.id) < 0)
+			{
+				rootItems.push(cmd.id);
 			}
 		}
 
-		ui.menus.put('seafP41', new Menu(function(menuObj, parent)
+		for (var s = 0; s < submenuOrder.length; s++)
 		{
-			if (p41Items.length > 0)
+			var submenuKeyAt = submenuOrder[s];
+			var bucketData = submenuBuckets[submenuKeyAt];
+			(function(items, menuId)
 			{
-				ui.menus.addMenuItems(menuObj, p41Items, parent);
-			}
-		}));
-		ui.menus.put('seafTools', new Menu(function(menuObj, parent)
-		{
-			if (toolsItems.length > 0)
-			{
-				ui.menus.addMenuItems(menuObj, toolsItems, parent);
-			}
-		}));
-		ui.menus.put('seafExamples', new Menu(function(menuObj, parent)
-		{
-			if (examplesItems.length > 0)
-			{
-				ui.menus.addMenuItems(menuObj, examplesItems, parent);
-			}
-		}));
-		mxResources.parse('seafP41=P41');
-		mxResources.parse('seafTools=Tools');
-		mxResources.parse('seafExamples=Examples');
+				ui.menus.put(menuId, new Menu(function(menuObj, parent)
+				{
+					if (items.length > 0)
+					{
+						ui.menus.addMenuItems(menuObj, items, parent);
+					}
+				}));
+			})(bucketData.items, bucketData.menuId);
+			mxResources.parse(bucketData.menuId + '=' + bucketData.title);
+		}
 
 		var seafMenu = ui.menus.get('seaf');
 		if (seafMenu != null)
@@ -7222,10 +7228,19 @@ Draw.loadPlugin(function(ui)
 					ui.menus.addMenuItems(menuObj, ['-'].concat(rootItems), parent);
 					menuObj.addSeparator(parent);
 				}
-				ui.menus.addSubmenu('seafP41', menuObj, parent, mxResources.get('seafP41'));
-				ui.menus.addSubmenu('seafTools', menuObj, parent, mxResources.get('seafTools'));
-				ui.menus.addSubmenu('seafExamples', menuObj, parent, mxResources.get('seafExamples'));
-				menuObj.addSeparator(parent);
+				for (var si = 0; si < submenuOrder.length; si++)
+				{
+					var submenuKeyRender = submenuOrder[si];
+					var submenuBucket = submenuBuckets[submenuKeyRender];
+					if (submenuBucket != null && submenuBucket.items.length > 0)
+					{
+						ui.menus.addSubmenu(submenuBucket.menuId, menuObj, parent, mxResources.get(submenuBucket.menuId));
+					}
+				}
+				if (rootItems.length > 0 || submenuOrder.length > 0)
+				{
+					menuObj.addSeparator(parent);
+				}
 				ui.menus.addMenuItems(menuObj, ['seafSystemUpdatePlugin'], parent);
 				menuObj.addSeparator(parent);
 				menuObj.addItem(getRuntimeVersionLabel(), null, null, parent, null, false);
