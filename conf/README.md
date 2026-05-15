@@ -103,6 +103,27 @@
 
 Подменю `examples` не поддерживается. Имена подменю и состав пунктов задаются только конфигом; в JS нет жёстко прошитых `P41` / `Tools` / `Examples`.
 
+Пример (P41 / Tools в `main_menu.yaml`):
+
+```yaml
+  - id: seafP41Export
+    title: Export
+    script: main_menu/export.py
+    menu:
+      main:
+        enabled: true
+        submenu: p41
+        submenuTitle: P41
+  - id: seafToolsNetConfParser
+    title: Net_Conf_Parser
+    script: main_menu/net_conf_parser.py
+    menu:
+      main:
+        enabled: true
+        submenu: tools
+        submenuTitle: Tools
+```
+
 ---
 
 ## 4) `context_menu.yaml`

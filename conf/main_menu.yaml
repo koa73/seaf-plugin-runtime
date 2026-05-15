@@ -55,3 +55,45 @@ commands:
             properties:
               - openFile
               - openDirectory
+  - id: seafP41Export
+    title: Export
+    script: main_menu/export.py
+    execution:
+      mode: sync
+      timeoutSec: 30
+    input:
+      includeDiagramXml: false
+    menu:
+      main:
+        enabled: true
+        section: seaf
+        submenu: p41
+        submenuTitle: P41
+  - id: seafP41Import
+    title: Import
+    script: main_menu/import.py
+    execution:
+      mode: sync
+      timeoutSec: 30
+    input:
+      includeDiagramXml: false
+    menu:
+      main:
+        enabled: true
+        section: seaf
+        submenu: p41
+        submenuTitle: P41
+  - id: seafToolsNetConfParser
+    title: Net_Conf_Parser
+    script: main_menu/net_conf_parser.py
+    execution:
+      mode: sync
+      timeoutSec: 30
+    input:
+      includeDiagramXml: false
+    menu:
+      main:
+        enabled: true
+        section: seaf
+        submenu: tools
+        submenuTitle: Tools

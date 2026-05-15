@@ -92,6 +92,8 @@
 
 Контекстное меню — только команды с `menu.context.enabled: true` (например `Создать страницу` в `context_menu.yaml`); команды без `menu.main.enabled: true` в главное меню не попадают.
 
+В поставке `main_menu.yaml` (помимо `Edit Config`): подменю **P41** (`Export`, `Import` → `main_menu/export.py`, `import.py`) и **Tools** (`Net_Conf_Parser` → `main_menu/net_conf_parser.py`).
+
 ## Edit Config menu
 
 - В full runtime добавлена UI-команда `Edit Config` в меню `SEAF`.

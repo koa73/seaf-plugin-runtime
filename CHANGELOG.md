@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.37
+
+- **`conf/main_menu.yaml`**: подменю **P41** (`Export`, `Import`) и **Tools** (`Net_Conf_Parser`) через `menu.main.submenu` / `submenuTitle`.
+- **`python/scripts/main_menu/`**: заглушки `export.py`, `import.py`, `net_conf_parser.py` — логируют вызов через `ScriptLogger` (`SEAF_INFO` при `pluginLogLevel: info`).
+
 ## 0.5.36
 
 - **`plugin/seaf.plugin.js`**: главное меню `SEAF` строится только из команд с `menu.main.enabled: true`; подменю создаются динамически по `menu.main.submenu` / `menu.main.submenuTitle`; удалены хардкод `P41` / `Tools` / `Examples` и эвристика по префиксу `SEAF` в `title`.
