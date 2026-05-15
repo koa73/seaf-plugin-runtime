@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.39
+
+- **`plugin/seaf.plugin.js`**: при `status=error` не дублировать popup, если Python уже вернул `commands[]` с `showMessage` (`level: error`) — исправляет двойной вывод ошибки Export при пустом `outputSeafFile`.
+
 ## 0.5.38
 
 - **`main_menu/export.py`**, **`lib/main_menu/export_helpers.py`**: P41 Export собирает `{schema: {OID: data}}` из `payload.schemaObjects`, пишет JSON в `outputSeafFile` (fallback на `inputSeafFile` при `useSameOutputFile`); пустой путь → `status=error` + `showMessage`.

@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.38
+ * Runtime script version: 0.5.39
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -6663,6 +6663,23 @@ Draw.loadPlugin(function(ui)
 		result.errors.push('data_mirror_sync_failed');
 	}
 
+	function resultHasErrorShowMessage(result)
+	{
+		if (result == null || !Array.isArray(result.commands))
+		{
+			return false;
+		}
+		for (var i = 0; i < result.commands.length; i++)
+		{
+			var cmd = result.commands[i];
+			if (cmd != null && cmd.name === 'showMessage' && cmd.args != null && cmd.args.level === 'error')
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
 	function executeInteractiveCommands(result)
 	{
 		if (result == null || !Array.isArray(result.commands))
@@ -6970,7 +6987,8 @@ Draw.loadPlugin(function(ui)
 
 			if (result.status === 'error')
 			{
-				if (typeof result.message === 'string' && result.message.trim().length > 0)
+				if (!resultHasErrorShowMessage(result) &&
+					typeof result.message === 'string' && result.message.trim().length > 0)
 				{
 					showError(formatCommandError(command.id, result.message));
 				}
