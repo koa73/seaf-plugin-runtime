@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.41
+ * Runtime script version: 0.5.42
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -4895,14 +4895,15 @@ Draw.loadPlugin(function(ui)
 		return true;
 	}
 
-	function getCellsByCriteria(graph, criteria)
+	function getCellsByCriteria(graph, criteria, rootOverride)
 	{
 		if (!graph || !graph.model)
 		{
 			return [];
 		}
 		var model = graph.model;
-		var root = model.getRoot ? model.getRoot() : model.root;
+		var root = (rootOverride != null) ? rootOverride :
+			(model.getRoot ? model.getRoot() : model.root);
 		var cells = [];
 		if (typeof model.filterDescendants === 'function')
 		{
@@ -4918,6 +4919,83 @@ Draw.loadPlugin(function(ui)
 		return cells;
 	}
 
+	function syncCurrentPageRootFromGraph(graph)
+	{
+		if (!graph || !graph.model || !ui || !ui.currentPage)
+		{
+			return;
+		}
+		try
+		{
+			ui.currentPage.root = graph.model.getRoot ? graph.model.getRoot() : graph.model.root;
+		}
+		catch (eSync)
+		{
+			// ignore sync errors
+		}
+	}
+
+	function ensurePageRoot(page)
+	{
+		if (!page || !ui)
+		{
+			return page;
+		}
+		if (page.root == null && typeof ui.updatePageRoot === 'function')
+		{
+			ui.updatePageRoot(page);
+		}
+		return page;
+	}
+
+	function setGraphModelRoot(graph, root)
+	{
+		if (!graph || !graph.model || root == null)
+		{
+			return;
+		}
+		var model = graph.model;
+		if (typeof model.setRoot === 'function')
+		{
+			model.setRoot(root);
+		}
+		else if (typeof model.rootChanged === 'function')
+		{
+			model.rootChanged(root);
+		}
+	}
+
+	function getCellsByCriteriaForPage(graph, page, criteria)
+	{
+		if (!graph || !graph.model || !page)
+		{
+			return [];
+		}
+		ensurePageRoot(page);
+		if (page.root == null)
+		{
+			return [];
+		}
+		var model = graph.model;
+		var previousRoot = model.getRoot ? model.getRoot() : model.root;
+		var switched = previousRoot !== page.root;
+		if (switched)
+		{
+			setGraphModelRoot(graph, page.root);
+		}
+		try
+		{
+			return getCellsByCriteria(graph, criteria, page.root);
+		}
+		finally
+		{
+			if (switched && previousRoot != null)
+			{
+				setGraphModelRoot(graph, previousRoot);
+			}
+		}
+	}
+
 	function collectCellsByCriteriaAcrossPages(criteria)
 	{
 		var graph = ui && ui.editor ? ui.editor.graph : null;
@@ -4925,6 +5003,7 @@ Draw.loadPlugin(function(ui)
 		{
 			return [];
 		}
+		syncCurrentPageRootFromGraph(graph);
 		var out = [];
 		var originalPage = ui.currentPage || null;
 		for (var i = 0; i < ui.pages.length; i++)
@@ -4936,11 +5015,7 @@ Draw.loadPlugin(function(ui)
 			}
 			try
 			{
-				if (ui.currentPage !== page && typeof ui.selectPage === 'function')
-				{
-					ui.selectPage(page);
-				}
-				var cells = getCellsByCriteria(graph, criteria);
+				var cells = getCellsByCriteriaForPage(graph, page, criteria);
 				var pageId = (typeof page.getId === 'function') ? page.getId() : page.id;
 				var pageName = (typeof page.getName === 'function') ? page.getName() : page.name;
 				for (var j = 0; j < cells.length; j++)
@@ -4961,9 +5036,21 @@ Draw.loadPlugin(function(ui)
 				// ignore page-level lookup errors and continue scanning remaining pages
 			}
 		}
-		if (originalPage != null && ui.currentPage !== originalPage && typeof ui.selectPage === 'function')
+		try
 		{
-			ui.selectPage(originalPage);
+			if (originalPage != null && typeof ui.selectPage === 'function')
+			{
+				ui.selectPage(originalPage);
+			}
+			else if (originalPage != null)
+			{
+				ensurePageRoot(originalPage);
+				setGraphModelRoot(graph, originalPage.root);
+			}
+		}
+		catch (eRestore)
+		{
+			// ignore restore errors
 		}
 		return out;
 	}
@@ -4975,6 +5062,7 @@ Draw.loadPlugin(function(ui)
 		{
 			return [];
 		}
+		syncCurrentPageRootFromGraph(graph);
 		var criteria = { requireSchema: true };
 		var out = [];
 		var originalPage = ui.currentPage || null;
@@ -4997,19 +5085,7 @@ Draw.loadPlugin(function(ui)
 			}
 			try
 			{
-				if (ui.currentPage !== page && typeof ui.selectPage === 'function')
-				{
-					ui.selectPage(page);
-				}
-				var cells = getCellsByCriteria(graph, criteria);
-				if (cells.length > 0 && typeof graph.setSelectionCells === 'function')
-				{
-					graph.setSelectionCells(cells);
-				}
-				else if (typeof graph.clearSelection === 'function')
-				{
-					graph.clearSelection();
-				}
+				var cells = getCellsByCriteriaForPage(graph, page, criteria);
 				var pageId = (typeof page.getId === 'function') ? page.getId() : page.id;
 				var pageName = (typeof page.getName === 'function') ? page.getName() : page.name;
 				for (var j = 0; j < cells.length; j++)
@@ -5042,9 +5118,14 @@ Draw.loadPlugin(function(ui)
 
 		try
 		{
-			if (originalPage != null && ui.currentPage !== originalPage && typeof ui.selectPage === 'function')
+			if (originalPage != null && typeof ui.selectPage === 'function')
 			{
 				ui.selectPage(originalPage);
+			}
+			else if (originalPage != null)
+			{
+				ensurePageRoot(originalPage);
+				setGraphModelRoot(graph, originalPage.root);
 			}
 			if (typeof graph.setSelectionCells === 'function')
 			{

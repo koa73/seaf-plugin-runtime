@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.42
+
+- **`plugin/seaf.plugin.js`**: многостраничный сбор для Export/поиска ячеек через `page.root` + `model.setRoot` (`getCellsByCriteriaForPage`), без `selectPage` в цикле — экспорт не зависит от активной вкладки.
+
 ## 0.5.41
 
 - **`plugin/seaf.plugin.js`**: исправлен обход страниц при `collectSchemaObjectsAcrossPages` / `collectCellsByCriteriaAcrossPages` — переключение страницы по `ui.currentPage !== page` вместо `originalPage !== page`, чтобы при экспорте с непервой страницы не читалась модель предыдущей страницы (6 vs 4 YAML-файлов на `1.drawio`).
