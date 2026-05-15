@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.45
+
+- **Export**: `eligibleCount` и `exportedCount` считают уникальные пары `(schema, OID)`; повторы на других страницах — `duplicateOidCount` / `skippedDuplicate` (DEBUG), не входят в eligible.
+
 ## 0.5.44
 
 - **Export**: объекты со `schema`, но без OID (stencil, mxgraph и т.п.) — тихо исключаются из выборки; в `warnings` / `skippedInput` попадает только `seaf.*` без OID (`missing_oid_seaf`). В отчёте: `skippedIgnored` (DEBUG) vs `exportErrorCount` (INFO).
