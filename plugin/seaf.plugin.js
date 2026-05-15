@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.40
+ * Runtime script version: 0.5.41
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -4936,7 +4936,7 @@ Draw.loadPlugin(function(ui)
 			}
 			try
 			{
-				if (originalPage !== page && typeof ui.selectPage === 'function')
+				if (ui.currentPage !== page && typeof ui.selectPage === 'function')
 				{
 					ui.selectPage(page);
 				}
@@ -4997,7 +4997,7 @@ Draw.loadPlugin(function(ui)
 			}
 			try
 			{
-				if (originalPage !== page && typeof ui.selectPage === 'function')
+				if (ui.currentPage !== page && typeof ui.selectPage === 'function')
 				{
 					ui.selectPage(page);
 				}

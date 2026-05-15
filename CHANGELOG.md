@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.41
+
+- **`plugin/seaf.plugin.js`**: исправлен обход страниц при `collectSchemaObjectsAcrossPages` / `collectCellsByCriteriaAcrossPages` — переключение страницы по `ui.currentPage !== page` вместо `originalPage !== page`, чтобы при экспорте с непервой страницы не читалась модель предыдущей страницы (6 vs 4 YAML-файлов на `1.drawio`).
+
 ## 0.5.40
 
 - **`lib/main_menu/export_helpers.py`**: если `outputSeafFile` указывает **каталог**, Export создаёт по файлу `.yaml` на каждую schema; имя = последние два компонента schema (`services.network_segments.yaml` и т.д.); одиночный файл — YAML (`.json` по расширению).
