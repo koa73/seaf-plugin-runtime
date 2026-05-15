@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.38
+
+- **`main_menu/export.py`**, **`lib/main_menu/export_helpers.py`**: P41 Export собирает `{schema: {OID: data}}` из `payload.schemaObjects`, пишет JSON в `outputSeafFile` (fallback на `inputSeafFile` при `useSameOutputFile`); пустой путь → `status=error` + `showMessage`.
+- **`plugin/seaf.plugin.js`**: `includeSchemaObjects` в `buildPayload`, `collectSchemaObjectsAcrossPages()` (все страницы, `requireSchema`, выделение ячеек, `buildIndexEntryFromCell`).
+- **`conf/main_menu.yaml`**: для `seafP41Export` — `includePages`, `includeSchemaObjects`.
+
 ## 0.5.37
 
 - **`conf/main_menu.yaml`**: подменю **P41** (`Export`, `Import`) и **Tools** (`Net_Conf_Parser`) через `menu.main.submenu` / `submenuTitle`.

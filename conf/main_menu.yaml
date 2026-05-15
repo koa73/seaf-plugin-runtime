@@ -63,6 +63,8 @@ commands:
       timeoutSec: 30
     input:
       includeDiagramXml: false
+      includePages: true
+      includeSchemaObjects: true
     menu:
       main:
         enabled: true

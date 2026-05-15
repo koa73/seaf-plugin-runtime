@@ -103,6 +103,8 @@
 
 Подменю `examples` не поддерживается. Имена подменю и состав пунктов задаются только конфигом; в JS нет жёстко прошитых `P41` / `Tools` / `Examples`.
 
+**Export (`seafP41Export`):** в `input` задайте `includeSchemaObjects: true` (и опционально `includePages: true`). Renderer передаёт `payload.schemaObjects[]`; Python пишет JSON в `outputSeafFile` (или `inputSeafFile` при `useSameOutputFile`). Формат файла: `{ "<schema>": { "<OID>": { ...attrs } } }`.
+
 Пример (P41 / Tools в `main_menu.yaml`):
 
 ```yaml

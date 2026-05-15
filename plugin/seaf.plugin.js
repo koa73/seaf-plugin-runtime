@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.37
+ * Runtime script version: 0.5.38
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -4013,6 +4013,10 @@ Draw.loadPlugin(function(ui)
 		{
 			payload.pages = getPagesPayload();
 		}
+		if (inputCfg.includeSchemaObjects === true)
+		{
+			payload.schemaObjects = collectSchemaObjectsAcrossPages();
+		}
 
 		payload.arguments = inputCfg.arguments != null ? mxUtils.clone(inputCfg.arguments) : {};
 
@@ -4850,6 +4854,14 @@ Draw.loadPlugin(function(ui)
 		var data = extractEditableDataFromCell(cell, graph);
 		var schemaMeta = extractShapeSchema(cell, graph);
 		var schema = schemaMeta && schemaMeta.schema ? String(schemaMeta.schema).trim() : '';
+		if (filter.requireSchema === true)
+		{
+			var dataSchema = (data && data.schema != null) ? String(data.schema).trim() : '';
+			if (schema.length === 0 && dataSchema.length === 0)
+			{
+				return false;
+			}
+		}
 		if (typeof filter.schema === 'string' && filter.schema.trim().length > 0)
 		{
 			var schemaMatch = matchSchemaPattern(schema, filter.schema.trim());
@@ -4953,6 +4965,97 @@ Draw.loadPlugin(function(ui)
 		{
 			ui.selectPage(originalPage);
 		}
+		return out;
+	}
+
+	function collectSchemaObjectsAcrossPages()
+	{
+		var graph = ui && ui.editor ? ui.editor.graph : null;
+		if (!graph || !ui || !Array.isArray(ui.pages))
+		{
+			return [];
+		}
+		var criteria = { requireSchema: true };
+		var out = [];
+		var originalPage = ui.currentPage || null;
+		var originalSelection = [];
+		try
+		{
+			originalSelection = (typeof graph.getSelectionCells === 'function') ? (graph.getSelectionCells() || []) : [];
+		}
+		catch (eSel)
+		{
+			originalSelection = [];
+		}
+
+		for (var i = 0; i < ui.pages.length; i++)
+		{
+			var page = ui.pages[i];
+			if (page == null)
+			{
+				continue;
+			}
+			try
+			{
+				if (originalPage !== page && typeof ui.selectPage === 'function')
+				{
+					ui.selectPage(page);
+				}
+				var cells = getCellsByCriteria(graph, criteria);
+				if (cells.length > 0 && typeof graph.setSelectionCells === 'function')
+				{
+					graph.setSelectionCells(cells);
+				}
+				else if (typeof graph.clearSelection === 'function')
+				{
+					graph.clearSelection();
+				}
+				var pageId = (typeof page.getId === 'function') ? page.getId() : page.id;
+				var pageName = (typeof page.getName === 'function') ? page.getName() : page.name;
+				for (var j = 0; j < cells.length; j++)
+				{
+					var cell = cells[j];
+					if (!cell || !cell.id)
+					{
+						continue;
+					}
+					var entry = buildIndexEntryFromCell(cell, graph);
+					if (entry == null || !entry.schema || String(entry.schema).trim().length === 0)
+					{
+						continue;
+					}
+					out.push({
+						pageId: pageId || null,
+						pageName: pageName || '',
+						objectId: entry.objectId,
+						schema: entry.schema,
+						oid: entry.oid || '',
+						data: entry.data || {}
+					});
+				}
+			}
+			catch (ePage)
+			{
+				// ignore page-level errors and continue
+			}
+		}
+
+		try
+		{
+			if (originalPage != null && ui.currentPage !== originalPage && typeof ui.selectPage === 'function')
+			{
+				ui.selectPage(originalPage);
+			}
+			if (typeof graph.setSelectionCells === 'function')
+			{
+				graph.setSelectionCells(originalSelection);
+			}
+		}
+		catch (eRestore)
+		{
+			// ignore restore errors
+		}
+
 		return out;
 	}
 

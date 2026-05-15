@@ -14,7 +14,9 @@
 - `events/data_mirror.py` — production orchestrator для `modify`-синхронизации `schema+OID` (схемы `dcs`/`dc_offices`) через атомарную runtime-команду; перед санитизацией patch выравнивает `title`/`label` через `lib/events/title_label_sync.py`.
 - `events/label_title.py` — wildcard `modify` для остальных `seaf.company.ta.*`: при необходимости дописывает парное поле через `updateStencilDataBulk` с `suppressStencilEvents: true`.
 - `context_menu/add_page.py` — production handler для команды «Создать страницу»: валидирует `selection.data.title`, проверяет дубли имен страниц и возвращает `commands[]` для create page + установки link на исходный стенсил.
-- `main_menu/export.py`, `main_menu/import.py` — заглушки пунктов **P41 → Export/Import** в главном меню; логируют вызов (`handler`, `commandId`, `source`).
+- `main_menu/export.py` — **P41 → Export**: строит `{schema: {OID: {attrs}}}` из `payload.schemaObjects` (все страницы, объекты с `schema`), исключает `id/label/link/OID/schema`, записывает JSON в `outputSeafFile` из Edit Config; при пустом пути — ошибка + popup.
+- `lib/main_menu/export_helpers.py` — `build_export_by_schema`, `resolve_output_path`, `sanitize_export_data`.
+- `main_menu/import.py` — заглушка **P41 → Import**; логирует вызов.
 - `main_menu/net_conf_parser.py` — заглушка **Tools → Net_Conf_Parser**; логирует вызов аналогично.
 - `lib/oid/*` — модульная библиотека генерации/валидации OID и поиска конфликтов.
 - `lib/diagram/*` — библиотека переиспользуемых helper-функций для context-menu сценариев создания страниц и установки page links.
