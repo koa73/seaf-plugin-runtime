@@ -1,0 +1,50 @@
+entities:
+  seaf.company.ta.components.user_devices:
+    title: &entity_title Пользовательское устройство
+    description: &entity_description Рабочие места, мобильные устройства, IoT и т.д.
+
+    objects:
+      user_device:
+        route: "/"
+        title: Устройство
+        symbol: user_device
+
+    schema:
+      title: *entity_title
+      description: *entity_description
+      type: object
+      additionalProperties: false
+
+      patternProperties:
+        "^([a-zA-Z0-9_-]+)(\\.[a-zA-Z0-9_-]+)+$":
+          title: *entity_title
+          description: *entity_description
+          type: object
+          allOf:
+            - $ref: "#/$defs/seaf.company.ta.services.base.entity"
+          properties:
+            device_type:
+              title: Тип устройства
+              type: string
+            location:
+              title: Локации
+              type: array
+              items:
+                anyOf:
+                  - $ref: "#/$rels/seaf.company.ta.services.dcs.dc"
+                  - $ref: "#/$rels/seaf.company.ta.services.dc_offices.dc_office"
+            network_connection:
+              title: Сетевые подключения
+              type: array
+              items:
+                $ref: "#/$rels/seaf.company.ta.services.networks.network"
+            segment:
+              title: Сетевой сегмент
+              $ref: "#/$rels/seaf.company.ta.services.network_segments.network_segment"
+            network_connection_devices:
+              title: Связанные сетевые канал
+              type: array
+              items:
+                $ref: "#/$rels/seaf.company.ta.services.network_links.network_link"
+          required:
+            - device_type

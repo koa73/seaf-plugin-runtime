@@ -1,0 +1,36 @@
+entities:
+  seaf.company.ta.services.dc_offices:
+    title: &entity_title Офис или точка присутствия
+    description: &entity_description Локация компании (офис, площадка), связанная с регионами и инфраструктурой ЦОДов
+
+    objects:
+      dc_office:
+        route: "/"
+        title: Офис
+        symbol: dc_office
+
+    schema:
+      title: *entity_title
+      description: *entity_description
+      type: object
+      additionalProperties: false
+
+      patternProperties:
+        "^([a-zA-Z0-9_-]+)(\\.[a-zA-Z0-9_-]+)+$":
+          title: *entity_title
+          description: *entity_description
+          type: object
+          allOf:
+            - $ref: "#/$defs/seaf.company.ta.services.base.entity"
+          properties:
+            address:
+              title: Адрес
+              description: Фактическое расположение офиса
+              type: string
+            region:
+              title: Регион
+              description: Регион ЦОДов, в который входит офис
+              $ref: "#/$rels/seaf.company.ta.services.dc_regions.dc_region"
+          required:
+            - address
+            - region

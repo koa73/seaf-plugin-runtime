@@ -1,0 +1,9 @@
+imports:
+#  - server_old.yaml
+  - server.yaml
+  - hw_storage.yaml
+  - k8s_namespaces.yaml
+  - k8s_hpa.yaml
+  - k8s_node.yaml
+  - network.yaml
+  - user_device.yaml

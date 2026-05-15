@@ -1,0 +1,42 @@
+entities:
+  seaf.company.ta.services.softwares:
+    title: &title Программное обеспечение
+    description: &description Используемое программное обеспечение, лицензии и поддержка
+    objects:
+      software:
+        route: "/"
+        title: *title
+        symbol: service
+    schema:
+      title: *title
+      description: *description
+      type: object
+      patternProperties:
+        "^(jupiter.software.)[a-zA-Z0-9_.-]+$":
+          title: *title
+          description: *description
+          type: object
+          allOf:
+            - $ref: "#/$defs/seaf.company.ta.services.base.entity"
+          properties:
+            vendor:
+              title: Производитель ПО
+              type: string
+            type:
+              title: Тип лицензии
+              type: string
+              enum: [ Открытая, Закрытая бесплатная, Закрытая платная ]
+            support:
+              title: Наличие платной поддержки вендора/интегратора
+              type: string
+            expiration:
+              title: Срок действия лицензий
+              type: string
+            lic_qty:
+              title: Количество лицензий
+              type: integer
+          required:
+            - vendor
+            - type
+            - support
+            - expiration

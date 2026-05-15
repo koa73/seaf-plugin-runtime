@@ -1,0 +1,103 @@
+entities:
+  seaf.company.ta.services.hw_storages:
+    title: &entity_title Аппаратная система хранения
+    description: &entity_description Аппаратные СХД, подключенные к сервисам хранения
+
+    objects:
+      hw_storage:
+        route: "/"
+        title: Аппаратная СХД
+        symbol: hw_storage
+
+    schema:
+      title: *entity_title
+      description: *entity_description
+      type: object
+      additionalProperties: false
+
+      patternProperties:
+        "^([a-zA-Z0-9_-]+)(\\.[a-zA-Z0-9_-]+)+$":
+          title: *entity_title
+          description: *entity_description
+          type: object
+          allOf:
+            - $ref: "#/$defs/seaf.company.ta.services.base.entity"
+          properties:
+            vendor:
+              title: Производитель и модель
+              type: string
+            volume:
+              title: Объём, ТБ
+              type: integer
+              minimum: 0
+            disk_type:
+              title: Тип дисков
+              type: string
+            protocols:
+              title: Протоколы клиентских подключений
+              type: string
+            location:
+              title: Локации
+              type: array
+              items:
+                anyOf:
+                  - $ref: "#/$rels/seaf.company.ta.services.dcs.dc"
+                  - $ref: "#/$rels/seaf.company.ta.services.dc_offices.dc_office"
+            network_connection:
+              title: Сетевые подключения
+              type: array
+              items:
+                $ref: "#/$rels/seaf.company.ta.services.networks.network"
+            sw_storage_connected:
+              title: Подключенные сервисы хранения
+              type: array
+              items:
+                $ref: "#/$rels/seaf.company.ta.services.storages.storage"
+            metrics:
+              title: Технические параметры
+              type: object
+              additionalProperties: false
+              properties:
+                compression_rate:
+                  title: Коэффициент сжатия
+                  type: number
+                dedup_rate:
+                  title: Коэффициент дедупликации
+                  type: number
+                erasure_coding:
+                  title: Параметр кодирования
+                  type: number
+                links_qty:
+                  title: Кол-во подключений
+                  type: integer
+                ntp_server:
+                  title: NTP сервер
+                  type: string
+                nvram_amount:
+                  title: Объём NVRAM
+                  type: integer
+                pwr_supply_qty:
+                  title: Кол-во БП
+                  type: integer
+                reservation_ratio:
+                  title: Уровень резервирования, %
+                  type: integer
+                snapshot_lic:
+                  title: Поддержка снапшотов
+                  type: boolean
+                ssd_cache_qty:
+                  title: Кол-во SSD кэша
+                  type: integer
+                storage_console:
+                  title: Консоль управления
+                  type: string
+                storage_controller_qty:
+                  title: Кол-во контроллеров
+                  type: integer
+                storage_spare_disk_qty:
+                  title: Кол-во spare-дисков
+                  type: integer
+          required:
+            - vendor
+            - volume
+            - location

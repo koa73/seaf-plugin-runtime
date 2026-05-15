@@ -1,0 +1,197 @@
+entities:
+  seaf.company.ta.components.servers:
+    title: &entity_title Сервер (предложение по схеме)
+    description: &entity_description Черновая версия схемы серверов с разделением физических и виртуальных экземпляров
+
+    objects:
+      server:
+        route: "/"
+        title: Сервер
+        symbol: server
+
+    schema:
+      title: *entity_title
+      description: *entity_description
+      type: object
+      additionalProperties: false
+
+      $defs:
+        server_base:
+          type: object
+          allOf:
+            - $ref: "#/$defs/seaf.company.ta.services.base.entity"
+          properties:
+            type:
+              title: Тип
+              enum:
+                - Физический
+                - Виртуальный
+            vendor:
+              title: Производитель
+              type: string
+            model:
+              title: Модель
+              type: string
+            fqdn:
+              title: FQDN
+              type: string
+            os:
+              title: Операционная система
+              type: object
+              properties:
+                type:
+                  title: Название
+                  type: string
+                bit:
+                  title: Разрядность
+                  type: string
+            cpu:
+              title: CPU
+              type: object
+              properties:
+                cores:
+                  title: Количество ядер
+                  type: integer
+                frequency:
+                  title: Частота, МГц
+                  type: integer
+            ram:
+              title: RAM, ГБ
+              type: integer
+            disks:
+              title: Диски
+              type: array
+              items:
+                type: object
+                properties:
+                  name:
+                    title: Имя
+                    type: string
+                  size:
+                    title: Размер, ГБ
+                    type: integer
+                  type:
+                    title: Тип
+                    type: string
+            nic_qty:
+              title: Количество NIC
+              type: integer
+            availabilityzone:
+              title: Зоны доступности
+              type: array
+              items:
+                $ref: "#/$rels/seaf.company.ta.services.dc_azs.dc_az"
+            location:
+              title: Локации
+              type: array
+              items:
+                anyOf:
+                  - $ref: "#/$rels/seaf.company.ta.services.dcs.dc"
+                  - $ref: "#/$rels/seaf.company.ta.services.dc_offices.dc_office"
+            subnets:
+              title: Подсети
+              type: array
+              items:
+                $ref: "#/$rels/seaf.company.ta.services.networks.network"
+            virtualization:
+              title: Кластер виртуализации
+              $ref: "#/$rels/seaf.company.ta.services.cluster_virtualizations.cluster_virtualization"
+            storage:
+              title: Подключённые аппаратные СХД
+              type: array
+              items:
+                $ref: "#/$rels/seaf.company.ta.components.hw_storages.hw_storage"
+            is_part_of:
+              title: Входит в объекты
+              type: array
+              items:
+                anyOf:
+                  - $ref: "#/$rels/seaf.company.ta.services.clusters.cluster"
+                  - $ref: "#/$rels/seaf.company.ta.services.cluster_virtualizations.cluster_virtualization"
+                  - $ref: "#/$rels/seaf.company.ta.services.compute_services.compute_service"
+                  - $ref: "#/$rels/seaf.company.ta.services.k8s.k8s"
+                  - $ref: "#/$rels/seaf.company.ta.services.backups.backup"
+                  - $ref: "#/$rels/seaf.company.ta.services.monitorings.monitoring"
+                  - $ref: "#/$rels/seaf.company.ta.services.kbs.kb"
+            is_monitoring_connected:
+              title: Сервисы мониторинга
+              type: array
+              items:
+                $ref: "#/$rels/seaf.company.ta.services.monitorings.monitoring"
+            is_backup_connected:
+              title: Сервисы резервного копирования
+              type: array
+              items:
+                $ref: "#/$rels/seaf.company.ta.services.backups.backup"
+            sw_storage_connected:
+              title: SDS сервисы
+              type: array
+              items:
+                $ref: "#/$rels/seaf.company.ta.services.storages.storage"
+            is_part_of_k8s_cluster:
+              title: Кластеры Kubernetes
+              type: array
+              items:
+                $ref: "#/$rels/seaf.company.ta.services.k8s.k8s"
+            metrics:
+              title: Доп. параметры
+              type: object
+
+        server_physical:
+          type: object
+          properties:
+            type:
+              const: "Физический"
+          required:
+            - type
+            - vendor
+            - model
+            - fqdn
+            - cpu
+            - ram
+            - disks
+            - nic_qty
+
+        server_physical_dzo:
+          allOf:
+            - $ref: "#/$defs/server_physical"
+            - type: object
+              title: 'Расширение физического сервера для требований ДЗО'
+              properties:
+                power_module_qty:
+                  title: 'Число 3. TACIR_1-Ч03.02.4-02. Количество блоков питания'
+                  type: integer
+                fan_qty:
+                  title: 'Число 3. TACIR_1-Ч03.02.4-02. Количество вентиляторов'
+                  type: integer
+                raid_level:
+                  title: 'Число 3. TACIR_1-Ч03.02.4-02. Уровень RAID массива накопителей'
+                  type: array
+                raid_spare_disks:
+                  title: 'Число 3. TACIR_1-Ч03.02.5-02. Количество запасных дисков для RAID массива'
+                  type: integer
+                rack_mount:
+                  title: 'Число 3. TACIR_1-Ч03.02.6-02. Наличие комплектов для монтажа в стойку'
+                  type: boolean
+
+        server_virtual:
+          type: object
+          properties:
+            type:
+              const: "Виртуальный"
+          required:
+            - type
+            - fqdn
+            - virtualization
+            - cpu
+            - ram
+            - disks
+
+      patternProperties:
+        "^([a-zA-Z0-9_-]+)(\\.[a-zA-Z0-9_-]+)+$":
+          allOf:
+            - $ref: "#/$defs/server_base"
+            - oneOf:
+                - $ref: "#/$defs/server_physical"
+                - $ref: "#/$defs/server_physical_dzo"
+                - $ref: "#/$defs/server_virtual"

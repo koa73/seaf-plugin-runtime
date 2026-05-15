@@ -1,0 +1,82 @@
+entities:
+  seaf.company.ta.services.logical_links:
+    title: &entity_title Логическая связь
+    description: &entity_description Отношения между техническими сервисами и компонентами (например, зависимость или подключение)
+
+    objects:
+      logical_link:
+        route: "/"
+        title: Логическая связь
+        symbol: logical_link
+
+    schema:
+      title: *entity_title
+      description: *entity_description
+      type: object
+      additionalProperties: false
+
+      patternProperties:
+        "^([a-zA-Z0-9_-]+)(\\.[a-zA-Z0-9_-]+)+$":
+          title: *entity_title
+          description: *entity_description
+          type: object
+          allOf:
+            - $ref: "#/$defs/seaf.company.ta.services.base.entity"
+          properties:
+            source:
+              title: Источник связи
+              anyOf:
+                - $ref: "#/$rels/seaf.company.ta.components.hw_storages.hw_storage"
+                - $ref: "#/$rels/seaf.company.ta.components.networks.network_component"
+                - $ref: "#/$rels/seaf.company.ta.components.servers.server"
+                - $ref: "#/$rels/seaf.company.ta.components.user_devices.user_device"
+                - $ref: "#/$rels/seaf.company.ta.services.backups.backup"
+                - $ref: "#/$rels/seaf.company.ta.services.clusters.cluster"
+                - $ref: "#/$rels/seaf.company.ta.services.cluster_virtualizations.cluster_virtualization"
+                - $ref: "#/$rels/seaf.company.ta.services.compute_services.compute_service"
+                - $ref: "#/$rels/seaf.company.ta.services.dcs.dc"
+                - $ref: "#/$rels/seaf.company.ta.services.dc_azs.dc_az"
+                - $ref: "#/$rels/seaf.company.ta.services.dc_regions.dc_region"
+                - $ref: "#/$rels/seaf.company.ta.services.k8s.k8s"
+                - $ref: "#/$rels/seaf.company.ta.services.kbs.kb"
+                - $ref: "#/$rels/seaf.company.ta.services.monitorings.monitoring"
+                - $ref: "#/$rels/seaf.company.ta.services.networks.network"
+                - $ref: "#/$rels/seaf.company.ta.services.network_links.network_link"
+                - $ref: "#/$rels/seaf.company.ta.services.network_segments.network_segment"
+                - $ref: "#/$rels/seaf.company.ta.services.dc_offices.dc_office"
+                - $ref: "#/$rels/seaf.company.ta.services.storages.storage"
+            target:
+              title: Приёмники связи
+              type: array
+              items:
+                anyOf:
+                  - $ref: "#/$rels/seaf.company.ta.components.hw_storages.hw_storage"
+                  - $ref: "#/$rels/seaf.company.ta.components.networks.network_component"
+                  - $ref: "#/$rels/seaf.company.ta.components.servers.server"
+                  - $ref: "#/$rels/seaf.company.ta.components.user_devices.user_device"
+                  - $ref: "#/$rels/seaf.company.ta.services.backups.backup"
+                  - $ref: "#/$rels/seaf.company.ta.services.clusters.cluster"
+                  - $ref: "#/$rels/seaf.company.ta.services.cluster_virtualizations.cluster_virtualization"
+                  - $ref: "#/$rels/seaf.company.ta.services.compute_services.compute_service"
+                  - $ref: "#/$rels/seaf.company.ta.services.dcs.dc"
+                  - $ref: "#/$rels/seaf.company.ta.services.dc_azs.dc_az"
+                  - $ref: "#/$rels/seaf.company.ta.services.dc_regions.dc_region"
+                  - $ref: "#/$rels/seaf.company.ta.services.k8s.k8s"
+                  - $ref: "#/$rels/seaf.company.ta.services.kbs.kb"
+                  - $ref: "#/$rels/seaf.company.ta.services.monitorings.monitoring"
+                  - $ref: "#/$rels/seaf.company.ta.services.networks.network"
+                  - $ref: "#/$rels/seaf.company.ta.services.network_links.network_link"
+                  - $ref: "#/$rels/seaf.company.ta.services.network_segments.network_segment"
+                  - $ref: "#/$rels/seaf.company.ta.services.dc_offices.dc_office"
+                  - $ref: "#/$rels/seaf.company.ta.services.storages.storage"
+            direction:
+              title: Направление
+              type: string
+              enum:
+                - "==>"
+                - "<=="
+                - "<==>"
+          required:
+            - source
+            - target
+            - direction

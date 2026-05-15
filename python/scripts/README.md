@@ -365,8 +365,8 @@ Renderer (`plugin/seaf.plugin.js`) эмитит `modify` только при р�
 
 | Уровень | Содержание |
 |---------|------------|
-| `info` | `reportLevel: summary` — counts (eligible, exported, skipped, validation), `writtenFiles`, `warnings` |
-| `debug` | `reportLevel: detail` — per-object eligible/exported/skipped, `validationErrors` с `fieldPath` |
+| `info` | `reportLevel: summary` — counts (eligible, exported, `exportErrorCount` = только `seaf.*` без OID), `writtenFiles`, `warnings` |
+| `debug` | `reportLevel: detail` — per-object eligible/exported/skipped; `skippedIgnored` — schema без OID не `seaf.*` (не ошибка) |
 
 Зависимость Export: `PyYAML` (`python/requirements.txt`). Каталог схем: `python/vendor/yaml_schema_generator/schemas` (override: `env.schemaDir`).
 

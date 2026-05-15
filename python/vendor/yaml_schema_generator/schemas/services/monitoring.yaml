@@ -1,0 +1,106 @@
+entities:
+  seaf.company.ta.services.monitorings:
+    title: &entity_title Сервис мониторинга
+    description: &entity_description Технический сервис мониторинга инфраструктуры и приложений
+
+    objects:
+      monitoring:
+        route: "/"
+        title: Сервис мониторинга
+        symbol: monitoring
+
+    schema:
+      title: *entity_title
+      description: *entity_description
+      type: object
+      additionalProperties: false
+
+      $defs:
+        seaf.company.ta.services.monitoring_dzo:
+          title: Расширение описания сервиса мониторинга для целей проверки стандартов
+          type: object
+          properties:
+            monitoring_console:
+              title: 'Часть 6. TACMN_1-Ч06.01.4-02. Адрес веб-консоли системы мониторинга'
+              type: string
+            cluster_ref:
+              title: 'Часть 6. TACMN_1-Ч06.01.7-02. ID кластера мониторинга'
+              $ref: "#/$rels/seaf.company.ta.services.clusters.cluster"
+            notification_transports:
+              title: 'Часть 6. TACMN_1-Ч06.01.5-02. Транспорты для доставки уведомлений (почта, телеграм, смс и т.д.)'
+              type: array
+              items:
+                type: string
+            external_dashboard_url:
+              title: 'Часть 6. TACMN_1-Ч06.01.13-02. Адрес дашборда СберРадара'
+              type: string
+            metrics_retention_days:
+              title: 'Часть 6. TACMN_1-Ч06.01.13-02 и ещё 3 номера. Длительность хранения метрик в днях'
+              type: integer
+            metrics_collection_frequency_sec:
+              title: 'Часть 6. TACMN_1-Ч06.02.6-01 и ещё 1 номер. Частота сбора метрик в секундах'
+              type: integer
+            is_pam_enabled:
+              title: 'Часть 6. TACMN_1-Ч06.05.1-01. Система мониторинга подключена к PAM'
+              type: boolean
+            is_siem_enabled:
+              title: 'Часть 6. TACMN_1-Ч06.05.3-01. Система мониторинга подключена к SIEM'
+              type: boolean
+
+      patternProperties:
+        "^([a-zA-Z0-9_-]+)(\\.[a-zA-Z0-9_-]+)+$":
+          title: *entity_title
+          description: *entity_description
+          type: object
+          allOf:
+            - $ref: "#/$defs/seaf.company.ta.services.base.entity"
+            - $ref: "#/$defs/seaf.company.ta.services.monitoring_dzo"
+          properties:
+            availabilityzone:
+              title: Зоны доступности
+              type: array
+              items:
+                $ref: "#/$rels/seaf.company.ta.services.dc_azs.dc_az"
+            location:
+              title: Локации
+              type: array
+              items:
+                anyOf:
+                  - $ref: "#/$rels/seaf.company.ta.services.dcs.dc"
+                  - $ref: "#/$rels/seaf.company.ta.services.dc_offices.dc_office"
+            name:
+              title: Продукт/платформа мониторинга
+              type: string
+            role:
+              title: Роль
+              type: array
+              items:
+                type: string
+            ha:
+              title: Высокая доступность
+              type: boolean
+            network_connection:
+              title: Сетевые подключения
+              type: array
+              items:
+                $ref: "#/$rels/seaf.company.ta.services.networks.network"
+            monitored_services:
+              title: Мониторинг-сервисы
+              description: Список сервисов, которые мониторятся данным сервисом мониторинга
+              type: array
+              items:
+                anyOf:
+                  - $ref: "#/$rels/seaf.company.ta.services.k8s.k8s"
+                  - $ref: "#/$rels/seaf.company.ta.components.servers.server"
+                  - $ref: "#/$rels/seaf.company.ta.services.compute_services.compute_service"
+                  - $ref: "#/$rels/seaf.company.ta.services.cluster_virtualizations.cluster_virtualization"
+                  - $ref: "#/$rels/seaf.company.ta.services.clusters.cluster"
+                  - $ref: "#/$rels/seaf.company.ta.services.storages.storage"
+                  - $ref: "#/$rels/seaf.company.ta.services.networks.network"
+                  - $ref: "#/$rels/seaf.company.ta.services.kbs.kb"
+                  - $ref: "#/$rels/seaf.company.ta.services.backups.backup"
+          required:
+            - role
+            - ha
+            - network_connection
+            - monitored_services

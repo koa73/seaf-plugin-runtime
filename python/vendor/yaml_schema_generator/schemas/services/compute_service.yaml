@@ -1,0 +1,63 @@
+entities:
+  seaf.company.ta.services.compute_services:
+    title: &entity_title Вычислительный сервис
+    description: &entity_description Прикладные и инфраструктурные вычислительные сервисы (БД, веб-фронты, шлюзы)
+
+    objects:
+      compute_service:
+        route: "/"
+        title: Вычислительный сервис
+        symbol: compute_service
+
+    schema:
+      title: *entity_title
+      description: *entity_description
+      type: object
+      additionalProperties: false
+
+      patternProperties:
+        "^([a-zA-Z0-9_-]+)(\\.[a-zA-Z0-9_-]+)+$":
+          title: *entity_title
+          description: *entity_description
+          type: object
+          allOf:
+            - $ref: "#/$defs/seaf.company.ta.services.base.entity"
+          properties:
+            service_type:
+              title: Тип сервиса
+              type: string
+              enum:
+                - "Управление ИТ-службой, ИТ-инфраструктурой и ИТ-активами (CMDB, ITSM и т.д.)"
+                - "Управление и автоматизацией (Ansible, Terraform, Jenkins и т.д.)"
+                - "Управление разработкой и хранения кода (Gitlab, Jira и т.д.)"
+                - "Управление сетевым адресным пространством (DHCP, DNS и т.д.)"
+                - "Виртуализация рабочих мест (ВАРМ и VDI)"
+                - "Шлюз, Балансировщик, прокси"
+                - "СУБД"
+                - "Распределенный кэш"
+                - "Интеграционная шина  (MQ, ETL, API)"
+                - "Файловый ресурс (FTP, NFS, SMB, S3 и т.д.)"
+                - "Инфраструктура удаленного доступа"
+                - "Коммуникации (АТС, Почта, мессенджеры, СМС шлюзы и т.д.)"
+                - "Серверы приложений и т.д."
+            availabilityzone:
+              title: Зоны доступности
+              type: array
+              items:
+                $ref: "#/$rels/seaf.company.ta.services.dc_azs.dc_az"
+            location:
+              title: Локации
+              description: ЦОДы или офисы, где размещён сервис
+              type: array
+              items:
+                anyOf:
+                  - $ref: "#/$rels/seaf.company.ta.services.dcs.dc"
+                  - $ref: "#/$rels/seaf.company.ta.services.dc_offices.dc_office"
+            network_connection:
+              title: Сетевые подключения
+              type: array
+              items:
+                $ref: "#/$rels/seaf.company.ta.services.networks.network"
+          required:
+            - service_type
+            - network_connection

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.44
+
+- **Export**: объекты со `schema`, но без OID (stencil, mxgraph и т.п.) — тихо исключаются из выборки; в `warnings` / `skippedInput` попадает только `seaf.*` без OID (`missing_oid_seaf`). В отчёте: `skippedIgnored` (DEBUG) vs `exportErrorCount` (INFO).
+
 ## 0.5.43
 
 - **Export (P41)**: интеграция vendored `yaml_schema_generator` — SEAF YAML с обёрткой `schema` + OID; PyYAML в `python/requirements.txt`.

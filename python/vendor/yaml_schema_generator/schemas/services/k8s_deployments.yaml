@@ -1,0 +1,56 @@
+entities:
+  seaf.company.ta.services.k8s_deployments:
+    title: &entity_title Kubernetes deployment
+    description: &entity_description Описание Deployment, связывающего кластер, namespace и контейнеры, а также их ресурсы.
+
+    objects:
+      k8s_deployment:
+        route: "/"
+        title: Deployment
+        symbol: k8s_deployment
+
+    schema:
+      title: *entity_title
+      description: *entity_description
+      type: object
+      additionalProperties: false
+
+      patternProperties:
+        "^([a-zA-Z0-9_-]+)(\\.[a-zA-Z0-9_-]+)+$":
+          title: *entity_title
+          description: *entity_description
+          type: object
+          allOf:
+            - $ref: "#/$defs/seaf.company.ta.services.base.entity"
+          properties:
+            cluster:
+              title: Кластер
+              $ref: "#/$rels/seaf.company.ta.services.k8s.k8s"
+            namespace:
+              title: Namespace
+              $ref: "#/$rels/seaf.company.ta.components.k8s_namespaces.k8s_namespace"
+            labels:
+              title: Labels
+              type: array
+            containers:
+              title: Контейнеры
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                properties:
+                  name:
+                    title: Название контейнера
+                    type: string
+                  image:
+                    title: Образ контейнера
+                    type: string
+                  resources:
+                    title: Ресурсы контейнера
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      limits:
+                        title: Ограничения
+                        type: object
+                        additionalProperties: false

@@ -1,0 +1,46 @@
+entities:
+  seaf.company.ta.components.k8s_nodes:
+    title: &entity_title Kubernetes нода
+    description: &entity_description Физические или виртуальные ноды Kubernetes кластера
+
+    objects:
+      k8s_node:
+        route: "/"
+        title: Нода
+        symbol: k8s_node
+
+    schema:
+      title: *entity_title
+      description: *entity_description
+      type: object
+      additionalProperties: false
+
+      patternProperties:
+        "^([a-zA-Z0-9_-]+)(\\.[a-zA-Z0-9_-]+)+$":
+          title: *entity_title
+          description: *entity_description
+          type: object
+          allOf:
+            - $ref: "#/$defs/seaf.company.ta.services.base.entity"
+          properties:
+            cluster:
+              title: Кластер
+              $ref: "#/$rels/seaf.company.ta.services.k8s.k8s"
+            version:
+              title: Версия kubelet
+              type: string
+            architecture:
+              title: Архитектура CPU
+              type: string
+            cpu:
+              title: CPU (cores)
+              type: integer
+            ram:
+              title: RAM, ГБ
+              type: integer
+            zone:
+              title: Зона размещения
+              type: string
+            labels:
+              title: Labels
+              type: array

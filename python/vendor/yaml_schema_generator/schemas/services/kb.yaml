@@ -1,0 +1,361 @@
+entities:
+  seaf.company.ta.services.kbs:
+    title: &entity_title Сервис кибербезопасности
+    description: &entity_description Средства защиты, идентификации и контроля безопасности инфраструктуры
+
+    objects:
+      kb:
+        route: "/"
+        title: Сервис кибербезопасности
+        symbol: kb
+
+    schema:
+      title: *entity_title
+      description: *entity_description
+      type: object
+      additionalProperties: false
+
+      $defs:
+        seaf.company.def.ta.kbs.status:
+          title: Статус
+          type: string
+          enum:
+            - Создается
+            - Используется
+            - Выводится
+            - В архиве
+
+        seaf.company.def.ta.kbs.network_connection:
+          title: Перечисление связанных сетей
+          type: array
+          items:
+            $ref: "#/$rels/seaf.company.ta.services.networks.network"
+
+        seaf.company.def.ta.kbs.protected_services:
+          title: Защищаемые сервисы
+          description: Список сервисов, которые защищает данный сервис кибербезопасности
+          type: array
+          items:
+            anyOf:
+              - $ref: "#/$rels/seaf.company.ta.services.k8s.k8s"
+              - $ref: "#/$rels/seaf.company.ta.components.servers.server"
+              - $ref: "#/$rels/seaf.company.ta.services.compute_services.compute_service"
+              - $ref: "#/$rels/seaf.company.ta.services.cluster_virtualizations.cluster_virtualization"
+              - $ref: "#/$rels/seaf.company.ta.services.clusters.cluster"
+              - $ref: "#/$rels/seaf.company.ta.services.storages.storage"
+              - $ref: "#/$rels/seaf.company.ta.services.networks.network"
+              - $ref: "#/$rels/seaf.company.ta.services.monitorings.monitoring"
+              - $ref: "#/$rels/seaf.company.ta.services.backups.backup"
+
+      patternProperties:
+        "^([a-zA-Z0-9_-]+)(\\.[a-zA-Z0-9_-]+)+$":
+          title: *entity_title
+          description: *entity_description
+          type: object
+          allOf:
+            - $ref: "#/$defs/seaf.company.ta.services.base.entity"
+          oneOf:
+            # ИБ-Антивирусное ПО
+            - type: object
+              title: ИБ-Антивирусное ПО
+              required: [technology, software_name, tag, status, network_connection]
+              properties:
+                technology:
+                  type: string
+                  enum: [Потоковый антивирус]
+                software_name:
+                  type: string
+                tag:
+                  type: string
+                  enum: [AV]
+                status:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.status"
+                network_connection:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.network_connection"
+                protected_services:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.protected_services"
+            # ИБ-Аудит действий персонала
+            - type: object
+              title: ИБ-Аудит действий персонала
+              required: [technology, software_name, tag, status, network_connection]
+              properties:
+                technology:
+                  type: string
+                  enum: [Мониторинг действий пользователей]
+                software_name:
+                  type: string
+                tag:
+                  type: string
+                  enum: [UAM]
+                status:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.status"
+                network_connection:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.network_connection"
+                protected_services:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.protected_services"
+            # ИБ-Защита от киберугроз (Sandbox + SCAN)
+            - type: object
+              title: ИБ-Защита от киберугроз
+              required: [technology, software_name, tag, status, network_connection]
+              properties:
+                technology:
+                  type: string
+                  enum: [Динамический анализ угроз Sandbox, Инструментальный контроль защищенности]
+                software_name:
+                  type: string
+                tag:
+                  type: string
+                  enum: [Sandbox, SCAN]
+                status:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.status"
+                network_connection:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.network_connection"
+                protected_services:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.protected_services"
+            # ИБ-Управление доступом
+            - type: object
+              title: ИБ-Управление доступом
+              required: [technology, software_name, tag, status, network_connection]
+              properties:
+                technology:
+                  type: string
+                  enum: [Межсетевое экранирование, Управление доступом пользователей, Контроль подключений к сети, Контентная фильтрация и разграничение доступа в Интернет]
+                software_name:
+                  type: string
+                tag:
+                  type: string
+                  enum: [FW, IDFW, NAC, Proxy]
+                status:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.status"
+                network_connection:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.network_connection"
+                protected_services:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.protected_services"
+            # ИБ-Защита трафика
+            - type: object
+              title: ИБ-Защита трафика
+              required: [technology, software_name, tag, status, network_connection]
+              properties:
+                technology:
+                  type: string
+                  enum: [Сигнатурный анализ режим обнаружения вторжений, Сигнатурный анализ режим предотвращения вторжений, Поведенческий анализ сетевого трафика]
+                software_name:
+                  type: string
+                tag:
+                  type: string
+                  enum: [IDS, IPS, NBA]
+                status:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.status"
+                network_connection:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.network_connection"
+                protected_services:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.protected_services"
+            # ИБ-Защита от сетевых атак
+            - type: object
+              title: ИБ-Защита от сетевых атак
+              required: [technology, software_name, tag, status, network_connection]
+              properties:
+                technology:
+                  type: string
+                  enum: [Защита от атак типа "Отказ от обслуживания", Защита веб-приложений WAF, Шлюзы безопасности прикладного уровня]
+                software_name:
+                  type: string
+                tag:
+                  type: string
+                  enum: [DDoS, WAF, ALG]
+                status:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.status"
+                network_connection:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.network_connection"
+                protected_services:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.protected_services"
+            # ИБ-Защита от утечек информации
+            - type: object
+              title: ИБ-Защита от утечек информации
+              required: [technology, software_name, tag, status, network_connection]
+              properties:
+                technology:
+                  type: string
+                  enum: [Защита от утечек информации]
+                software_name:
+                  type: string
+                tag:
+                  type: string
+                  enum: [DLP]
+                status:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.status"
+                network_connection:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.network_connection"
+                protected_services:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.protected_services"
+            # ИБ-Управление событиями инф.безопасности
+            - type: object
+              title: ИБ-Управление событиями инф.безопасности
+              required: [technology, software_name, tag, status, network_connection]
+              properties:
+                technology:
+                  type: string
+                  enum: [Аудит событий КБ]
+                software_name:
+                  type: string
+                tag:
+                  type: string
+                  enum: [Log]
+                status:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.status"
+                network_connection:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.network_connection"
+                protected_services:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.protected_services"
+            # ИБ-Управление оборудованием
+            - type: object
+              title: ИБ-Управление оборудованием
+              required: [technology, software_name, tag, status, network_connection]
+              properties:
+                technology:
+                  type: string
+                  enum: [Безопасность конфигураций]
+                software_name:
+                  type: string
+                tag:
+                  type: string
+                  enum: [CS]
+                status:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.status"
+                network_connection:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.network_connection"
+                protected_services:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.protected_services"
+            # ИБ-Управление сертификатами
+            - type: object
+              title: ИБ-Управление сертификатами
+              required: [technology, software_name, tag, status, network_connection]
+              properties:
+                technology:
+                  type: string
+                  enum: [Центр управления сертификатами ИБ]
+                software_name:
+                  type: string
+                tag:
+                  type: string
+                  enum: [CMC]
+                status:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.status"
+                network_connection:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.network_connection"
+                protected_services:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.protected_services"
+            # ИБ-Предотвращение мошенничества
+            - type: object
+              title: ИБ-Предотвращение мошенничества
+              required: [technology, software_name, tag, status, network_connection]
+              properties:
+                technology:
+                  type: string
+                  enum: [Защита от мошеннических операций]
+                software_name:
+                  type: string
+                tag:
+                  type: string
+                  enum: [AntiFraud]
+                status:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.status"
+                network_connection:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.network_connection"
+                protected_services:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.protected_services"
+            # ИБ-Идентификация и управление учетными записями (IdP / IdM)
+            - type: object
+              title: ИБ-Идентификация и управление учетными записями
+              required: [ technology, software_name, tag, status, network_connection ]
+              properties:
+                technology:
+                  type: string
+                  enum: [ Провайдер идентификации (IdP), Управление учетными записями (IdM) ]
+                software_name:
+                  type: string
+                tag:
+                  type: string
+                  enum: [ IdP, IdM ]
+                status:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.status"
+                network_connection:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.network_connection"
+                protected_services:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.protected_services"
+            # ИБ-Привилегированный доступ (PAM)
+            - type: object
+              title: ИБ-Привилегированный доступ
+              required: [ technology, software_name, tag, status, network_connection ]
+              properties:
+                technology:
+                  type: string
+                  enum: [ Управление привилегированным доступом ]
+                software_name:
+                  type: string
+                tag:
+                  type: string
+                  enum: [ PAM ]
+                status:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.status"
+                network_connection:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.network_connection"
+                protected_services:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.protected_services"
+            # ИБ-Хранение секретов (Secrets)
+            - type: object
+              title: ИБ-Хранение секретов
+              required: [ technology, software_name, tag, status, network_connection ]
+              properties:
+                technology:
+                  type: string
+                  enum: [ Сервис хранения секретов ]
+                software_name:
+                  type: string
+                tag:
+                  type: string
+                  enum: [ Secrets ]
+                status:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.status"
+                network_connection:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.network_connection"
+                protected_services:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.protected_services"
+            # ИБ-Политики безопасности платформы (Kyverno/Gatekeeper)
+            - type: object
+              title: ИБ-Политики безопасности платформы
+              required: [ technology, software_name, tag, status, network_connection ]
+              properties:
+                technology:
+                  type: string
+                  enum: [ Политики Kubernetes ]
+                software_name:
+                  type: string
+                tag:
+                  type: string
+                  enum: [ Policy ]
+                status:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.status"
+                network_connection:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.network_connection"
+                protected_services:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.protected_services"
+            # ИБ-Целевые репозитории ПО / Реестры контейнеров
+            - type: object
+              title: ИБ-Целевые репозитории ПО
+              required: [ technology, software_name, tag, status, network_connection ]
+              properties:
+                technology:
+                  type: string
+                  enum: [ Репозиторий ПО, Реестр контейнеров ]
+                software_name:
+                  type: string
+                tag:
+                  type: string
+                  enum: [ Repo, Registry ]
+                status:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.status"
+                network_connection:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.network_connection"
+                protected_services:
+                  $ref: "#/$defs/seaf.company.def.ta.kbs.protected_services"

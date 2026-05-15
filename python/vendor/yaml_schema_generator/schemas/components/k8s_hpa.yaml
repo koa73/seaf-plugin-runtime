@@ -1,0 +1,40 @@
+entities:
+  seaf.company.ta.components.k8s_hpa:
+    title: &entity_title Kubernetes HPA
+    description: &entity_description Правила горизонтального автомасштабирования в Kubernetes
+
+    objects:
+      k8s_hpa:
+        route: "/"
+        title: HPA
+        symbol: k8s_hpa
+
+    schema:
+      title: *entity_title
+      description: *entity_description
+      type: object
+      additionalProperties: false
+
+      patternProperties:
+        "^([a-zA-Z0-9_-]+)(\\.[a-zA-Z0-9_-]+)+$":
+          title: *entity_title
+          description: *entity_description
+          type: object
+          allOf:
+            - $ref: "#/$defs/seaf.company.ta.services.base.entity"
+          properties:
+            cluster:
+              title: Кластер
+              $ref: "#/$rels/seaf.company.ta.services.k8s.k8s"
+            min:
+              title: Минимум реплик
+              type: integer
+              minimum: 0
+            max:
+              title: Максимум реплик
+              type: integer
+              minimum: 0
+            target:
+              title: Целевой объект
+              anyOf:
+                - $ref: "#/$rels/seaf.company.ta.services.k8s_deployments.k8s_deployment"

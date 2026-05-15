@@ -1,0 +1,28 @@
+entities:
+  seaf.company.ta.services.stands:
+    title: &entity_title Стенд
+    description: &entity_description Конкретный стенд внутри окружения (prod/dev/test)
+
+    objects:
+      stand:
+        route: "/"
+        title: Стенд
+        symbol: stand
+
+    schema:
+      title: *entity_title
+      description: *entity_description
+      type: object
+      additionalProperties: false
+
+      patternProperties:
+        "^([a-zA-Z0-9_-]+)(\\.[a-zA-Z0-9_-]+)+$":
+          title: *entity_title
+          description: *entity_description
+          type: object
+          allOf:
+            - $ref: "#/$defs/seaf.company.ta.services.base.entity"
+          properties:
+            env:
+              title: Окружение
+              $ref: "#/$rels/seaf.company.ta.services.environments.environment"

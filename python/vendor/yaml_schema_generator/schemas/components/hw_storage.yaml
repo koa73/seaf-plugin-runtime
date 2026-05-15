@@ -1,0 +1,105 @@
+entities:
+  seaf.company.ta.components.hw_storages:
+    title: &entity_title Аппаратная система хранения
+    description: &entity_description Аппаратные СХД, подключенные к сервисам хранения
+
+    objects:
+      hw_storage:
+        route: "/"
+        title: Аппаратная СХД
+        symbol: hw_storage
+
+    schema:
+      title: *entity_title
+      description: *entity_description
+      type: object
+      additionalProperties: false
+
+      $defs:
+        hw_storage_dzo:
+          title: Расширение описания физической СХД для целей проверки стандартов
+          type: object
+          properties:
+            nvram_amount:
+              title: 'Часть 4. TACIR_2-Ч04.01.3-01. Объём NVRAM, Gb'
+              type: integer
+            dedup_rate:
+              title: 'Часть 4. TACIR_2-Ч04.01.4-01. Коэффициент дедупликации'
+              type: number
+            compression_rate:
+              title: 'Часть 4. TACIR_2-Ч04.01.4-01. Коэффициент компрессии'
+              type: number
+            ssd_cache_qty:
+              title: 'Часть 4. TACIR_2-Ч04.01.5-01. Количество SSD дисков для кеша'
+              type: integer
+            ntp_server:
+              title: 'Часть 4. TACIR_2-Ч04.01.6-01. Адрес NTP сервера с которым синхронизируется СХД'
+              type: string
+            storage_console:
+              title: 'Часть 4. TACIR_2-Ч04.01.7-01. Адрес консоли управления СХД'
+              type: string
+            snapshot_lic:
+              title: 'Часть 4. TACIR_2-Ч04.01.11-02. Наличие лицензии snapshot\snapclone'
+              type: boolean
+            storage_controller_qty:
+              title: 'Часть 4. TACIR_2-Ч04.01.12.1-03. Количество контроллеров СХД'
+              type: integer
+            storage_spare_disk_qty:
+              title: 'Часть 4. TACIR_2-Ч04.01.12.1-03. Количество запасных дисков в СХД'
+              type: integer
+            pwr_supply_qty:
+              title: 'Часть 4. TACIR_2-Ч04.01.12.1-03. Количество блоков питания'
+              type: integer
+            links_qty:
+              title: 'Часть 4. TACIR_2-Ч04.01.12.2-03. Количество SAN\LAN подключений для каждого контроллера'
+              type: integer
+            reservation_ratio:
+              title: 'Часть 4. TACIR_2-Ч04.01.15-02. % резервирования объёма в другом ЦОДе'
+              type: integer
+            erasure_coding:
+              title: 'Часть 4. TACIR_2-Ч04.01.4-01. Параметр чётности'
+              type: integer
+
+      patternProperties:
+        "^([a-zA-Z0-9_-]+)(\\.[a-zA-Z0-9_-]+)+$":
+          title: *entity_title
+          description: *entity_description
+          type: object
+          allOf:
+            - $ref: "#/$defs/seaf.company.ta.services.base.entity"
+            - $ref: "#/$defs/hw_storage_dzo"
+          properties:
+            vendor:
+              title: Производитель и модель
+              type: string
+            volume:
+              title: Объём, ТБ
+              type: integer
+              minimum: 0
+            disk_type:
+              title: Тип дисков
+              type: string
+            protocols:
+              title: Протоколы клиентских подключений
+              type: string
+            location:
+              title: Локации
+              type: array
+              items:
+                anyOf:
+                  - $ref: "#/$rels/seaf.company.ta.services.dcs.dc"
+                  - $ref: "#/$rels/seaf.company.ta.services.dc_offices.dc_office"
+            network_connection:
+              title: Сетевые подключения
+              type: array
+              items:
+                $ref: "#/$rels/seaf.company.ta.services.networks.network"
+            sw_storage_connected:
+              title: Подключенные сервисы хранения
+              type: array
+              items:
+                $ref: "#/$rels/seaf.company.ta.services.storages.storage"
+          required:
+            - vendor
+            - volume
+            - location

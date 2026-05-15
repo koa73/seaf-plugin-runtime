@@ -1,0 +1,35 @@
+entities:
+  seaf.company.ta.services.dc_azs:
+    title: &entity_title Зона доступности
+    description: &entity_description Независимая площадка внутри региона ЦОД, обеспечивающая изоляцию по питанию и физическому размещению
+
+    objects:
+      dc_az:
+        route: "/"
+        title: Зона доступности
+        symbol: dc_az
+
+    schema:
+      title: *entity_title
+      description: *entity_description
+      type: object
+      additionalProperties: false
+
+      patternProperties:
+        "^([a-zA-Z0-9_-]+)(\\.[a-zA-Z0-9_-]+)+$":
+          title: *entity_title
+          description: *entity_description
+          type: object
+          allOf:
+            - $ref: "#/$defs/seaf.company.ta.services.base.entity"
+          properties:
+            vendor:
+              title: Провайдер / владелец
+              type: string
+            region:
+              title: Регион
+              description: Регион ЦОДов, к которому относится зона доступности
+              $ref: "#/$rels/seaf.company.ta.services.dc_regions.dc_region"
+          required:
+            - vendor
+            - region
