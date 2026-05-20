@@ -92,7 +92,7 @@
 
 Контекстное меню — только команды с `menu.context.enabled: true` (например `Создать страницу` в `context_menu.yaml`); команды без `menu.main.enabled: true` в главное меню не попадают.
 
-В поставке `main_menu.yaml` (помимо `Edit Config`): подменю **P41** (`Export` → YAML в файл или каталог; `Import` — заглушка) и **Tools** (`Net_Conf_Parser` → заглушка).
+В поставке `main_menu.yaml` (помимо `Edit Config`): подменю **P41** (`Export` → YAML в файл или каталог; `Import` → обратная загрузка YAML в стенсилы по `schema+OID`) и **Tools** (`Net_Conf_Parser` → заглушка).
 
 ## Edit Config menu
 

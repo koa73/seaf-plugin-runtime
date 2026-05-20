@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.46
+
+- **P41 Import**: `main_menu/import.py` реализует обратную загрузку SEAF YAML из `inputSeafFile` (файл/каталог, рекурсивный поиск), сопоставление по `schema+OID` и batch-команду `applySeafImportBatch` для глобального обновления стенсилов без изменения `OID/schema`.
+- **`lib/main_menu/import_helpers.py`**, **`import_yaml_loader.py`**, **`import_report.py`**, **`seaf_data_map.py`**: загрузка/merge/валидация структуры `schema -> OID -> attrs`, INFO/DEBUG отчёт (`loaded/matched/updated/unmatchedInDiagram`), дубликаты и ошибки структуры.
+- **`plugin/seaf.plugin.js`**: добавлен UI-command handler `applySeafImportBatch` (multi-page update через `collectCellsByCriteriaAcrossPages`).
+- **`conf/main_menu.yaml`**: `seafP41Import` переведён в `async` с `indicator.type=percent`, `includeSchemaObjects/includePages`, `timeoutSec=120`; `inputSeafFile` picker поддерживает и файл, и каталог.
+
 ## 0.5.45
 
 - **Export**: `eligibleCount` и `exportedCount` считают уникальные пары `(schema, OID)`; повторы на других страницах — `duplicateOidCount` / `skippedDuplicate` (DEBUG), не входят в eligible.

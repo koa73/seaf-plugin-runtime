@@ -107,6 +107,15 @@
 - **файл** (`.yaml` / `.json`) — один файл со всей картой `{schema: {OID: attrs}}` (YAML по умолчанию);
 - **каталог** (существующий каталог, путь без расширения или с `/` на конце) — по одному `.yaml` на schema; имя файла = последние два компонента schema, например `seaf.company.ta.services.network_segments` → `services.network_segments.yaml`, содержимое: `{OID: attrs}`.
 
+**Import (`seafP41Import`):**
+- источник только `inputSeafFile` (может быть YAML-файлом или каталогом);
+- если каталог, Python скрипт делает рекурсивный поиск `*.yaml/*.yml`;
+- для корректного сопоставления с диаграммой задайте `input.includeSchemaObjects: true` (и `includePages: true` для расширенной диагностики).
+- для progress bar используйте async режим с indicator:
+  - `execution.mode: async`
+  - `indicator.enabled: true`, `indicator.type: percent`
+  - Python emits `SEAF_PROGRESS`.
+
 Пример (P41 / Tools в `main_menu.yaml`):
 
 ```yaml

@@ -18,7 +18,11 @@
 - `lib/main_menu/export_helpers.py` — `build_export_by_schema`, `schema_to_export_filename`, `resolve_output_path`.
 - `lib/main_menu/export_yaml_generator.py` — адаптер `export_map` → `YAMLGenerator`, каталог схем `python/vendor/yaml_schema_generator/schemas`.
 - `lib/main_menu/export_report.py` — отчёт Export в лог (`pluginLogLevel`).
-- `main_menu/import.py` — заглушка **P41 → Import**; логирует вызов.
+- `main_menu/import.py` — **P41 → Import**: читает `inputSeafFile` (YAML-файл или каталог с рекурсивным поиском `*.yaml/*.yml`), строит общий `{schema: {OID: attrs}}`, сопоставляет с `payload.schemaObjects` и возвращает `applySeafImportBatch` для глобального обновления стенсилов по `schema+OID`.
+- `lib/main_menu/import_helpers.py` — резолв `inputSeafFile` в список YAML-источников.
+- `lib/main_menu/import_yaml_loader.py` — загрузка/merge/валидация SEAF YAML формата.
+- `lib/main_menu/import_report.py` — отчёт Import в лог (`pluginLogLevel`: summary/detail).
+- `lib/main_menu/seaf_data_map.py` — общие функции нормализации/денормализации attrs для import/export.
 - `main_menu/net_conf_parser.py` — заглушка **Tools → Net_Conf_Parser**; логирует вызов аналогично.
 - `lib/oid/*` — модульная библиотека генерации/валидации OID и поиска конфликтов.
 - `lib/diagram/*` — библиотека переиспользуемых helper-функций для context-menu сценариев создания страниц и установки page links.
@@ -377,4 +381,23 @@ seaf.company.ta.services.dcs:
   company.services.dcs.1:
     title: ...
 ```
+
+## Import: YAML -> стенсилы
+
+- Источник: `env.inputSeafFile` (файл или каталог).
+- Для каталога: рекурсивный поиск `*.yaml/*.yml`.
+- Ожидаемая структура файла:
+
+```yaml
+seaf.company.ta.services.dcs:
+  company.services.dcs.1:
+    title: Updated title
+```
+
+- Ключи поиска и сопоставления: `schema` + `OID`.
+- `schema` и `OID` в patch **не изменяются**; обновляются остальные поля.
+- Результат применения выполняется UI-командой `applySeafImportBatch` глобально на всех страницах.
+- Логирование:
+  - `pluginLogLevel=info` -> summary (`loadedObjectCount`, `matchedOnDiagramCount`, `updatedCount`, `unmatchedInDiagram`);
+  - `pluginLogLevel=debug` -> detail (per-file/per-object, duplicates, invalid files).
 

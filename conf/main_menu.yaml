@@ -22,6 +22,7 @@ commands:
             title: Select Input SEAF file
             properties:
               - openFile
+              - openDirectory
         - label: Use same output file
           envKey: useSameOutputFile
           inputMethod: checkbox
@@ -75,10 +76,19 @@ commands:
     title: Import
     script: main_menu/import.py
     execution:
-      mode: sync
-      timeoutSec: 30
+      mode: async
+      timeoutSec: 120
+      pollIntervalMs: 500
+      maxPollAttempts: 240
     input:
       includeDiagramXml: false
+      includePages: true
+      includeSchemaObjects: true
+    indicator:
+      enabled: true
+      type: percent
+      timeoutMs: 120000
+      allowStop: false
     menu:
       main:
         enabled: true

@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.45
+ * Runtime script version: 0.5.46
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -6335,6 +6335,93 @@ Draw.loadPlugin(function(ui)
 					failures: failures
 				};
 			}
+		},
+		applySeafImportBatch: function(args)
+		{
+			var graph = ui && ui.editor ? ui.editor.graph : null;
+			if (!graph || !args || typeof args !== 'object')
+			{
+				return {status: 'error', reason: 'invalid_args', updatedCells: 0, uniqueOidUpdated: 0, oidNotFound: [], failures: []};
+			}
+			var rows = Array.isArray(args.updates) ? args.updates : [];
+			if (rows.length === 0)
+			{
+				return {status: 'success', updatedCells: 0, uniqueOidUpdated: 0, oidNotFound: [], failures: []};
+			}
+			var failures = [];
+			var oidNotFound = [];
+			var uniqueUpdated = {};
+			var updatedCells = 0;
+			var applyBatch = function()
+			{
+				graph.getModel().beginUpdate();
+				try
+				{
+					for (var i = 0; i < rows.length; i++)
+					{
+						var row = rows[i] || {};
+						var schema = typeof row.schema === 'string' ? row.schema.trim() : '';
+						var oid = typeof row.oid === 'string' ? row.oid.trim() : '';
+						var patch = (row.patch && typeof row.patch === 'object' && !Array.isArray(row.patch)) ? row.patch : null;
+						if (!schema || !oid || patch == null || Object.keys(patch).length === 0)
+						{
+							failures.push({schema: schema || '', oid: oid || '', reason: 'invalid_payload'});
+							continue;
+						}
+						var targets = collectCellsByCriteriaAcrossPages({
+							schema: schema,
+							attributes: {OID: oid}
+						});
+						if (!targets || targets.length === 0)
+						{
+							oidNotFound.push({schema: schema, oid: oid});
+							continue;
+						}
+						for (var j = 0; j < targets.length; j++)
+						{
+							var target = targets[j];
+							if (!target || !target.cell)
+							{
+								continue;
+							}
+							if (applyDataUpdateToCell(graph, target.cell, patch, 'merge', false))
+							{
+								updatedCells += 1;
+								uniqueUpdated[schema + '|' + oid] = true;
+							}
+							else
+							{
+								failures.push({
+									schema: schema,
+									oid: oid,
+									pageName: target.pageName || '',
+									reason: 'apply_failed'
+								});
+							}
+						}
+					}
+				}
+				finally
+				{
+					graph.getModel().endUpdate();
+				}
+			};
+			if (args.suppressStencilEvents === true)
+			{
+				runWithStencilEventsSuppressed(applyBatch);
+			}
+			else
+			{
+				applyBatch();
+			}
+			graph.refresh();
+			return {
+				status: failures.length > 0 ? 'partial' : 'success',
+				updatedCells: updatedCells,
+				uniqueOidUpdated: Object.keys(uniqueUpdated).length,
+				oidNotFound: oidNotFound,
+				failures: failures
+			};
 		},
 		findBySchema: function(args)
 		{
