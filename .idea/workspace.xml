@@ -4,7 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d1fe5f91-f987-493b-912e-17488c850970" name="Changes" comment="#0.5.47" />
+    <list default="true" id="d1fe5f91-f987-493b-912e-17488c850970" name="Changes" comment="#0.5.49">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -65,14 +67,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1776327425613</updated>
-    </task>
-    <task id="LOCAL-00075" summary="#0.4.2">
-      <option name="closed" value="true" />
-      <created>1778235171076</created>
-      <option name="number" value="00075" />
-      <option name="presentableId" value="LOCAL-00075" />
-      <option name="project" value="LOCAL" />
-      <updated>1778235171076</updated>
     </task>
     <task id="LOCAL-00076" summary="#0.4.3">
       <option name="closed" value="true" />
@@ -458,7 +452,15 @@
       <option name="project" value="LOCAL" />
       <updated>1779270965682</updated>
     </task>
-    <option name="localTasksCounter" value="124" />
+    <task id="LOCAL-00124" summary="#0.5.49">
+      <option name="closed" value="true" />
+      <created>1779271894414</created>
+      <option name="number" value="00124" />
+      <option name="presentableId" value="LOCAL-00124" />
+      <option name="project" value="LOCAL" />
+      <updated>1779271894414</updated>
+    </task>
+    <option name="localTasksCounter" value="125" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -485,7 +487,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="#0.5.19" />
     <MESSAGE value="#0.5.20" />
     <MESSAGE value="#0.5.21" />
     <MESSAGE value="#0.5.23" />
@@ -510,6 +511,7 @@
     <MESSAGE value="#0.5.45" />
     <MESSAGE value="#0.5.46" />
     <MESSAGE value="#0.5.47" />
-    <option name="LAST_COMMIT_MESSAGE" value="#0.5.47" />
+    <MESSAGE value="#0.5.49" />
+    <option name="LAST_COMMIT_MESSAGE" value="#0.5.49" />
   </component>
 </project>
