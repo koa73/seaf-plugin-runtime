@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.47
+
+- **Import (fixes)**: устранено дублирование error-popup в async-ветке (если Python уже вернул `showMessage`, второй popup не показывается).
+- **Import log**: сжат DEBUG-лог (`*Count` + `*Sample`), summary приведен к export-подобной статистике; `unmatchedInDiagram` остается в формате `{schema:[OID]}`.
+
 ## 0.5.46
 
 - **P41 Import**: `main_menu/import.py` реализует обратную загрузку SEAF YAML из `inputSeafFile` (файл/каталог, рекурсивный поиск), сопоставление по `schema+OID` и batch-команду `applySeafImportBatch` для глобального обновления стенсилов без изменения `OID/schema`.

@@ -159,19 +159,6 @@ def main() -> int:
 
     emit_progress(100, "done", "Import mapping prepared")
     log_import_report(logger, report)
-    logger.info(
-        {
-            "handler": HANDLER,
-            "invoked": True,
-            "commandId": request.get("commandId"),
-            "source": payload.get("source"),
-            "loadedFromFilesCount": report.loaded_from_files_count,
-            "loadedObjectCount": report.loaded_object_count,
-            "matchedOnDiagramCount": report.matched_on_diagram_count,
-            "updatesPreparedCount": len(updates),
-            "warnings": report.warnings,
-        }
-    )
 
     return write_response(
         status="success",
