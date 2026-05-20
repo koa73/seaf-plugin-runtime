@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.49
+
+- **Export (`seafP41Export`)**: progress bar — `execution.mode: async`, `indicator.type: percent`, `emit_progress` в `export.py` (resolve output → build map → write YAML → done).
+
 ## 0.5.48
 
 - **Release**: пересобран `seaf-plugin-runtime.tar.gz` с версией, совпадающей с `runtime/version.json` (исправление ситуации, когда обновление считало 0.5.46 актуальной при поднятой версии в исходниках).

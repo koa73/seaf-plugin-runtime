@@ -6,7 +6,13 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from lib.config.env_config import build_env_config
-from lib.io import build_error_policy_payload, get_payload, read_request, write_response
+from lib.io import (
+    build_error_policy_payload,
+    emit_progress,
+    get_payload,
+    read_request,
+    write_response,
+)
 from lib.logging import build_script_logger
 from lib.main_menu.export_helpers import (
     build_export_by_schema,
@@ -69,6 +75,7 @@ def main() -> int:
     logger = build_script_logger(payload)
     env = build_env_config(request)
 
+    emit_progress(5, "resolve_output", "Checking output path")
     output_path = resolve_output_path(env)
     if not output_path:
         return _output_missing_response(logger)
@@ -82,6 +89,7 @@ def main() -> int:
         warnings=[],
     )
 
+    emit_progress(25, "build_map", "Building export map from diagram")
     export_map, warnings, stats = build_export_by_schema(schema_objects, collect_stats=True)
     report.warnings.extend(warnings)
     if stats is not None:
@@ -92,6 +100,7 @@ def main() -> int:
 
     report.unique_export_object_count = count_unique_export_objects(export_map)
 
+    emit_progress(55, "write_yaml", "Writing YAML files")
     try:
         gen_result = write_export_outputs_via_generator(
             export_map,
@@ -111,6 +120,7 @@ def main() -> int:
     if not report.exported:
         report.exported = list(gen_result.exported)
 
+    emit_progress(100, "done", "Export completed")
     log_export_report(logger, report)
 
     schema_count = len(gen_result.schemas_exported)
