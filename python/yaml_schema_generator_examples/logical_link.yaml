@@ -1,0 +1,12 @@
+seaf.company.ta.services.logical_links:
+  jupiter.link.fw_to_servers:
+    description: Логическая связь от NGFW к серверам в ЦОД Sber
+    direction: <==>
+    source: jupiter.network_device.dc.fw.01
+    stand:
+    - jupiter.stand.prod
+    target:
+    - jupiter.compute_service.ad
+    - jupiter.compute_service.mail
+    title: Связь NGFW с серверами
+

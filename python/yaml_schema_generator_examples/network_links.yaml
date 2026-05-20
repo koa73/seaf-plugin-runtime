@@ -1,0 +1,14 @@
+seaf.company.ta.services.network_links:
+  jupiter.link.hq_to_dc01:
+    description: VPN туннель между головным офисом и ЦОД Sber
+    encapsulation: GRE
+    encryption: ipsec
+    network_connection:
+    - jupiter.network.lan.office.ext.lan
+    - jupiter.network.lan.dc01.int.test
+    routing: bgpevpn
+    sla: provider
+    technology: s2svpn
+    title: Канал связи Офис - ЦОД-01
+    typeL1: Ethernet(over Dark Fiber)
+    typeL2: MPLS

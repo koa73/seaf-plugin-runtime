@@ -1,0 +1,10 @@
+seaf.company.ta.services.environments:
+  jupiter.environment.dev:
+    external_id: environment.dev
+    title: Окружение для разработки
+  jupiter.environment.prod:
+    external_id: environment.prod
+    title: Окружение для продакшена
+  jupiter.environment.test:
+    external_id: environment.test
+    title: Окружение для тестирования
