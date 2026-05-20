@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.50
+ * Runtime script version: 0.5.51
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -54,7 +54,8 @@ Draw.loadPlugin(function(ui)
 			byOid: {},
 			total: 0,
 			lastRebuildAt: null
-		}
+		},
+		linkedPageRenameConfirmCache: null
 	};
 
 	function requestAsync(msg)
@@ -2551,6 +2552,7 @@ Draw.loadPlugin(function(ui)
 		}
 		var data = extractEditableDataFromCell(cell, graph);
 		var currentLayerName = getCellLayerDisplayName(graph, cell);
+		var linkedPageId = parseLinkedPageIdFromCell(graph, cell);
 		return {
 			id: cell.id || null,
 			objectId: cell.id || null,
@@ -2562,6 +2564,7 @@ Draw.loadPlugin(function(ui)
 			styleText: meta.styleText,
 			geometry: buildGeometryPayload(geom),
 			data: data,
+			linkedPageId: linkedPageId || '',
 			oid: getOidFromData(data),
 			companyPrefix: getCompanyPrefix(),
 			schemaCode: parseSchemaCode(meta.schema),
@@ -2764,6 +2767,7 @@ Draw.loadPlugin(function(ui)
 				source: 'stencil_event_processor',
 				timestamp: new Date().toISOString(),
 				selection: [],
+				pages: getPagesPayload(),
 				event: eventPayload,
 				arguments: {
 					eventType: eventPayload.eventType,
@@ -4569,6 +4573,21 @@ Draw.loadPlugin(function(ui)
 		return null;
 	}
 
+	function parseLinkedPageIdFromCell(graph, cell)
+	{
+		if (!graph || !cell || typeof graph.getLinkForCell !== 'function')
+		{
+			return '';
+		}
+		var href = graph.getLinkForCell(cell);
+		if (typeof href !== 'string')
+		{
+			return '';
+		}
+		var match = href.match(/^data:page\/id,([^#,]+)/i);
+		return match ? String(match[1]).trim() : '';
+	}
+
 	function findPageByName(pageName)
 	{
 		var targetName = (typeof pageName === 'string') ? pageName.trim() : '';
@@ -5100,13 +5119,15 @@ Draw.loadPlugin(function(ui)
 					{
 						continue;
 					}
+					var linkedPageId = parseLinkedPageIdFromCell(graph, cell);
 					out.push({
 						pageId: pageId || null,
 						pageName: pageName || '',
 						objectId: entry.objectId,
 						schema: entry.schema,
 						oid: entry.oid || '',
-						data: entry.data || {}
+						data: entry.data || {},
+						linkedPageId: linkedPageId || ''
 					});
 				}
 			}
@@ -5520,6 +5541,129 @@ Draw.loadPlugin(function(ui)
 			}
 			graph.refresh();
 			return {status: 'updated', objectId: objectId, pageId: pageId};
+		},
+		renameLinkedPage: function(args)
+		{
+			if (!args || typeof args !== 'object')
+			{
+				return {status: 'error', reason: 'invalid_args'};
+			}
+			var targetPageId = (typeof args.targetPageId === 'string') ? args.targetPageId.trim() : '';
+			var title = (typeof args.title === 'string') ? args.title.trim() : '';
+			var objectId = (typeof args.objectId === 'string') ? args.objectId.trim() : '';
+			var confirmOnDuplicate = args.confirmOnDuplicate !== false;
+			if (!targetPageId || !title)
+			{
+				return {status: 'skipped', reason: 'missing_target'};
+			}
+			var page = findPageById(targetPageId);
+			if (page == null)
+			{
+				return {status: 'skipped', reason: 'page_not_found', targetPageId: targetPageId};
+			}
+			var currentName = (typeof page.getName === 'function') ? String(page.getName() || '').trim() : '';
+			if (currentName === title)
+			{
+				if (objectId.length > 0)
+				{
+					return uiCommandHandlers.setCellLinkToPage({
+						objectId: objectId,
+						targetPageId: targetPageId
+					});
+				}
+				return {status: 'noop', reason: 'already_named', pageId: targetPageId, pageName: title};
+			}
+			var duplicatePage = findPageByName(title);
+			var duplicatePageId = (duplicatePage && typeof duplicatePage.getId === 'function') ?
+				String(duplicatePage.getId() || '').trim() : '';
+			if (duplicatePage != null && duplicatePageId.length > 0 && duplicatePageId !== targetPageId)
+			{
+				var cacheKey = targetPageId + '|' + title;
+				var cache = (state.linkedPageRenameConfirmCache && typeof state.linkedPageRenameConfirmCache === 'object') ?
+					state.linkedPageRenameConfirmCache : null;
+				var cachedDecision = cache ? cache[cacheKey] : undefined;
+				if (cachedDecision === false)
+				{
+					return {status: 'skipped', reason: 'duplicate_declined', targetPageId: targetPageId, title: title};
+				}
+				if (cachedDecision !== true)
+				{
+					var confirmText = 'Страница "' + title + '" уже существует. Переименовать связанную страницу?';
+					var proceed = false;
+					try
+					{
+						proceed = (typeof mxUtils !== 'undefined' && mxUtils != null && typeof mxUtils.confirm === 'function') ?
+							mxUtils.confirm(confirmText) === true : false;
+					}
+					catch (confirmErr)
+					{
+						proceed = false;
+					}
+					if (cache == null)
+					{
+						cache = {};
+						state.linkedPageRenameConfirmCache = cache;
+					}
+					cache[cacheKey] = proceed;
+					if (!proceed)
+					{
+						return {status: 'skipped', reason: 'duplicate_declined', targetPageId: targetPageId, title: title};
+					}
+				}
+			}
+			try
+			{
+				if (typeof RenamePage !== 'undefined' && ui && ui.editor && ui.editor.graph && ui.editor.graph.model &&
+					typeof ui.editor.graph.model.execute === 'function')
+				{
+					ui.editor.graph.model.execute(new RenamePage(ui, page, title));
+				}
+				else if (typeof page.setName === 'function')
+				{
+					page.setName(title);
+					if (ui && ui.editor && ui.editor.graph && typeof ui.editor.graph.updatePlaceholders === 'function')
+					{
+						ui.editor.graph.updatePlaceholders();
+					}
+				}
+				else
+				{
+					return {status: 'error', reason: 'rename_api_unavailable'};
+				}
+			}
+			catch (renameErr)
+			{
+				return {
+					status: 'error',
+					reason: 'rename_failed',
+					message: renameErr && renameErr.message ? renameErr.message : String(renameErr)
+				};
+			}
+			if (objectId.length > 0)
+			{
+				var linkResult = uiCommandHandlers.setCellLinkToPage({
+					objectId: objectId,
+					targetPageId: targetPageId
+				});
+				if (linkResult && linkResult.status === 'updated')
+				{
+					return {
+						status: 'renamed',
+						pageId: targetPageId,
+						pageName: title,
+						objectId: objectId,
+						linkStatus: linkResult.status
+					};
+				}
+				return {
+					status: 'renamed',
+					pageId: targetPageId,
+					pageName: title,
+					objectId: objectId,
+					linkStatus: linkResult && linkResult.status ? linkResult.status : 'link_skipped'
+				};
+			}
+			return {status: 'renamed', pageId: targetPageId, pageName: title};
 		},
 		assignEmptyOidOnPage: function(args)
 		{
@@ -6854,6 +6998,7 @@ Draw.loadPlugin(function(ui)
 		{
 			return [];
 		}
+		state.linkedPageRenameConfirmCache = {};
 		var collected = [];
 		for (var i = 0; i < result.commands.length; i++)
 		{

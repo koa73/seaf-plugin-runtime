@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.51
+
+- **Linked page sync**: при смене `title`/`label` у `seaf.company.ta.services.dcs` / `dc_offices` с существующей graph-link на страницу — `renameLinkedPage` + `setCellLinkToPage` (модуль `linked_page_sync`; Import и data_mirror). Дубликат имени страницы — один `mxUtils.confirm` на `(pageId, title)`; без `showMessage` из Python.
+
 ## 0.5.50
 
 - **Import**: синхронизация `title`/`label` при загрузке из YAML — `build_import_patch` вызывает `apply_title_label_sync` (та же логика, что `events/label_title.py` / `data_mirror.py`); в отчёте `titleLabelSyncCount`.

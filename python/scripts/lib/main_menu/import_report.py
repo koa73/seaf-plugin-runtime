@@ -27,6 +27,7 @@ class ImportReport:
     errors: List[str] = field(default_factory=list)
     ui_result: Dict[str, Any] = field(default_factory=dict)
     title_label_synced: List[Dict[str, Any]] = field(default_factory=list)
+    linked_page_synced: List[Dict[str, Any]] = field(default_factory=list)
 
     @property
     def loaded_from_files_count(self) -> int:
@@ -69,6 +70,7 @@ def log_import_report(logger: ScriptLogger, report: ImportReport) -> None:
         "skippedSchemaCount": len(report.skipped_schema),
         "duplicateOidCount": len(report.skipped_duplicate),
         "titleLabelSyncCount": len(report.title_label_synced),
+        "linkedPageSyncCount": len(report.linked_page_synced),
         "warnings": list(report.warnings),
         "errors": list(report.errors),
     }
@@ -93,6 +95,8 @@ def log_import_report(logger: ScriptLogger, report: ImportReport) -> None:
         "skippedSchemaSample": _sample(report.skipped_schema, 20),
         "titleLabelSyncCount": len(report.title_label_synced),
         "titleLabelSyncSample": _sample(report.title_label_synced, 20),
+        "linkedPageSyncCount": len(report.linked_page_synced),
+        "linkedPageSyncSample": _sample(report.linked_page_synced, 20),
         "uiResult": dict(report.ui_result),
     }
     logger.debug(detail)

@@ -162,6 +162,7 @@ Runtime передает значения редактируемой конфи�
 | `moveLayerUnderLayer` | `{ "pageId": "...", "childLayerName": "...", "parentLayerName": "...", "makeVisible": true, "suppressStencilEvents": true }` | Вкладывает mxCell слоя `childLayerName` под слой `parentLayerName` (опционально для ручных сценариев; **не** вызывается из `events/reparent.py`). |
 | `createPage` | `{ "title": "...", "selectCreated": false }` | Создает страницу через штатные API draw.io (`ui.createPage` + `ui.insertPage`) с заданным именем; для сценария add-page рекомендуется `selectCreated=false`. |
 | `setCellLinkToPage` | `{ "objectId": "...", "targetPageId": "..." }` | Устанавливает ссылку `data:page/id,<pageId>` в выбранный объект через `graph.setLinkForCell(...)`; `targetPageId` должен быть валидным. |
+| `renameLinkedPage` | `{ "targetPageId": "...", "title": "...", "objectId": "...", "confirmOnDuplicate": true }` | Переименовывает связанную страницу (`RenamePage`); при конфликте имени — один `mxUtils.confirm` на пару `(pageId, title)` за прогон команд; затем обновляет graph-link через `setCellLinkToPage`. |
 | `insertStencilFromP41ByTitle` | `{ "pageId": "...", "mirrorTitle": "...", "x": 20, "y": 20, "sourceSchema": "..." }` | Ищет элемент в библиотеке `SEAF_Р41` по `title`, вставляет группу на страницу; в `objectId` возвращает первую вставленную ячейку, у которой `schema` совпадает с `sourceSchema` (для последующего `updateStencilDataBulk`). Если такой ячейки нет — `status: error`, `reason: mirror_not_found`. |
 | `assignEmptyOidOnPage` | `{ "pageId": "...", "companyPrefix": "company", "suppressStencilEvents": true }` | Находит на странице объекты, где атрибут `OID` существует и пуст, и присваивает уникальные значения по OID-алгоритму `all_add`. |
 
@@ -397,6 +398,7 @@ seaf.company.ta.services.dcs:
 - Ключи поиска и сопоставления: `schema` + `OID`.
 - `schema` и `OID` в patch **не изменяются**; обновляются остальные поля.
 - При изменении `title` или `label` из YAML patch дополняется через `apply_title_label_sync` (как при modify в events); в логе summary: `titleLabelSyncCount`.
+- Для `dcs` / `dc_offices` с `linkedPageId` и существующей страницей в `payload.pages` — команды `renameLinkedPage` + `setCellLinkToPage` (`lib/diagram/linked_page_sync.py`); в логе: `linkedPageSyncCount`. Без `showMessage` при skip/duplicate (confirm только в JS).
 - Результат применения выполняется UI-командой `applySeafImportBatch` глобально на всех страницах.
 - Логирование:
   - `pluginLogLevel=info` -> summary (`loadedObjectCount`, `matchedOnDiagramCount`, `updatedCount`, `unmatchedInDiagram`);

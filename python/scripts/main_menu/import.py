@@ -17,6 +17,8 @@ from lib.logging import build_script_logger
 from lib.main_menu.export_helpers import is_seaf_export_schema
 from lib.main_menu.import_helpers import resolve_input_targets
 from lib.main_menu.import_report import ImportReport, log_import_report
+from lib.diagram.linked_page_sync import build_linked_page_sync_commands
+from lib.diagram.page_service import list_pages
 from lib.main_menu.import_yaml_loader import build_import_map_from_sources
 from lib.main_menu.seaf_data_map import build_import_patch
 
@@ -52,6 +54,7 @@ def _build_diagram_index(schema_objects: List[Dict[str, Any]]) -> Dict[Tuple[str
         if not is_seaf_export_schema(schema):
             continue
         cell_data = item.get("data") if isinstance(item.get("data"), dict) else {}
+        linked_page_id = str(item.get("linkedPageId") or "").strip()
         out.setdefault((schema, oid), []).append(
             {
                 "pageId": item.get("pageId"),
@@ -60,6 +63,7 @@ def _build_diagram_index(schema_objects: List[Dict[str, Any]]) -> Dict[Tuple[str
                 "schema": schema,
                 "oid": oid,
                 "data": dict(cell_data),
+                "linkedPageId": linked_page_id,
             }
         )
     return out
@@ -74,9 +78,12 @@ def _append_unmatched(report: ImportReport, schema: str, oid: str) -> None:
 def _build_updates(
     import_map: Dict[str, Dict[str, Dict[str, Any]]],
     diagram_index: Dict[Tuple[str, str], List[Dict[str, Any]]],
+    pages: List[Dict[str, Any]],
     report: ImportReport,
-) -> List[Dict[str, Any]]:
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     updates: List[Dict[str, Any]] = []
+    page_sync_commands: List[Dict[str, Any]] = []
+    sync_seen: set[Tuple[str, str, str]] = set()
     for schema in sorted(import_map.keys()):
         oid_map = import_map.get(schema) if isinstance(import_map.get(schema), dict) else {}
         for oid in sorted(oid_map.keys()):
@@ -110,7 +117,23 @@ def _build_updates(
                     "patch": patch,
                 }
             )
-    return updates
+            aligned_after = dict(data_before)
+            aligned_after.update(patch)
+            linked_page_id = str(matches[0].get("linkedPageId") or "").strip()
+            object_id = str(matches[0].get("objectId") or "").strip()
+            sync_cmds = build_linked_page_sync_commands(
+                schema=schema,
+                data_before=data_before,
+                data_after=aligned_after,
+                object_id=object_id,
+                linked_page_id=linked_page_id,
+                pages=pages,
+                seen_keys=sync_seen,
+            )
+            if sync_cmds:
+                report.linked_page_synced.append({"schema": schema, "oid": oid, "linkedPageId": linked_page_id})
+                page_sync_commands.extend(sync_cmds)
+    return updates, page_sync_commands
 
 
 def main() -> int:
@@ -149,7 +172,8 @@ def main() -> int:
     if not isinstance(schema_objects, list):
         schema_objects = []
     diagram_index = _build_diagram_index(schema_objects)
-    updates = _build_updates(import_map, diagram_index, report)
+    pages = list_pages(payload)
+    updates, page_sync_commands = _build_updates(import_map, diagram_index, pages, report)
 
     emit_progress(90, "prepare_updates", "Preparing update batch")
     commands: List[Dict[str, Any]] = []
@@ -163,6 +187,7 @@ def main() -> int:
                 },
             }
         )
+        commands.extend(page_sync_commands)
 
     emit_progress(100, "done", "Import mapping prepared")
     log_import_report(logger, report)

@@ -29,6 +29,17 @@ def list_pages(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
     return out
 
 
+def find_page_by_id(pages: List[Dict[str, Any]], page_id: str) -> Optional[Dict[str, Any]]:
+    """Find page metadata by id."""
+    target_id = str(page_id or "").strip()
+    if not target_id:
+        return None
+    for page in pages:
+        if str(page.get("id") or "").strip() == target_id:
+            return page
+    return None
+
+
 def find_page_by_name(pages: List[Dict[str, Any]], name: str) -> Optional[Dict[str, Any]]:
     """Find existing page by exact normalized name."""
     target = normalize_page_name(name)

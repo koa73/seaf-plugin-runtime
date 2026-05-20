@@ -5,6 +5,8 @@ from __future__ import annotations
 
 from typing import Any, Callable, Dict, List, Tuple
 
+from lib.diagram.linked_page_sync import build_linked_page_sync_commands
+from lib.diagram.page_service import list_pages
 from lib.events import (
     apply_title_label_sync,
     build_data_mirror_atomic_command,
@@ -39,8 +41,10 @@ def build_commands(
 ) -> List[Dict[str, Any]]:
     event = payload.get("event") or {}
     items = event.get("items") or []
+    pages = list_pages(payload)
     commands: List[Dict[str, Any]] = []
     seen: set[Tuple[str, str]] = set()
+    sync_seen: set[Tuple[str, str, str]] = set()
 
     for item in items:
         if not isinstance(item, dict):
@@ -87,6 +91,19 @@ def build_commands(
                 excluded_fields=EXCLUDED_FIELDS,
             )
         )
+        linked_page_id = str(item.get("linkedPageId") or "").strip()
+        if object_id and linked_page_id:
+            commands.extend(
+                build_linked_page_sync_commands(
+                    schema=schema,
+                    data_before=data_before,
+                    data_after=data_after_for_patch,
+                    object_id=object_id,
+                    linked_page_id=linked_page_id,
+                    pages=pages,
+                    seen_keys=sync_seen,
+                )
+            )
     return commands
 
 
