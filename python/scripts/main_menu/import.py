@@ -18,7 +18,7 @@ from lib.main_menu.export_helpers import is_seaf_export_schema
 from lib.main_menu.import_helpers import resolve_input_targets
 from lib.main_menu.import_report import ImportReport, log_import_report
 from lib.main_menu.import_yaml_loader import build_import_map_from_sources
-from lib.main_menu.seaf_data_map import sanitize_import_patch
+from lib.main_menu.seaf_data_map import build_import_patch
 
 HANDLER = "main_menu.import"
 
@@ -51,6 +51,7 @@ def _build_diagram_index(schema_objects: List[Dict[str, Any]]) -> Dict[Tuple[str
             continue
         if not is_seaf_export_schema(schema):
             continue
+        cell_data = item.get("data") if isinstance(item.get("data"), dict) else {}
         out.setdefault((schema, oid), []).append(
             {
                 "pageId": item.get("pageId"),
@@ -58,6 +59,7 @@ def _build_diagram_index(schema_objects: List[Dict[str, Any]]) -> Dict[Tuple[str
                 "objectId": object_id,
                 "schema": schema,
                 "oid": oid,
+                "data": dict(cell_data),
             }
         )
     return out
@@ -83,17 +85,22 @@ def _build_updates(
             if not matches:
                 _append_unmatched(report, schema, oid)
                 continue
-            patch = sanitize_import_patch(oid_map.get(oid) if isinstance(oid_map.get(oid), dict) else {})
+            yaml_attrs = oid_map.get(oid) if isinstance(oid_map.get(oid), dict) else {}
+            data_before = matches[0].get("data") if isinstance(matches[0].get("data"), dict) else {}
+            patch, title_label_synced = build_import_patch(schema, yaml_attrs, data_before)
             if not patch:
                 continue
             match_ids = [row.get("objectId") for row in matches if row.get("objectId")]
             report.matched.extend(matches)
+            if title_label_synced:
+                report.title_label_synced.append({"schema": schema, "oid": oid})
             report.updates.append(
                 {
                     "schema": schema,
                     "oid": oid,
                     "objectIds": match_ids,
                     "patchKeys": sorted(patch.keys()),
+                    "titleLabelSync": title_label_synced,
                 }
             )
             updates.append(

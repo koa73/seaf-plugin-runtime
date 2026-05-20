@@ -18,7 +18,7 @@
 - `lib/main_menu/export_helpers.py` — `build_export_by_schema`, `schema_to_export_filename`, `resolve_output_path`.
 - `lib/main_menu/export_yaml_generator.py` — адаптер `export_map` → `YAMLGenerator`, каталог схем `python/vendor/yaml_schema_generator/schemas`.
 - `lib/main_menu/export_report.py` — отчёт Export в лог (`pluginLogLevel`).
-- `main_menu/import.py` — **P41 → Import**: читает `inputSeafFile` (YAML-файл или каталог с рекурсивным поиском `*.yaml/*.yml`), строит общий `{schema: {OID: attrs}}`, сопоставляет с `payload.schemaObjects` и возвращает `applySeafImportBatch` для глобального обновления стенсилов по `schema+OID`.
+- `main_menu/import.py` — **P41 → Import**: читает `inputSeafFile` (YAML-файл или каталог с рекурсивным поиском `*.yaml/*.yml`), строит общий `{schema: {OID: attrs}}`, сопоставляет с `payload.schemaObjects` и возвращает `applySeafImportBatch` для глобального обновления стенсилов по `schema+OID`. Перед batch вызывает `build_import_patch` (`lib/main_menu/seaf_data_map.py`) — тот же `apply_title_label_sync`, что в `events/label_title.py` / `data_mirror.py`, чтобы при смене `title` из YAML синхронизировался `label`.
 - `lib/main_menu/import_helpers.py` — резолв `inputSeafFile` в список YAML-источников.
 - `lib/main_menu/import_yaml_loader.py` — загрузка/merge/валидация SEAF YAML формата.
 - `lib/main_menu/import_report.py` — отчёт Import в лог (`pluginLogLevel`: summary/detail).
@@ -396,6 +396,7 @@ seaf.company.ta.services.dcs:
 
 - Ключи поиска и сопоставления: `schema` + `OID`.
 - `schema` и `OID` в patch **не изменяются**; обновляются остальные поля.
+- При изменении `title` или `label` из YAML patch дополняется через `apply_title_label_sync` (как при modify в events); в логе summary: `titleLabelSyncCount`.
 - Результат применения выполняется UI-командой `applySeafImportBatch` глобально на всех страницах.
 - Логирование:
   - `pluginLogLevel=info` -> summary (`loadedObjectCount`, `matchedOnDiagramCount`, `updatedCount`, `unmatchedInDiagram`);

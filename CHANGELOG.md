@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.50
+
+- **Import**: синхронизация `title`/`label` при загрузке из YAML — `build_import_patch` вызывает `apply_title_label_sync` (та же логика, что `events/label_title.py` / `data_mirror.py`); в отчёте `titleLabelSyncCount`.
+
 ## 0.5.49
 
 - **Export (`seafP41Export`)**: progress bar — `execution.mode: async`, `indicator.type: percent`, `emit_progress` в `export.py` (resolve output → build map → write YAML → done).

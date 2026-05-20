@@ -114,7 +114,7 @@
 **Import (`seafP41Import`):**
 - источник только `inputSeafFile` (может быть YAML-файлом или каталогом);
 - если каталог, Python скрипт делает рекурсивный поиск `*.yaml/*.yml`;
-- для корректного сопоставления с диаграммой задайте `input.includeSchemaObjects: true` (и `includePages: true` для расширенной диагностики).
+- для корректного сопоставления с диаграммой задайте `input.includeSchemaObjects: true` (и `includePages: true` для расширенной диагностики); в payload передаётся `schemaObjects[].data` — используется для `title`/`label` sync при Import (`apply_title_label_sync`, как в modify events).
 - для progress bar используйте async режим с indicator:
   - `execution.mode: async`
   - `indicator.enabled: true`, `indicator.type: percent`
