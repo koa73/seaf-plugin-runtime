@@ -105,7 +105,7 @@
 ### Tools → Net_Conf_Parser
 
 - Пункт меню: `seafToolsNetConfParser`, `clientAction: interactiveTerminal`, `execution.mode: interactive_terminal`.
-- Перед запуском — `scriptEnvEditor: scripts/net_conf_parser.script_env.yaml` (каталоги data/patterns/output).
+- Перед запуском — `scriptEnvEditor: scripts/net_conf_parser.script_env.yaml` (каталоги data и output); `patterns/` фиксирован: `python/vendor/netconf_parser/patterns/` в установленном runtime.
 - Launcher: `python/scripts/main_menu/net_conf_parser.py` → `python/vendor/netconf_parser/main_entry.py` (без SEAF-конвертации).
 - Обновление upstream: [`scripts/vendor/sync-netconf-parser.sh`](scripts/vendor/sync-netconf-parser.sh) → `python/vendor/netconf_parser/`.
 - Зависимости: единый [`python/requirements.txt`](python/requirements.txt) (PyYAML, N2G).

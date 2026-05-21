@@ -1,4 +1,3 @@
 netconfDataDir: ""
-netconfPatternsDir: ""
 netconfOutputDir: ""
 netconfDefaultLayout: spine_leaf

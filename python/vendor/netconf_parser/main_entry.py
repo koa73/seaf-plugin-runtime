@@ -24,14 +24,15 @@ def _read_env_path(key: str, default: str = "") -> str:
     return default
 
 
-def _resolve_paths() -> tuple[Path, Path, Path, str]:
+def _resolve_paths(vendor_root: Path) -> tuple[Path, Path, Path, str]:
+    """patterns_dir is fixed under vendored package: python/vendor/netconf_parser/patterns/."""
     data_dir = _read_env_path("netconfDataDir", "./data")
-    patterns_dir = _read_env_path("netconfPatternsDir", "./patterns")
     output_dir = _read_env_path("netconfOutputDir", ".")
     default_layout = _read_env_path("netconfDefaultLayout", "spine_leaf")
+    patterns_dir = (vendor_root / "patterns").resolve()
     return (
         Path(data_dir).expanduser().resolve(),
-        Path(patterns_dir).expanduser().resolve(),
+        patterns_dir,
         Path(output_dir).expanduser().resolve(),
         default_layout,
     )
@@ -50,7 +51,10 @@ def main() -> int:
     )
     from lib.network_visualizer import NetworkVisualizer  # noqa: WPS433
 
-    config_dir, patterns_dir, output_dir, default_layout = _resolve_paths()
+    config_dir, patterns_dir, output_dir, default_layout = _resolve_paths(vendor_root)
+    if not patterns_dir.is_dir():
+        print(f"Каталог шаблонов не найден: {patterns_dir}", file=sys.stderr)
+        return 1
     patterns_devices = patterns_dir / "devices"
     drawio_templates = patterns_dir / "drawio"
     stencil_templates = drawio_templates / "templates"

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.55
+
+- **NetConf_Parser**: `patterns/` не параметризуется в `scriptEnvEditor` — всегда `python/vendor/netconf_parser/patterns/` относительно vendored-пакета в runtime.
+
 ## 0.5.54
 
 - **python/vendor**: все vendored-пакеты только в `seaf-plugin-runtime/python/vendor/` (`yaml_schema_generator`, `netconf_parser`); удалён корневой `vendor/` и каталог `python/yaml_schema_generator_examples/`.

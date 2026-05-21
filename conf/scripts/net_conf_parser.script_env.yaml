@@ -12,15 +12,6 @@ fields:
       title: Select config directory
       properties:
         - openDirectory
-  - label: Patterns directory
-    envKey: netconfPatternsDir
-    inputMethod: filePicker
-    required: true
-    helpText: "Каталог patterns (devices, drawio)"
-    fileDialog:
-      title: Select patterns directory
-      properties:
-        - openDirectory
   - label: Output directory
     envKey: netconfOutputDir
     inputMethod: filePicker
