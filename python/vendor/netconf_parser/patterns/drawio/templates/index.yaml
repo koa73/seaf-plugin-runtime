@@ -1,0 +1,56 @@
+templates:
+  Arista:
+    - switch: switch
+  Aruba:
+    - switch: switch
+    - wireless_controller: default.yaml
+  B4com:
+    - switch: switch
+    - router: router
+    - border router: router
+  Cisco:
+    - switch: switch
+    - firewall: firewall
+    - router: router
+  D-Link:
+    - switch: switch
+  Dell:
+    - switch: switch
+  F5:
+    - load_balancer: default
+  Fortinet:
+    - firewall: firewall
+  HPE_Aruba:
+    - switch: switch
+    - carrier_switch: switch
+  Huawei:
+    - carrier_switch: switch
+    - olt_device: default
+    - firewall: firewall
+    - carrier_router: router
+    - enterprise_switch: switch
+    - enterprise_router: router
+  Juniper:
+    - switch: switch
+    - firewall: firewall
+    - router: router
+  MikroTik:
+    - router: router
+    - switch: switch
+    - wireless_controller: default
+  Palo_Alto:
+    - firewall: firewall
+  Qtech:
+    - switch: switch
+    - router: switch
+  TFortis:
+    - switch: switch
+  Unknown:
+    - switch: default
+  common:
+    - network: network
+    - logical_link: logical_link
+    - mgm_link: mgm_link
+    - physical_link: physical_link
+  default:
+    - any : default

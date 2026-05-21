@@ -1,0 +1,129 @@
+{
+  "vendor": "MikroTik",
+  "version": "2.2",
+  "description": "Шаблон для MikroTik RouterOS с поддержкой извлечения имён, моделей, маршрутов и интерфейсов",
+
+  "vendor_signatures": [
+    "^/ip address",
+    "^/interface",
+    "^# software id",
+    "by RouterOS"
+  ],
+
+  "detect_patterns": [
+    "^/system identity",
+    "^/ip route",
+    "^/interface bridge",
+    "RouterOS"
+  ],
+
+  "name_patterns": [
+    {"pattern": "^/system identity set name=([^\\s]+)", "group": 1, "priority": 100},
+    {"pattern": "^/system identity\\s+name:\\s*([^\\s]+)", "group": 1, "priority": 90},
+    {"pattern": "^/system identity set \\S+ name=([^\\s]+)", "group": 1, "priority": 85}
+  ],
+
+  "model_patterns": [
+    {"pattern": "^# model = (\\S+)", "group": 1, "priority": 100},
+    {"pattern": "^# software id = .+ on (\\S+)", "group": 1, "priority": 90},
+    {"pattern": "^/system resource\\s+board-name:\\s*([^\\s]+)", "group": 1, "priority": 85},
+    {"pattern": "^/system routerboard model:\\s*([^\\s]+)", "group": 1, "priority": 80}
+  ],
+
+  "type_inference": [
+    {"any": ["/ip firewall nat", "/ip firewall filter", "chain=forward"], "type": "router", "score": 95},
+    {"any": ["/routing bgp", "/routing ospf", "/routing rip"], "type": "router", "score": 90},
+    {"any": ["/ip route"], "type": "router", "score": 85},
+    {"any": ["/interface bridge"], "type": "switch", "score": 70},
+    {"any": ["/interface wireless", "/caps-man"], "type": "wireless_controller", "score": 75},
+    {"any": ["/ip hotspot"], "type": "router", "score": 65}
+  ],
+
+  "default_device_type": "router",
+
+  "network_extraction_rules": {
+    "interfaces": {
+      "section_header": "^/ip address$",
+      "start": "^add address=([\\d\\.\\/]+).*interface=([^\\s]+)",
+      "ip_pattern": "^add address=([\\d\\.\\/]+)",
+      "interface_pattern": "^add.*interface=([^\\s]+)",
+      "disable_pattern": "disabled=yes"
+    },
+    "vlans": {
+      "all_pattern": "^/interface vlan add name=([^\\s]+) vlan-id=(\\d+)",
+      "active_pattern": "^/interface vlan add name=([^\\s]+) vlan-id=(\\d+)"
+    }
+  },
+
+  "routing_extraction_rules": {
+    "enabled": true,
+    "format": "mikrotik_section",
+    "section_pattern": "^/ip route$",
+    "dst_pattern": "dst-address=([^\\s]+)",
+    "gateway_pattern": "(?<!check-)gateway=\\s*([^\\s]+)",
+    "comment_pattern": "comment=([^\\s]+)",
+    "disabled_pattern": "disabled=(yes|no)",
+    "route_pattern": "^add.*dst-address=([\\d\\.\\/]+).*gateway=([^\\s]+)",
+    "default_route_pattern": "^add.*dst-address=0\\.0\\.0\\.0/0.*gateway=([^\\s]+)"
+  },
+
+  "bgp_extraction_rules": {
+    "enabled": true,
+    "asn_pattern": "^/routing bgp instance.*as=(\\d+)",
+    "router_id_pattern": "router-id=([\\d\\.]+)",
+    "neighbor_pattern": "^/routing bgp peer.*remote-address=([\\d\\.]+).*remote-as=(\\d+)",
+    "neighbor_desc_pattern": null,
+    "address_family_pattern": null,
+    "evpn_neighbors_pattern": null,
+    "local_address_pattern": "local\\.address=([\\d\\.]+)"
+  },
+
+  "management_extraction_rules": {
+    "enabled": true,
+    "mgmt_ip_pattern": "^add address=([\\d\\.\\/]+).*interface=(bridge|mgmt|management)",
+    "default_gateway_pattern": "^add.*dst-address=0\\.0\\.0\\.0/0.*gateway=([^\\s]+)",
+    "ntp_server_pattern": "^/system ntp client servers add address=([^\\s]+)",
+    "snmp_server_pattern": "^/snmp set.*enabled=yes"
+  },
+
+  "model_type_mapping": {
+    "RBD53": "wireless_router",
+    "RB750": "router",
+    "RB951": "wireless_router",
+    "RB960": "router",
+    "RB2011": "router",
+    "RB3011": "router",
+    "RB4011": "router",
+    "CCR1009": "router",
+    "CCR1016": "router",
+    "CCR1036": "router",
+    "CCR2004": "router",
+    "CCR2116": "router",
+    "CSS106": "switch",
+    "CRS112": "switch",
+    "CRS125": "switch",
+    "CRS210": "switch",
+    "CRS226": "switch",
+    "CRS305": "switch",
+    "CRS310": "switch",
+    "CRS312": "switch",
+    "CRS326": "switch",
+    "CRS328": "switch",
+    "CRS354": "switch"
+  },
+
+  "lldp_extraction_rules": {
+    "enabled": true,
+    "lldp_run_pattern": "^/lldp set enabled=yes",
+    "neighbor_description_pattern": "^/lldp neighbors set.*comment=([^\\s]+)",
+    "lldp_agent_pattern": "^/lldp interface",
+    "chassis_id_pattern": "chassis-id=([^\\s]+)",
+    "port_id_pattern": "port-id=([^\\s]+)"
+  },
+
+  "interface_status_rules": {
+    "enabled": true,
+    "shutdown_pattern": "disabled=yes",
+    "no_shutdown_pattern": "disabled=no"
+  }
+}

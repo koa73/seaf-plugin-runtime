@@ -1,0 +1,61 @@
+{
+  "vendor": "F5",
+  "version": "1.2",
+  "vendor_signatures": [
+    "^#TMSH-VERSION:",
+    "^ltm virtual",
+    "^net vlan"
+  ],
+  "detect_patterns": [
+    "^sys global-settings",
+    "^net self",
+    "^ltm pool"
+  ],
+  "name_patterns": [
+    {"pattern": "^sys global-settings \\{\\s+hostname\\s+\"?([^\\s\"]+)\"?", "group": 1, "multiline": true}
+  ],
+  "model_patterns": [
+    {"pattern": "^# Platform:\\s+(\\S+)", "group": 1},
+    {"pattern": "^# Chassis Serial Number:\\s+(\\S+)", "group": 1},
+    {"pattern": "^sys hardware-info \\{[^}]*?platform\\s+\"(\\S+)\"", "group": 1, "multiline": true}
+  ],
+
+  "default_device_type": "load_balancer",
+
+  "type_rules": [
+    {
+      "description": "F5 BIG-IP Load Balancer",
+      "all": ["ltm virtual", "ltm pool"],
+      "any": ["net self"],
+      "type": "load_balancer",
+      "score": 100
+    }
+  ],
+
+  "network_extraction_rules": {
+    "interfaces": {
+      "start": "^net self\\s+([^\\s]+)",
+      "ip_pattern": "address\\s+([\\d\\.\\/]+)",
+      "disable_pattern": "disabled\\s+yes"
+    },
+    "vlans": {
+      "all_pattern": "^net vlan\\s+([^\\s]+)",
+      "active_pattern": "^net vlan\\s+([^\\s]+)"
+    }
+  },
+
+  "lldp_extraction_rules": {
+    "enabled": true,
+    "lldp_run_pattern": "^ltm global-settings lldp\\s+\\{[^}]*enabled\\s+yes",
+    "neighbor_description_pattern": "^\\s+description\\s+(.+)",
+    "lldp_agent_pattern": "^ltm global-settings lldp",
+    "chassis_id_pattern": "chassis-id",
+    "port_id_pattern": "port-id"
+  },
+
+  "interface_status_rules": {
+    "enabled": true,
+    "shutdown_pattern": "disabled\\s+yes",
+    "no_shutdown_pattern": "enabled\\s+yes"
+  }
+}

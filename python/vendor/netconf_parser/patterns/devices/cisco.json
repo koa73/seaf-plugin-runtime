@@ -1,0 +1,476 @@
+{
+  "vendor": "Cisco",
+  "version": "2.5",
+  "description": "Оптимизированный шаблон для оборудования Cisco (IOS, IOS-XE, NX-OS, ASA) с поддержкой StackWise, QoS, PoE, UDLD, VRF, IPSec, GRE, Voice, VPDN, CUBE",
+  
+  "vendor_signatures": [
+    "Cisco IOS Software",
+    "Cisco IOS XE Software",
+    "Cisco IOS-XE software",
+    "cisco .+ processor",
+    "Processor board ID",
+    "Copyright (c) 1986-20[0-9][0-9] by Cisco Systems",
+    "^version 1[0-5]\\.",
+    "^hostname ",
+    "^crypto isakmp",
+    "^crypto ipsec",
+    "^voice-card",
+    "^vpdn enable",
+    "^ip rcmd remote-host cisco",
+    "^aaa authentication login default group radius",
+    "^spanning-tree mode",
+    "^power redundancy-mode",
+    "^switch \\d+ provision"
+  ],
+  
+  "detect_patterns": [
+    "^version \\d+\\.\\d+",
+    "^interface [\\w\\/\\-\\.]+",
+    "^hostname [\\w\\-]+",
+    "^\\s*version \\d+\\.\\d+\\(",
+    "^crypto isakmp",
+    "^crypto ipsec",
+    "^voice-card",
+    "^vpdn enable",
+    "^vtp domain",
+    "^spanning-tree mode"
+  ],
+  
+  "name_patterns": [
+    {"pattern": "^hostname\\s+([\\w\\-\\.]+)", "group": 1, "priority": 100},
+    {"pattern": "^switchname\\s+([\\w\\-\\.]+)", "group": 1, "priority": 90}
+  ],
+
+  "model_patterns": [
+    {"pattern": "^cisco\\s+([\\w\\-]+)\\s+\\([^)]+\\)\\s+processor", "group": 1, "priority": 100},
+    {"pattern": "^Model Number\\s*:\\s*([\\w\\-]+)", "group": 1, "priority": 95},
+    {"pattern": "^\\s*license udi pid (CISCO[\\d]+[A-Z\\d\\-\\/]*)(?:\\s|$)", "group": 1, "priority": 95},
+    {"pattern": "^\\s*license udi pid (C[\\d]+[A-Z\\-]*)(?:\\s|$)", "group": 1, "priority": 92},
+    {"pattern": "^\\s*license udi pid (C3900-[A-Z\\d]+)", "group": 1, "priority": 92},
+    {"pattern": "^switch\\s+\\d+\\s+provision\\s+(ws-c[\\w\\-]+)", "group": 1, "priority": 90},
+    {"pattern": "^boot system flash:?\\s*\\S*:(c[23456789]\\d+)", "group": 1, "priority": 88},
+    {"pattern": "^\\s*Model\\s+Ports\\s+Model", "group": 0, "fallback_pattern": "^\\*?\\s*\\d+\\s+\\d+\\s+([\\w\\-]+)", "fallback_group": 1, "priority": 85},
+    {"pattern": "cisco\\s+(C[\\d]+[A-Z\\-]*)", "group": 1, "priority": 80},
+    {"pattern": "(WS-C[\\d]+[A-Z\\-]*)", "group": 1, "priority": 80},
+    {"pattern": "(C9[56][0-9]{3}[A-Z\\-]*)", "group": 1, "priority": 80},
+    {"pattern": "(Nexus\\s*\\d+)", "group": 1, "priority": 75},
+    {"pattern": "(ASA\\s*\\d+)", "group": 1, "priority": 75}
+  ],
+
+  "model_fallback_rules": [
+    {
+      "description": "Catalyst 4500 Series (cat4500e)",
+      "conditions": {"any": ["cat4500e", "supervisor 6-E", "supervisor 7-E"]},
+      "model": "Catalyst 4500-E"
+    },
+    {
+      "description": "Catalyst 4500/6500 Core (power redundancy)",
+      "conditions": {"all": ["power redundancy-mode", "spanning-tree mode"]},
+      "model": "Catalyst 4500/6500 Core"
+    },
+    {
+      "description": "Catalyst 3750 Series",
+      "conditions": {"any": ["ws-c3750"]},
+      "model": "Catalyst 3750"
+    },
+    {
+      "description": "Catalyst 2960 Series",
+      "conditions": {"any": ["ws-c2960"]},
+      "model": "Catalyst 2960"
+    },
+    {
+      "description": "Catalyst Blade Switch",
+      "conditions": {"any": ["ws-cbs"]},
+      "model": "Catalyst Blade Switch"
+    },
+    {
+      "description": "Catalyst 3560 Series",
+      "conditions": {"all": ["system mtu routing", "spanning-tree"]},
+      "model": "Catalyst 3560"
+    },
+    {
+      "description": "Catalyst 3750 Stack",
+      "conditions": {"any": ["switch 1 provision", "switch 2 provision", "switch 3 provision"]},
+      "model": "Catalyst 3750 Stack"
+    },
+    {
+      "description": "Catalyst 3750/3560 (errdisable recovery)",
+      "conditions": {"all": ["errdisable recovery cause udld", "errdisable recovery cause bpduguard", "errdisable recovery cause security-violation"]},
+      "model": "Catalyst 3750/3560"
+    },
+    {
+      "description": "Catalyst 3750/3560 (spanning-tree pvst)",
+      "conditions": {"all": ["spanning-tree mode pvst", "spanning-tree extend system-id"]},
+      "model": "Catalyst 3750/3560"
+    },
+    {
+      "description": "Catalyst 2960 (basic L2 switch)",
+      "conditions": {"all": ["spanning-tree mode rapid-pvst", "spanning-tree portfast"]},
+      "model": "Catalyst 2960"
+    },
+    {
+      "description": "Catalyst 2960/3560 (GigabitEthernet interfaces)",
+      "conditions": {"all": ["interface GigabitEthernet0/", "spanning-tree mode rapid-pvst"]},
+      "model": "Catalyst 2960/3560"
+    },
+    {
+      "description": "Cisco 2800/3800 ISR (voice-card + boot system c2800/c3800)",
+      "conditions": {"all": ["voice-card", "boot system flash"], "any": ["c2800", "c2801", "c2821", "c2851", "c3800", "c3825", "c3845"]},
+      "model": "Cisco 2800/3800 ISR"
+    },
+    {
+      "description": "Cisco 2900/3900 ISR (voice-card + license udi pid CISCO)",
+      "conditions": {"all": ["voice-card", "license udi pid CISCO"]},
+      "model": "Cisco 2900/3900 ISR"
+    },
+    {
+      "description": "Cisco 2800 ISR (voice-card + card type e1)",
+      "conditions": {"all": ["voice-card", "card type e1"]},
+      "model": "Cisco 2800 ISR"
+    },
+    {
+      "description": "Cisco 2800/3800 ISR (voice-card + isdn switch-type)",
+      "conditions": {"all": ["voice-card", "isdn switch-type"]},
+      "model": "Cisco 2800/3800 ISR"
+    },
+    {
+      "description": "Cisco ISR (voice-card без других признаков)",
+      "conditions": {"all": ["voice-card"]},
+      "model": "Cisco ISR"
+    },
+    {
+      "description": "Cisco ISR (ip cef + dhcp pools + tunnel)",
+      "conditions": {"all": ["ip cef", "ip dhcp pool"]},
+      "model": "Cisco ISR"
+    },
+    {
+      "description": "Cisco ISR (ip cef + ip inspect)",
+      "conditions": {"all": ["ip cef", "ip inspect"]},
+      "model": "Cisco ISR"
+    },
+    {
+      "description": "Cisco ISR (boot system + ip rcmd)",
+      "conditions": {"all": ["boot-start-marker", "ip rcmd remote-host"]},
+      "model": "Cisco ISR"
+    },
+    {
+      "description": "Cisco ISR (ip rcmd + aaa new-model)",
+      "conditions": {"all": ["ip rcmd remote-host", "aaa new-model"]},
+      "model": "Cisco ISR"
+    },
+    {
+      "description": "Cisco ISR (boot-start-marker + ip cef)",
+      "conditions": {"all": ["boot-start-marker", "ip cef"]},
+      "model": "Cisco ISR"
+    },
+    {
+      "description": "Cisco Aironet AP (dot11 ssid + Dot11Radio)",
+      "conditions": {"all": ["dot11 ssid", "interface Dot11Radio"]},
+      "model": "Cisco Aironet AP"
+    },
+    {
+      "description": "Cisco ASA Firewall (по типу устройства)",
+      "conditions": {"all": ["nameif", "security-level"]},
+      "model": "ASA Firewall"
+    },
+    {
+      "description": "Catalyst 2960 (switchport без других признаков)",
+      "conditions": {"all": ["switchport", "interface FastEthernet0/"]},
+      "model": "Catalyst 2960"
+    },
+    {
+      "description": "Catalyst 3750/3560 (switchport + voice vlan)",
+      "conditions": {"all": ["switchport voice vlan", "interface FastEthernet"]},
+      "model": "Catalyst 3750/3560"
+    },
+    {
+      "description": "Cisco 800/1900/2900 ISR (vrf + ip rcmd)",
+      "conditions": {"all": ["vrf definition", "ip rcmd remote-host"]},
+      "model": "Cisco ISR"
+    },
+    {
+      "description": "Cisco ISR (hostname с цифрой модели - 2821, 2851, 3825, 3845, 2901, 2911, 2921, 2951)",
+      "conditions": {"any": ["hostname.*2801", "hostname.*2811", "hostname.*2821", "hostname.*2851", "hostname.*2861", "hostname.*2800", "hostname.*3800", "hostname.*3825", "hostname.*3845", "hostname.*2900", "hostname.*2901", "hostname.*2911", "hostname.*2921", "hostname.*2951", "hostname.*3900", "hostname.*3925", "hostname.*3945"]},
+      "model": "Cisco ISR"
+    },
+    {
+      "description": "Cisco 800 Series (hostname с 800, 850, 860, 870, 880, 890)",
+      "conditions": {"any": ["hostname.*800", "hostname.*850", "hostname.*860", "hostname.*870", "hostname.*880", "hostname.*890"]},
+      "model": "Cisco 800 Series"
+    }
+  ],
+
+  "default_device_type": "router_or_switch",
+
+  "type_rules": [
+    {
+      "description": "Cisco Catalyst 4500/4900 Core Switch",
+      "any": ["ws-c45", "ws-c49", "cat4500", "supervisor engine", "vtp domain", "spanning-tree mode rapid-pvst", "power redundancy-mode"],
+      "type": "switch",
+      "score": 95
+    },
+    {
+      "description": "Cisco Catalyst 6500 Core Switch",
+      "any": ["ws-c65", "ws-c6k", "supervisor 720", "supervisor 2T", "vtp domain", "spanning-tree mode pvst"],
+      "type": "switch",
+      "score": 94
+    },
+    {
+      "description": "Cisco Catalyst 3750 Stack Switch",
+      "any": ["ws-c3750", "switch 1 provision", "switch 2 provision", "switch 3 provision", "stack-ring speed"],
+      "type": "switch",
+      "score": 93
+    },
+    {
+      "description": "Cisco Catalyst 3560 Switch",
+      "any": ["ws-c3560", "system mtu routing"],
+      "type": "switch",
+      "score": 91
+    },
+    {
+      "description": "Cisco Catalyst 2960 Switch",
+      "any": ["ws-c2960", "switch 1 provision ws-c2960"],
+      "type": "switch",
+      "score": 90
+    },
+    {
+      "description": "Cisco Catalyst / Nexus switches",
+      "any": ["C9500", "C9400", "C9300", "C9200", "WS-C", "C2960", "C3750", "C3650", "Catalyst", "Nexus", "NX-OS", "n9000", "n7000", "n5000", "n3000", "feature vpc", "boot nxos"],
+      "type": "switch",
+      "score": 88
+    },
+    {
+      "description": "Cisco ASA Firewall",
+      "all": ["nameif", "security-level"],
+      "any": ["access-group", "ASA"],
+      "type": "firewall",
+      "score": 90
+    },
+    {
+      "description": "Cisco CUBE (Session Border Controller)",
+      "all": ["voice service voip", "allow-connections h323 to sip"],
+      "any": ["bind control source-interface", "dial-peer voice"],
+      "type": "router",
+      "score": 89
+    },
+    {
+      "description": "Cisco ISR 4000 Router",
+      "any": ["ISR4", "ISR 4", "c1100", "c4000", "platform punt-keepalive"],
+      "type": "router",
+      "score": 88
+    },
+    {
+      "description": "Cisco 800 Series Router",
+      "any": ["CISCO8", "C881", "C887", "C891", "C892", "C897", "CISCO861"],
+      "type": "router",
+      "score": 87
+    },
+    {
+      "description": "Cisco 2800/3800 Series Router",
+      "any": ["CISCO28", "CISCO38", "C2801", "C2811", "C2821", "C2851", "C3825", "C3845"],
+      "type": "router",
+      "score": 86
+    },
+    {
+      "description": "Cisco 3900/4000 Series Router",
+      "any": ["C3900", "C3925", "C3945", "C3925E", "C3945E", "C4000"],
+      "type": "router",
+      "score": 86
+    },
+    {
+      "description": "Cisco Router (IPSec/VPN features)",
+      "all": ["crypto isakmp", "crypto ipsec"],
+      "any": ["crypto map", "transform-set", "tunnel source"],
+      "type": "router",
+      "score": 85
+    },
+    {
+      "description": "Cisco Router (Voice features)",
+      "any": ["voice-card", "dial-peer voice", "voice service voip", "vpdn enable"],
+      "type": "router",
+      "score": 85
+    },
+    {
+      "description": "Cisco Router (NAT features)",
+      "all": ["ip nat", "ip inspect"],
+      "type": "router",
+      "score": 90
+    },
+    {
+      "description": "Cisco Router",
+      "all": ["router ospf", "router bgp"],
+      "any": ["router eigrp", "ip routing", "ip forward-protocol"],
+      "type": "router",
+      "score": 85
+    },
+    {
+      "description": "Cisco Switch (VLAN features)",
+      "any": ["switchport", "vlan ", "spanning-tree", "vtp mode"],
+      "type": "switch",
+      "score": 80
+    },
+    {
+      "description": "Cisco Catalyst 9K IOS-XE",
+      "any": ["CAT9K_IOSXE", "CAT9K_LITE_IOSXE"],
+      "type": "switch",
+      "score": 90
+    }
+  ],
+
+  "network_extraction_rules": {
+    "interfaces": {
+      "start": "^interface\\s+([\\w\\/\\-\\.]+)",
+      "ip_pattern": "ip address\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)",
+      "disable_pattern": "^\\s*shutdown$"
+    },
+    "vlans": {
+      "all_pattern": "^vlan\\s+(\\d+)",
+      "active_pattern": "(?:switchport access vlan|switchport trunk allowed vlan add?)\\s+(\\d+)"
+    }
+  },
+  
+  "bgp_extraction_rules": {
+    "enabled": true,
+    "asn_pattern": "^\\s*router bgp\\s+(\\d+)",
+    "router_id_pattern": "^\\s*bgp router-id\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)",
+    "neighbor_pattern": "^\\s*neighbor\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)\\s+remote-as\\s+(\\d+)",
+    "neighbor_desc_pattern": "^\\s*neighbor\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)\\s+description\\s+(.+)",
+    "address_family_pattern": "^\\s*address-family\\s+(\\S+)\\s+(\\S+)",
+    "evpn_neighbors_pattern": "^\\s*neighbor\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)\\s+activate\\s*$$.*evpn"
+  },
+  
+  "port_channel_extraction_rules": {
+    "enabled": true,
+    "pattern": "^interface\\s+(Port-channel\\d+)",
+    "members_pattern": "^\\s*channel-group\\s+(\\d+)\\s+mode"
+  },
+  
+  "vxlan_extraction_rules": {
+    "enabled": true,
+    "vni_pattern": "^\\s*vni\\s+(\\d+)",
+    "mcast_group_pattern": "^\\s*mcast-group\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)"
+  },
+  
+  "management_extraction_rules": {
+    "enabled": true,
+    "mgmt_ip_pattern": "^(?:management|mgmt)\\s+ip\\s+address\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)",
+    "default_gateway_pattern": "^\\s*ip default-gateway\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)",
+    "ntp_server_pattern": "^\\s*ntp server\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)",
+    "snmp_server_pattern": "^\\s*snmp-server host\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)"
+  },
+
+  "vrf_extraction_rules": {
+    "enabled": true,
+    "vrf_definition_pattern": "^vrf definition\\s+(\\S+)",
+    "vrf_description_pattern": "^\\s+description\\s+(.+)",
+    "vrf_forwarding_pattern": "^\\s+ip vrf forwarding\\s+(\\S+)",
+    "ip_vrf_pattern": "^ip vrf\\s+(\\S+)"
+  },
+
+  "ipsec_extraction_rules": {
+    "enabled": true,
+    "isakmp_policy_pattern": "^crypto isakmp policy\\s+(\\d+)",
+    "isakmp_key_pattern": "^crypto isakmp key\\s+.*\\s+address\\s+(\\S+)",
+    "isakmp_profile_pattern": "^crypto isakmp profile\\s+(\\S+)",
+    "ipsec_transform_pattern": "^crypto ipsec transform-set\\s+(\\S+)",
+    "ipsec_profile_pattern": "^crypto ipsec profile\\s+(\\S+)"
+  },
+
+  "gre_tunnel_extraction_rules": {
+    "enabled": true,
+    "tunnel_interface_pattern": "^interface Tunnel(\\d+)",
+    "tunnel_source_pattern": "^\\s+tunnel source\\s+(\\S+)",
+    "tunnel_destination_pattern": "^\\s+tunnel destination\\s+(\\S+)",
+    "tunnel_mode_pattern": "^\\s+tunnel mode\\s+(\\S+)"
+  },
+
+  "voice_extraction_rules": {
+    "enabled": true,
+    "voice_card_pattern": "^voice-card\\s+(\\d+)",
+    "voice_service_pattern": "^voice service voip",
+    "dial_peer_pattern": "^dial-peer voice\\s+(\\d+)\\s+(\\S+)",
+    "sip_bind_pattern": "^\\s+bind (control|media) source-interface\\s+(\\S+)"
+  },
+
+  "vpdn_extraction_rules": {
+    "enabled": true,
+    "vpdn_enable_pattern": "^vpdn enable",
+    "vpdn_group_pattern": "^vpdn-group\\s+(\\S+)",
+    "virtual_template_pattern": "^\\s+virtual-template\\s+(\\d+)"
+  },
+
+  "stackwise_extraction_rules": {
+    "enabled": true,
+    "switch_provision_pattern": "^switch\\s+(\\d+)\\s+provision\\s+(\\S+)",
+    "system_mtu_pattern": "^system mtu(?: routing)?\\s+(\\d+)",
+    "stack_ring_speed_pattern": "^stack-ring speed\\s+(\\S+)"
+  },
+
+  "qos_extraction_rules": {
+    "enabled": true,
+    "mls_qos_pattern": "^mls qos",
+    "qos_control_packets_pattern": "^qos control-packets",
+    "wrr_queue_pattern": "^\\s+wrr-queue",
+    "priority_queue_pattern": "^\\s+priority-queue\\s+(\\S+)"
+  },
+
+  "power_extraction_rules": {
+    "enabled": true,
+    "power_redundancy_pattern": "^power redundancy-mode\\s+(\\S+)",
+    "power_inline_pattern": "^\\s+power inline\\s+(\\S+)"
+  },
+
+  "udld_extraction_rules": {
+    "enabled": true,
+    "udld_aggressive_pattern": "^udld aggressive",
+    "udld_enable_pattern": "^udld enable",
+    "errdisable_udld_pattern": "^errdisable recovery cause udld"
+  },
+
+  "lldp_extraction_rules": {
+    "enabled": true,
+    "lldp_run_pattern": "^lldp run",
+    "neighbor_description_pattern": "^\\s+description\\s+(.+)",
+    "lldp_agent_pattern": "^\\s+lldp tlv-select",
+    "chassis_id_pattern": "lldp tlv-select.*chassis-id",
+    "port_id_pattern": "lldp tlv-select.*port-id"
+  },
+
+  "interface_status_rules": {
+    "enabled": true,
+    "shutdown_pattern": "^\\s*shutdown\\s*$",
+    "no_shutdown_pattern": "^\\s*no\\s+shutdown\\s*$"
+  },
+
+  "routing_extraction_rules": {
+    "enabled": true,
+    "format": "static_route",
+    "static_route_pattern": "^ip route\\s+(\\S+)\\s+(\\S+)\\s*(\\S+)?",
+    "default_route_pattern": "^ip route\\s+0\\.0\\.0\\.0\\s+0\\.0\\.0\\.0\\s+(\\S+)"
+  },
+
+  "model_type_mapping": {
+    "WS-C2960": "switch",
+    "WS-C2960S": "switch",
+    "WS-C2960+": "switch",
+    "WS-C3750": "switch",
+    "WS-C3650": "switch",
+    "WS-C3850": "switch",
+    "C2960": "switch",
+    "C2960S": "switch",
+    "C2960+": "switch",
+    "C3750": "switch",
+    "C3650": "switch",
+    "C3850": "switch",
+    "C9200": "switch",
+    "C9200L": "switch",
+    "C9300": "switch",
+    "C9300L": "switch",
+    "C9400": "switch",
+    "C9404R": "switch",
+    "C9500": "switch",
+    "C9600": "switch",
+    "Nexus": "switch",
+    "ASA": "firewall"
+  }
+}

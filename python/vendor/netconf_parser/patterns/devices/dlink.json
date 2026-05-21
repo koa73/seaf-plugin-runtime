@@ -1,0 +1,105 @@
+{
+  "vendor": "D-Link",
+  "version": "1.1",
+  "description": "Шаблон для коммутаторов D-Link (MES3300, MES3710P, NIS3500 серии)",
+
+  "vendor_signatures": [
+    "loopback-detection enable",
+    "spanning-tree guard root",
+    "spanning-tree bpdu filtering",
+    "spanning-tree restricted-tcn",
+    "snmp-server engineID local",
+    "Active-image: flash://system/images/",
+    "MES3300",
+    "MES3710P",
+    "NIS-3500"
+  ],
+  
+  "detect_patterns": [
+    "^interface gigabitethernet[\\d/]+",
+    "^vlan database",
+    "^hostname [\\w\\-]+",
+    "^\\s*version \\d+\\.\\d+"
+  ],
+  
+  "name_patterns": [
+    {"pattern": "^hostname\\s+([\\w\\-\\.]+)", "group": 1, "priority": 100},
+    {"pattern": "^hostname\\s+\"([\\w\\-\\.]+)\"", "group": 1, "priority": 100},
+    {"pattern": "^System Name\\s*:\\s*([\\w\\-\\.]+)", "group": 1, "priority": 90},
+    {"pattern": "^(\\S+)#sh\\s+run", "group": 1, "priority": 80},
+    {"pattern": "^(\\S+)#", "group": 1, "priority": 70}
+  ],
+  
+  "model_patterns": [
+    {"pattern": "System Description.*?(MES[\\d]+[A-Z]*|NIS-[\\d]+-[A-Z\\d]+)", "group": 1, "priority": 100},
+    {"pattern": "(MES3300-4020)", "group": 1, "priority": 95},
+    {"pattern": "(MES3710P)", "group": 1, "priority": 95},
+    {"pattern": "(NIS-3500-3226PGE)", "group": 1, "priority": 95},
+    {"pattern": "Board Type\\s*:\\s*(NIS-[\\d]+-[A-Z\\d]+)", "group": 1, "priority": 90},
+    {"pattern": "Active-image.*version\\s+(\\d+\\.\\d+\\.\\d+)", "group": 1, "priority": 70}
+  ],
+  
+  "type_inference": [
+    {"any": ["MES3300", "MES3710P", "MES3500", "switchport", "vlan database"], "type": "switch", "score": 95},
+    {"any": ["NIS-3500", "loopback-detection", "spanning-tree portfast"], "type": "switch", "score": 90},
+    {"any": ["ip routing", "router ospf"], "type": "router", "score": 80}
+  ],
+  
+  "default_device_type": "switch",
+  
+  "network_extraction_rules": {
+    "interfaces": {
+      "start": "^interface\\s+(?:gigabitethernet|gi|vlan)\\s+([\\d/]+)",
+      "ip_pattern": "ip address\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)",
+      "disable_pattern": "^\\s*shutdown$"
+    },
+    "vlans": {
+      "all_pattern": "(?:^vlan\\s+|vlan\\s+(?:active\\s+)?)([\\d,\\-]+)",
+      "active_pattern": "(?:switchport access vlan|switchport trunk allowed vlan add?)\\s+([\\d,\\-]+)"
+    }
+  },
+  
+  "bgp_extraction_rules": {
+    "enabled": false
+  },
+  
+  "port_channel_extraction_rules": {
+    "enabled": false
+  },
+  
+  "vxlan_extraction_rules": {
+    "enabled": false
+  },
+  
+  "management_extraction_rules": {
+    "enabled": true,
+    "mgmt_interface_pattern": "^interface\\s+(vlan\\s+\\d+)",
+    "mgmt_ip_pattern": "^\\s*ip address\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)",
+    "mgmt_ip_group": 1,
+    "default_gateway_pattern": "^ip default-gateway\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)",
+    "ntp_server_pattern": "^\\s*(?:sntp server|ntp server|set sntp unicast-server ipv4)\\s+(?:\\d+\\s+)?(?:ip-address\\s+)?(\\d+\\.\\d+\\.\\d+\\.\\d+)",
+    "snmp_server_pattern": "^\\s*(?:snmp-server host|snmp targetaddr)\\s+(?:\\S+\\s+)?(\\d+\\.\\d+\\.\\d+\\.\\d+)"
+  },
+  
+  "lldp_extraction_rules": {
+    "enabled": true,
+    "neighbor_pattern": "^\\s*(gi[\\d/]+)\\s+([\\da-fA-F:]+)\\s+([\\w\\-/]+)\\s+([\\w\\-\\.]+)",
+    "system_name_pattern": "^\\s*System Name\\s*:\\s*([\\w\\-\\.]+)"
+  },
+
+  "interface_status_rules": {
+    "enabled": true,
+    "shutdown_pattern": "^\\s*shutdown\\s*$",
+    "no_shutdown_pattern": "^\\s*no\\s+shutdown\\s*$"
+  },
+
+  "model_type_mapping": {
+    "MES3300": "switch",
+    "MES3710P": "switch",
+    "MES3500": "switch",
+    "MES3200": "switch",
+    "NIS-3500": "switch",
+    "DES-3200": "switch",
+    "DES-3500": "switch"
+  }
+}

@@ -1,0 +1,40 @@
+entities:
+  seaf.company.ta.services.entity:
+    title: Базовая сущность технического сервиса
+    description: Набор общих атрибутов для всех технических сервисов
+    schema:
+      $defs:
+        seaf.company.ta.services.base.entity:
+          type: object
+          properties:
+            title:
+              title: Название
+              description: Отображается в списках и карточках сервисов
+              type: string
+            description:
+              title: Описание
+              type: string
+            app_components:
+              title: Приложения и компоненты
+              description: Связанные прикладные компоненты, которые опираются на сервис
+              type: array
+              items:
+                anyOf:
+                  - $ref: "#/$rels/seaf.company.ai.agents.agent"
+                  - $ref: "#/$rels/seaf.company.app.systems.system" # если используется метамодель SEAF2
+                  # - $ref: "#/$rels/seaf.company.sys_components.sys_components" # если используется метамодель SEAF2
+                  - $ref: "#/$rels/seaf.company.cybersec.systems.system" # если используется метамодель SEAF2
+                  - $ref: "#/$rels/kadzo.v2023.systems.systems" # если используется метамодель КА ДЗО
+                  - $ref: "#/$rels/kadzo.v2023.kb_systems.kb_systems" # если используется метамодель КА ДЗО
+                  - $ref: "#/$rels/kadzo.v2023.tech_services.tech_services" # если используется метамодель КА ДЗО
+                  - $ref: "#/$rels/components.component" # энейблеры - если используется метамодель КА ДЗО
+            stand:
+              title: Стенды
+              description: Стенды, в которых развёрнут сервис
+              type: array
+              items:
+                $ref: "#/$rels/seaf.company.ta.services.stands.stand"
+            external_id:
+              title: Внешний идентификатор
+              description: ID сервиса во внешних системах (CMDB/ITSM)
+              type: string

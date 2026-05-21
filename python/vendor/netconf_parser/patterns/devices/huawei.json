@@ -1,0 +1,108 @@
+{
+  "vendor": "Huawei",
+  "version": "1.3",
+  "vendor_signatures": [
+    "^\\s*# Versatile Routing Platform Software",
+    "^\\s*# VRP \\(R\\) software, Version",
+    "^\\s*# Huawei Versatile Routing Platform Software",
+    "^\\s*!Software Version [HV]\\d+"
+  ],
+  "detect_patterns": [
+    "^sysname\\s+",
+    "^vlan batch",
+    "interface [\\S]+",
+    "^device board \\d+ board-type",
+    "^# Board  Type    :"
+  ],
+  "name_patterns": [
+    {"pattern": "^sysname\\s+(\\S+)", "group": 1},
+    {"pattern": "^\\s+sysname\\s+(\\S+)", "group": 1}
+  ],
+  "model_patterns": [
+    {"pattern": "^Device status:\\s+.*?\\n\\s*1\\s+-\\s+(\\S+\\s+\\S+)\\s+Present", "group": 1, "multiline": true},
+    {"pattern": "^\\s*#\\s*(NE\\d+|CE\\d+|AR\\d+|S\\d+|USG\\d+|Eudemon\\d+|ATN\\d+|MA56\\d+|MA58\\d+|FM\\d+)\\s", "group": 1},
+    {"pattern": "^\\s*Board  Type\\s+:\\s+(\\S+\\s+\\S+)", "group": 1},
+    {"pattern": "^\\s*#\\s+(CE\\d+-\\S+)$", "group": 1},
+    {"pattern": "^\\s*!configuration device model (\\S+)", "group": 1},
+    {"pattern": "^\\s*#\\s*(FM\\d+-\\S+)\\s", "group": 1},
+    {"pattern": "^\\s*#\\s*(FM\\d+)\\s", "group": 1},
+    {"pattern": "^\\s*FM(\\d+)\\-", "group": 1},
+    {"pattern": "^\\s*#\\s*Device status:\\s*.*\\n\\s*1\\s+-\\s+(\\S+)\\s+Present", "group": 1, "multiline": true}
+  ],
+  "type_inference": [
+    {"any": ["ce6881", "ce8850", "ce6800", "fm8850"], "type": "carrier_switch", "score": 95},
+    {"any": ["gpon", "ont", "dba-profile", "ont-lineprofile"], "type": "olt_device", "score": 90},
+    {"any": ["security-policy", "firewall enable", "hrp"], "type": "firewall", "score": 85},
+    {"any": ["mpls", "lpu", "chassis", "mpu", "sfu"], "type": "carrier_router", "score": 80},
+    {"any": ["s57", "s67", "s77", "s97"], "type": "enterprise_switch", "score": 75},
+    {"any": ["ar12", "ar22", "ar32"], "type": "enterprise_router", "score": 70}
+  ],
+  "default_device_type": "router_or_switch",
+
+  "model_fallback_rules": [
+    {
+      "description": "Huawei CE6881 Data Center Switch",
+      "conditions": {"all": ["ce6881"]},
+      "model": "CE6881-48S6CQ"
+    },
+    {
+      "description": "Huawei CE Series Data Center Switch",
+      "conditions": {"any": ["ce68", "ce88"]},
+      "model": "CE Series (Data Center Switch)"
+    },
+    {
+      "description": "Huawei NE Series Carrier Router",
+      "conditions": {"any": ["ne40", "ne80"]},
+      "model": "NE Series (Carrier Router)"
+    },
+    {
+      "description": "Huawei S Series Enterprise Switch",
+      "conditions": {"any": ["s57", "s67"]},
+      "model": "S Series (Enterprise Switch)"
+    },
+    {
+      "description": "Huawei MA Series OLT",
+      "conditions": {"any": ["ma56", "gpon"]},
+      "model": "MA5600/MA5800 Series (OLT)"
+    },
+    {
+      "description": "Huawei USG Series Firewall",
+      "conditions": {"any": ["firewall", "security-policy"]},
+      "model": "USG Series (Firewall)"
+    }
+  ],
+
+  "network_extraction_rules": {
+    "interfaces": {
+      "start": "^interface\\s+(.+)",
+      "ip_pattern": "(?:ip|ipv6) address\\s+(\\S+)\\s+(\\S+)",
+      "disable_pattern": "^\\s*shutdown"
+    },
+    "vlans": {
+      "all_pattern": "(?:vlan|vlan batch)\\s+(\\d+)",
+      "active_pattern": "(?:port default vlan|port trunk allow-pass vlan)\\s+(\\d+)"
+    }
+  },
+
+  "routing_extraction_rules": {
+    "enabled": true,
+    "format": "static_route",
+    "static_route_pattern": "^ip route-static\\s+(\\S+)\\s+(\\S+)\\s*(\\S+)?",
+    "default_route_pattern": "^ip route-static\\s+0\\.0\\.0\\.0\\s+0\\.0\\.0\\.0\\s+(\\S+)"
+  },
+
+  "lldp_extraction_rules": {
+    "enabled": true,
+    "lldp_run_pattern": "^lldp enable",
+    "neighbor_description_pattern": "^\\s+description\\s+(.+)",
+    "lldp_agent_pattern": "^\\s+lldp admin-status",
+    "chassis_id_pattern": "lldp tlv-enable.*chassis-id",
+    "port_id_pattern": "lldp tlv-enable.*port-id"
+  },
+
+  "interface_status_rules": {
+    "enabled": true,
+    "shutdown_pattern": "^\\s*shutdown\\s*$",
+    "no_shutdown_pattern": "^\\s*undo\\s+shutdown\\s*$"
+  }
+}

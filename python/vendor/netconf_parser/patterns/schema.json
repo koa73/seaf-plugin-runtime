@@ -1,0 +1,340 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://netconf-parser.local/patterns/schema.json",
+  "title": "Device Analyzer Pattern Schema",
+  "description": "Схема для валидации JSON-шаблонов сетевого оборудования",
+  "type": "object",
+  "required": ["vendor", "version"],
+  "properties": {
+    "vendor": {
+      "type": "string",
+      "description": "Название вендора (Cisco, Huawei, Juniper, etc.)",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "description": "Версия шаблона в формате семантического версионирования",
+      "pattern": "^\\d+\\.\\d+$"
+    },
+    "description": {
+      "type": "string",
+      "description": "Описание шаблона"
+    },
+    "vendor_signatures": {
+      "type": "array",
+      "description": "Список сигнатур для определения вендора",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1
+    },
+    "detect_patterns": {
+      "type": "array",
+      "description": "Дополнительные паттерны для обнаружения",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "name_patterns": {
+      "type": "array",
+      "description": "Паттерны для извлечения имени устройства",
+      "items": {
+        "$ref": "#/definitions/pattern_rule"
+      }
+    },
+    "model_patterns": {
+      "type": "array",
+      "description": "Паттерны для извлечения модели устройства",
+      "items": {
+        "$ref": "#/definitions/pattern_rule"
+      }
+    },
+    "model_fallback_rules": {
+      "type": "array",
+      "description": "Fallback-правила для определения модели",
+      "items": {
+        "$ref": "#/definitions/model_fallback_rule"
+      }
+    },
+    "type_inference": {
+      "type": "array",
+      "description": "Правила для определения типа устройства (устаревшее, использовать type_rules)",
+      "deprecated": true,
+      "items": {
+        "$ref": "#/definitions/type_rule"
+      }
+    },
+    "type_rules": {
+      "type": "array",
+      "description": "Расширенные правила для определения типа устройства",
+      "items": {
+        "$ref": "#/definitions/type_rule"
+      }
+    },
+    "default_device_type": {
+      "type": "string",
+      "description": "Тип устройства по умолчанию",
+      "enum": ["switch", "router", "firewall", "router_or_switch", "wireless_controller", "olt_device", "carrier_switch", "carrier_router", "enterprise_switch", "enterprise_router", "load_balancer", "unknown"]
+    },
+    "network_extraction_rules": {
+      "type": "object",
+      "description": "Правила извлечения сетевых интерфейсов и VLAN",
+      "properties": {
+        "interfaces": {
+          "$ref": "#/definitions/interface_rules"
+        },
+        "vlans": {
+          "$ref": "#/definitions/vlan_rules"
+        }
+      }
+    },
+    "bgp_extraction_rules": {
+      "type": "object",
+      "description": "Правила извлечения BGP конфигурации",
+      "$ref": "#/definitions/bgp_rules"
+    },
+    "port_channel_extraction_rules": {
+      "type": "object",
+      "description": "Правила извлечения Port-Channel интерфейсов",
+      "$ref": "#/definitions/port_channel_rules"
+    },
+    "vxlan_extraction_rules": {
+      "type": "object",
+      "description": "Правила извлечения VXLAN конфигурации",
+      "$ref": "#/definitions/vxlan_rules"
+    },
+    "management_extraction_rules": {
+      "type": "object",
+      "description": "Правила извлечения management интерфейсов",
+      "$ref": "#/definitions/management_rules"
+    },
+    "routing_extraction_rules": {
+      "type": "object",
+      "description": "Правила извлечения маршрутов",
+      "$ref": "#/definitions/routing_rules"
+    },
+    "model_type_mapping": {
+      "type": "object",
+      "description": "Маппинг моделей на типы устройств",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  },
+  "definitions": {
+    "pattern_rule": {
+      "type": "object",
+      "required": ["pattern", "group"],
+      "properties": {
+        "pattern": {
+          "type": "string",
+          "description": "Regex паттерн",
+          "minLength": 1
+        },
+        "group": {
+          "type": "integer",
+          "description": "Номер группы захвата",
+          "minimum": 0
+        },
+        "priority": {
+          "type": "integer",
+          "description": "Приоритет паттерна (чем выше, тем важнее)"
+        },
+        "multiline": {
+          "type": "boolean",
+          "description": "Использовать multiline режим"
+        },
+        "clean": {
+          "type": "boolean",
+          "description": "Очищать результат от спецсимволов"
+        },
+        "fallback": {
+          "type": "boolean",
+          "description": "Использовать fallback значение"
+        }
+      }
+    },
+    "model_fallback_rule": {
+      "type": "object",
+      "required": ["conditions", "model"],
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Описание правила"
+        },
+        "conditions": {
+          "type": "object",
+          "description": "Условия для применения правила",
+          "properties": {
+            "all": {
+              "type": "array",
+              "description": "Все паттерны должны совпасть",
+              "items": {"type": "string"}
+            },
+            "any": {
+              "type": "array",
+              "description": "Хотя бы один паттерн должен совпасть",
+              "items": {"type": "string"}
+            },
+            "not": {
+              "type": "array",
+              "description": "Ни один паттерн не должен совпасть",
+              "items": {"type": "string"}
+            }
+          },
+          "minProperties": 1
+        },
+        "model": {
+          "type": "string",
+          "description": "Модель устройства для возврата",
+          "minLength": 1
+        }
+      }
+    },
+    "type_rule": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "any": {
+          "type": "array",
+          "description": "Хотя бы один паттерн должен совпасть",
+          "items": {"type": "string"}
+        },
+        "all": {
+          "type": "array",
+          "description": "Все паттерны должны совпасть",
+          "items": {"type": "string"}
+        },
+        "not": {
+          "type": "array",
+          "description": "Ни один паттерн не должен совпасть",
+          "items": {"type": "string"}
+        },
+        "type": {
+          "type": "string",
+          "description": "Тип устройства",
+          "minLength": 1
+        },
+        "score": {
+          "type": "integer",
+          "description": "Вес правила (приоритет)",
+          "minimum": 0
+        }
+      },
+      "oneOf": [
+        {"required": ["any"]},
+        {"required": ["all"]}
+      ]
+    },
+    "interface_rules": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "type": "string",
+          "description": "Формат конфигурации интерфейсов",
+          "enum": ["mikrotik_section", "single_line", "multi_line", "juniper_set"]
+        },
+        "section_header": {
+          "type": "string",
+          "description": "Паттерн заголовка секции (для MikroTik)"
+        },
+        "start": {
+          "type": "string",
+          "description": "Паттерн начала интерфейса"
+        },
+        "ip_pattern": {
+          "type": "string",
+          "description": "Паттерн для извлечения IP адреса"
+        },
+        "interface_pattern": {
+          "type": "string",
+          "description": "Паттерн для извлечения имени интерфейса"
+        },
+        "disable_pattern": {
+          "type": "string",
+          "description": "Паттерн отключённого интерфейса"
+        }
+      }
+    },
+    "vlan_rules": {
+      "type": "object",
+      "properties": {
+        "all_pattern": {
+          "type": "string",
+          "description": "Паттерн для извлечения всех VLAN"
+        },
+        "active_pattern": {
+          "type": "string",
+          "description": "Паттерн для извлечения активных VLAN"
+        }
+      }
+    },
+    "bgp_rules": {
+      "type": "object",
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "asn_pattern": {"type": "string"},
+        "router_id_pattern": {"type": "string"},
+        "neighbor_pattern": {"type": "string"},
+        "neighbor_desc_pattern": {"type": "string"},
+        "address_family_pattern": {"type": "string"},
+        "evpn_neighbors_pattern": {"type": "string"},
+        "local_address_pattern": {"type": "string"}
+      }
+    },
+    "port_channel_rules": {
+      "type": "object",
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "port_channel_pattern": {"type": "string"},
+        "port_channel_desc_pattern": {"type": "string"},
+        "port_channel_members_pattern": {"type": "string"},
+        "port_channel_vlans_pattern": {"type": "string"}
+      }
+    },
+    "vxlan_rules": {
+      "type": "object",
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "vtep_ip_pattern": {"type": "string"},
+        "vni_pattern": {"type": "string"},
+        "vni_name_pattern": {"type": "string"},
+        "evpn_irb_mac_pattern": {"type": "string"},
+        "mac_vrf_pattern": {"type": "string"},
+        "mac_vrf_rd_pattern": {"type": "string"},
+        "mac_vrf_rt_pattern": {"type": "string"},
+        "mac_vrf_desc_pattern": {"type": "string"}
+      }
+    },
+    "management_rules": {
+      "type": "object",
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "mgmt_interface_pattern": {"type": "string"},
+        "mgmt_ip_pattern": {"type": "string"},
+        "mgmt_vrf_pattern": {"type": "string"},
+        "default_route_pattern": {"type": "string"}
+      }
+    },
+    "routing_rules": {
+      "type": "object",
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "format": {
+          "type": "string",
+          "enum": ["mikrotik_section", "static_route"]
+        },
+        "section_pattern": {"type": "string"},
+        "route_pattern": {"type": "string"},
+        "dst_pattern": {"type": "string"},
+        "gateway_pattern": {"type": "string"},
+        "comment_pattern": {"type": "string"},
+        "disabled_pattern": {"type": "string"},
+        "static_route_pattern": {"type": "string"},
+        "default_route_pattern": {"type": "string"}
+      }
+    }
+  }
+}

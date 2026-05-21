@@ -1,0 +1,108 @@
+{
+  "vendor": "Qtech",
+  "version": "1.0",
+  "description": "Шаблон для коммутаторов Qtech (QSW-3310, QSW-6910 серии)",
+  
+  "vendor_signatures": [
+    "QSW-",
+    "Qtech",
+    "System Description.*QSW",
+    "QSW_6910_OS",
+    "QSW_3310_OS",
+    "!System Description",
+    "!Current Configuration:",
+    "vlan database",
+    "vlan routing"
+  ],
+  
+  "detect_patterns": [
+    "^interface [\\d/]+",
+    "^vlan database",
+    "^hostname [\\w\\-]+",
+    "^configure"
+  ],
+  
+  "name_patterns": [
+    {"pattern": "^hostname\\s+\"([\\w\\-\\.]+)\"", "group": 1, "priority": 100},
+    {"pattern": "^hostname\\s+([\\w\\-\\.]+)", "group": 1, "priority": 95},
+    {"pattern": "^snmp-server sysname\\s+\"([\\w\\-\\.]+)\"", "group": 1, "priority": 90},
+    {"pattern": "^System Name\\s*:\\s*([\\w\\-\\.]+)", "group": 1, "priority": 85},
+    {"pattern": "^(\\S+)#show\\s+version", "group": 1, "priority": 80},
+    {"pattern": "^(\\S+)#", "group": 1, "priority": 70}
+  ],
+  
+  "model_patterns": [
+    {"pattern": "System [Dd]escription.*?(QSW-[\\dA-Z\\-]+)", "group": 1, "priority": 100},
+    {"pattern": "(QSW-6910-26F)", "group": 1, "priority": 95},
+    {"pattern": "(QSW-3310-28TX-POE-AC)", "group": 1, "priority": 95},
+    {"pattern": "(QSW-3310-12T-I-POE-DC)", "group": 1, "priority": 95},
+    {"pattern": "(QSW-3310-[\\dA-Z\\-]+)", "group": 1, "priority": 90},
+    {"pattern": "(QSW-6910-[\\dA-Z\\-]+)", "group": 1, "priority": 90},
+    {"pattern": "Module information:\\s*Slot \\d+\\s*:\\s*(QSW-[\\dA-Z\\-]+)", "group": 1, "priority": 90},
+    {"pattern": "install \\d+ (QSW-[\\dA-Z\\-]+)", "group": 1, "priority": 85}
+  ],
+  
+  "type_inference": [
+    {"any": ["QSW-6910", "QSW-3310", "vlan database", "switchport"], "type": "switch", "score": 95},
+    {"any": ["router ospf", "ip routing", "vrf"], "type": "router", "score": 85},
+    {"any": ["AggregatePort", "TenGigabitEthernet", "FortyGigabitEthernet"], "type": "switch", "score": 90}
+  ],
+  
+  "default_device_type": "switch",
+  
+  "network_extraction_rules": {
+    "interfaces": {
+      "start": "^interface\\s+([\\d/]+)",
+      "ip_pattern": "ip address\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)",
+      "disable_pattern": "^\\s*shutdown$"
+    },
+    "vlans": {
+      "all_pattern": "(?:^vlan\\s+|vlan\\s+(?:routing\\s+)?)([\\d,\\-]+)",
+      "active_pattern": "(?:switchport access vlan|switchport trunk allowed vlan add?)\\s+([\\d,\\-]+)"
+    }
+  },
+  
+  "bgp_extraction_rules": {
+    "enabled": false
+  },
+  
+  "port_channel_extraction_rules": {
+    "enabled": true,
+    "pattern": "^interface\\s+(AggregatePort\\d+)",
+    "members_pattern": "^\\s*port-group\\s+(\\d+)"
+  },
+  
+  "vxlan_extraction_rules": {
+    "enabled": false
+  },
+  
+  "management_extraction_rules": {
+    "enabled": true,
+    "mgmt_interface_pattern": "^interface\\s+(vlan\\s+\\d+)",
+    "mgmt_ip_pattern": "^\\s*ip address\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)",
+    "mgmt_ip_group": 1,
+    "default_gateway_pattern": "^ip (?:default-)?route\\s+0\\.0\\.0\\.0\\s+0\\.0\\.0\\.0\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)",
+    "ntp_server_pattern": "^\\s*(?:sntp server|ntp server)\\s+(?:\\d+\\s+)?(?:ip-address\\s+)?\"?([\\d\\.]+)\"?",
+    "snmp_server_pattern": "^\\s*(?:snmp-server v3-host|snmp-server host)\\s+(?:\\S+\\s+)?\"?([\\d\\.]+)\"?"
+  },
+  
+  "lldp_extraction_rules": {
+    "enabled": true,
+    "neighbor_pattern": "^\\s*([\\w]+\\s*\\d+/\\d+)\\s+([\\w\\.]+)\\s+([\\w\\-/]+)\\s+([\\w\\-\\.]+)",
+    "system_name_pattern": "^System Name\\s*:\\s*([\\w\\-\\.]+)"
+  },
+
+  "interface_status_rules": {
+    "enabled": true,
+    "shutdown_pattern": "^\\s*shutdown\\s*$",
+    "no_shutdown_pattern": "^\\s*no\\s+shutdown\\s*$"
+  },
+
+  "model_type_mapping": {
+    "QSW-3310": "switch",
+    "QSW-6910": "switch",
+    "QSW-3500": "switch",
+    "QSW-4500": "switch",
+    "QSW-2800": "switch"
+  }
+}

@@ -1,0 +1,84 @@
+entities:
+  seaf.company.ta.components.networks:
+    title: &entity_title Сетевое устройство
+    description: &entity_description Физические/виртуальные сетевые устройства (маршрутизаторы, NGFW, криптошлюзы и пр.)
+
+    objects:
+      network_component:
+        route: "/"
+        title: Сетевое устройство
+        symbol: network_component
+
+    schema:
+      title: *entity_title
+      description: *entity_description
+      type: object
+      additionalProperties: false
+
+      $defs:
+        network_component_dzo:
+          title: Расширение описания сетевых устройств для целей проверки стандартов
+          type: object
+          properties:
+            auth_type:
+              title: Тип аутентификации
+              enum:
+                - Отсутствует
+                - Пароль и логин
+                - Сертификат
+                - Двухфакторная
+
+      patternProperties:
+        "^([a-zA-Z0-9_-]+)(\\.[a-zA-Z0-9_-]+)+$":
+          title: *entity_title
+          description: *entity_description
+          type: object
+          allOf:
+            - $ref: "#/$defs/seaf.company.ta.services.base.entity"
+            - $ref: "#/$defs/network_component_dzo"
+          properties:
+            type:
+              title: Тип устройства
+              enum:
+                - Маршрутизатор (роутер)
+                - Коммутатор (свитч)
+                - Точка доступа (Wi-Fi)
+                - Межсетевой экран (файрвол)
+                - Web Application Firewall
+                - Сетевой концентратор (хаб)
+                - Повторитель (репитер)
+                - Балансировщик нагрузки (Load Balancer)
+                - Анализатор трафика (сетевой анализатор)
+                - VoIP-шлюз
+            model:
+              title: Модель
+              type: string
+            realization_type:
+              title: Форм-фактор
+              type: string
+            address:
+              title: IP/адрес
+              type: string
+            location:
+              title: Локации
+              type: array
+              items:
+                anyOf:
+                  - $ref: "#/$rels/seaf.company.ta.services.dcs.dc"
+                  - $ref: "#/$rels/seaf.company.ta.services.dc_offices.dc_office"
+            segment:
+              title: Сетевой сегмент
+              $ref: "#/$rels/seaf.company.ta.services.network_segments.network_segment"
+            network_connection:
+              title: Подключенные сети
+              type: array
+              items:
+                $ref: "#/$rels/seaf.company.ta.services.networks.network"
+            purpose:
+              title: Назначение
+              type: string
+            stand:
+              title: Стенды
+              type: array
+              items:
+                $ref: "#/$rels/seaf.company.ta.services.stands.stand"

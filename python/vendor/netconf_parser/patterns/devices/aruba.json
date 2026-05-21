@@ -1,0 +1,54 @@
+{
+  "vendor": "Aruba",
+  "version": "1.1",
+  "vendor_signatures": [
+    "^ArubaOS.*Software",
+    "^hostname [\\w\\-]+",
+    "^module [0-9]+ type"
+  ],
+  "detect_patterns": [
+    "^vlan [0-9]+",
+    "^interface [0-9]+/[0-9]+",
+    "^ip default-gateway"
+  ],
+  "name_patterns": [
+    {"pattern": "^hostname\\s+(\\S+)", "group": 1}
+  ],
+  "model_patterns": [
+    {"pattern": "^ArubaOS.*(J\\d+)", "group": 1},
+    {"pattern": "^module \\d+ type (\\S+)", "group": 1},
+    {"pattern": "^system-info\\s+model: (\\S+)", "group": 1}
+  ],
+  "type_inference": [
+    {"any": ["ip routing", "router ospf", "router bgp"], "type": "switch", "score": 80},
+    {"any": ["interface vlan", "vlan"], "type": "switch", "score": 70},
+    {"any": ["wlan ssid-profile", "wlan virtual-ap"], "type": "wireless_controller", "score": 65}
+  ],
+  "default_device_type": "switch",
+  "network_extraction_rules": {
+    "interfaces": {
+      "start": "^interface\\s+([0-9]+/[0-9]+(?:/[0-9]+)?)",
+      "ip_pattern": "ip address\\s+(\\S+)\\s+(\\S+)",
+      "disable_pattern": "^\\s*disable"
+    },
+    "vlans": {
+      "all_pattern": "vlan\\s+(\\d+)",
+      "active_pattern": "interface vlan\\s+(\\d+)"
+    }
+  },
+
+  "lldp_extraction_rules": {
+    "enabled": true,
+    "lldp_run_pattern": "^lldp run",
+    "neighbor_description_pattern": "^\\s+lldp description\\s+(.+)",
+    "lldp_agent_pattern": "^\\s+lldp tlv-select",
+    "chassis_id_pattern": "lldp tlv-select.*chassis-id",
+    "port_id_pattern": "lldp tlv-select.*port-id"
+  },
+
+  "interface_status_rules": {
+    "enabled": true,
+    "shutdown_pattern": "^\\s*disable\\s*$",
+    "no_shutdown_pattern": "^\\s*no\\s+disable\\s*$"
+  }
+}

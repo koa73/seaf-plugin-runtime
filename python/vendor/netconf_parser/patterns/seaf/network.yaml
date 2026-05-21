@@ -1,0 +1,117 @@
+entities:
+  seaf.company.ta.services.networks:
+    title: &entity_title Сетевая инфраструктура
+    description: &entity_description LAN и WAN сети, обслуживающие площадки компании
+
+    objects:
+      network:
+        route: "/"
+        title: Сеть
+        symbol: network
+
+    schema:
+      title: *entity_title
+      description: *entity_description
+      type: object
+      additionalProperties: false
+
+      $defs:
+        seaf.company.ta.services.networks:
+          wan:
+            type: object
+            properties:
+              type:
+                title: Тип сети
+                enum:
+                  - WAN
+              location:
+                title: Локации
+                description: ЦОДы или офисы, где подключена сеть
+                type: array
+                items:
+                  anyOf:
+                    - $ref: "#/$rels/seaf.company.ta.services.dcs.dc"
+                    - $ref: "#/$rels/seaf.company.ta.services.dc_offices.dc_office"
+              wan_ip:
+                title: Подсеть WAN / IP
+                type: string
+              provider:
+                title: Провайдер
+                type: string
+              segment:
+                title: Сетевые сегменты
+                type: array
+                items:
+                  $ref: "#/$rels/seaf.company.ta.services.network_segments.network_segment"
+              vrf:
+                title: VRF
+                type: string
+              autonomous_system:
+                title: Автономная система
+                type: string
+              ip_version:
+                title: Версия IP
+                type: string
+                enum:
+                  - v4
+                  - v6
+            required:
+              - type
+              - location
+              - wan_ip
+              - provider
+
+          lan:
+            type: object
+            properties:
+              type:
+                title: Тип сети
+                enum:
+                  - LAN
+              location:
+                title: Локации
+                description: ЦОДы или офисы, где подключена сеть
+                type: array
+                items:
+                  anyOf:
+                    - $ref: "#/$rels/seaf.company.ta.services.dcs.dc"
+                    - $ref: "#/$rels/seaf.company.ta.services.dc_offices.dc_office"
+              lan_type:
+                title: Тип LAN
+                enum:
+                  - Проводная
+                  - Беспроводная
+              segment:
+                title: Сетевые сегменты
+                type: array
+                items:
+                  $ref: "#/$rels/seaf.company.ta.services.network_segments.network_segment"
+              vlan:
+                title: VLAN
+                type: integer
+                minimum: 0
+              ipnetwork:
+                title: IP-сеть
+                type: string
+              purpose:
+                title: Назначение
+                type: string
+              vrf:
+                title: VRF
+                type: string
+            required:
+              - type
+              - location
+              - lan_type
+              - ipnetwork
+
+      patternProperties:
+        "^([a-zA-Z0-9_-]+)(\\.[a-zA-Z0-9_-]+)+$":
+          title: *entity_title
+          description: *entity_description
+          type: object
+          allOf:
+            - $ref: "#/$defs/seaf.company.ta.services.base.entity"
+          oneOf:
+            - $ref: "#/$defs/seaf.company.ta.services.networks/wan"
+            - $ref: "#/$defs/seaf.company.ta.services.networks/lan"

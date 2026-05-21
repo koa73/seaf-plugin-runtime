@@ -1,0 +1,125 @@
+{
+  "vendor": "HPE/Aruba (Comware)",
+  "version": "2.1",
+  "description": "Оптимизированный шаблон для коммутаторов HPE/Aruba на базе Comware 7 (5510, 5130, 5700 серии)",
+  
+  "vendor_signatures": [
+    "HPE Comware Software",
+    "Copyright (c) 2010-20[0-9][0-9] Hewlett Packard Enterprise Development LP",
+    "HPE \\d+.*Switch",
+    "Comware Software, Version 7",
+    "version 7\\.\\d+",
+    "sysname ",
+    "display version",
+    "display current-configuration"
+  ],
+  
+  "detect_patterns": [
+    "^#\\s*$",
+    "^version \\d+\\.\\d+",
+    "^interface [\\w/]+",
+    "^vlan \\d+"
+  ],
+  
+  "name_patterns": [
+    {"pattern": "^sysname\\s+([\\w\\-\\.]+)", "group": 1, "priority": 100},
+    {"pattern": "^<([\\w\\-\\.]+)>display", "group": 1, "priority": 90},
+    {"pattern": "^(\\S+)#.*display version", "group": 1, "priority": 80}
+  ],
+  
+  "model_patterns": [
+    {"pattern": "(HPE\\s+5510\\s+\\d+G\\s+SFP\\s+\\d+SFP\\+\\s+HI\\s+1-slot\\s+Switch\\s+JH\\d+A)", "group": 1, "priority": 100},
+    {"pattern": "(HPE\\s+5130-\\d+G-PoE\\+-\\d+SFP\\+\\s+\\(\\d+W\\)\\s+EI\\s+Switch)", "group": 1, "priority": 100},
+    {"pattern": "(HPE\\s+5130-\\d+G\\s+\\d+SFP\\+\\s+EI\\s+Switch)", "group": 1, "priority": 95},
+    {"pattern": "(HPE\\s+5700[^\n]+)", "group": 1, "priority": 95},
+    {"pattern": "(HPE\\s+5900[^\n]+)", "group": 1, "priority": 95},
+    {"pattern": "(HPE\\s+5400R[^\n]+)", "group": 1, "priority": 95},
+    {"pattern": "(\\d+-\\d+G[^\\n]*EI\\s+Switch)", "group": 1, "priority": 90},
+    {"pattern": "(\\d+-\\d+G[^\\n]*PoE[^\\n]*EI\\s+Switch)", "group": 1, "priority": 90},
+    {"pattern": "BOARD TYPE:\\s*([^\n]+)", "group": 1, "priority": 85}
+  ],
+  
+  "type_inference": [
+    {"any": ["HPE 5510", "HPE 5130", "HPE 5700", "HPE 5900", "switchport", "vlan"], "type": "switch", "score": 95},
+    {"any": ["irf member", "IRF", "Intelligent Resilient Framework"], "type": "switch", "score": 90},
+    {"any": ["ospf", "router-id", "ip routing"], "type": "router", "score": 85},
+    {"any": ["Vlan-interface", "interface Vlanif"], "type": "switch", "score": 80}
+  ],
+  
+  "default_device_type": "switch",
+  
+  "network_extraction_rules": {
+    "interfaces": {
+      "start": "^interface\\s+([\\w-]+\\s*\\d+/\\d+/\\d+|Vlan-interface\\d+|BAGG\\d+)",
+      "ip_pattern": "ip address\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)",
+      "disable_pattern": "^\\s*shutdown\\s*$"
+    },
+    "vlans": {
+      "all_pattern": "^vlan\\s+(\\d+(?:\\s+to\\s+\\d+)?)",
+      "active_pattern": "(?:port access vlan|port trunk permit vlan)\\s+(\\d+)"
+    }
+  },
+  
+  "bgp_extraction_rules": {
+    "enabled": true,
+    "asn_pattern": "^bgp\\s+(\\d+)",
+    "router_id_pattern": "^router-id\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)",
+    "neighbor_pattern": "^peer\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)\\s+as-number\\s+(\\d+)",
+    "neighbor_desc_pattern": "^peer\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)\\s+description\\s+(.+)",
+    "address_family_pattern": "^address-family\\s+(\\S+)",
+    "evpn_neighbors_pattern": "^peer\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)\\s+enable"
+  },
+  
+  "port_channel_extraction_rules": {
+    "enabled": true,
+    "pattern": "^interface\\s+(BAGG\\d+|Bridge-Aggregation\\d+)",
+    "members_pattern": "^port link-aggregation group\\s+(\\d+)"
+  },
+  
+  "vxlan_extraction_rules": {
+    "enabled": false
+  },
+  
+  "management_extraction_rules": {
+    "enabled": true,
+    "mgmt_interface_pattern": "^interface\\s+(Vlan-interface\\d+|Vlanif\\d+)",
+    "mgmt_ip_pattern": "^\\s*ip address\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)",
+    "mgmt_ip_group": 1,
+    "default_gateway_pattern": "^ip route-static\\s+0\\.0\\.0\\.0\\s+0\\.0\\.0\\.0\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)",
+    "ntp_server_pattern": "^\\s*(?:ntp-service unicast-server|ntp-server)\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)",
+    "snmp_server_pattern": "^\\s*snmp-agent target-host\\s+(?:trap\\s+)?(?:address\\s+)?(?:udp-domain\\s+)?(?:params\\s+)?(\\d+\\.\\d+\\.\\d+\\.\\d+)"
+  },
+  
+  "lldp_extraction_rules": {
+    "enabled": true,
+    "neighbor_pattern": "^\\s*([\\w]+\\d+/\\d+/\\d+)\\s+([\\w\\-\\.]+)\\s+([\\da-fA-F-]+)\\s+([\\w\\-/]+)",
+    "global_enable_pattern": "^lldp global enable"
+  },
+
+  "interface_status_rules": {
+    "enabled": true,
+    "shutdown_pattern": "^\\s*shutdown\\s*$",
+    "no_shutdown_pattern": "^\\s*undo\\s+shutdown\\s*$"
+  },
+
+  "irf_extraction_rules": {
+    "enabled": true,
+    "member_pattern": "^irf member\\s+(\\d+)(?:\\s+priority\\s+(\\d+))?",
+    "port_pattern": "^irf-port\\s+(\\d+/\\d+)",
+    "group_pattern": "^port group interface\\s+([\\w/]+)"
+  },
+  
+  "model_type_mapping": {
+    "HPE 5510": "switch",
+    "HPE 5130": "switch",
+    "HPE 5700": "switch",
+    "HPE 5900": "switch",
+    "HPE 5400R": "switch",
+    "HPE 3800": "switch",
+    "HPE 2930F": "switch",
+    "HPE 2930M": "switch",
+    "JH149A": "switch",
+    "JG936A": "switch",
+    "JG937A": "switch"
+  }
+}

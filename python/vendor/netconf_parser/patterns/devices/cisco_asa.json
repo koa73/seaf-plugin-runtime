@@ -1,0 +1,134 @@
+{
+  "vendor": "Cisco ASA",
+  "version": "1.0",
+  "description": "Шаблон для Cisco ASA Firewall (версии 8.x, 9.x)",
+
+  "vendor_signatures": [
+    "^: Saved",
+    "^ASA Version",
+    "^hostname ",
+    "nameif ",
+    "security-level "
+  ],
+
+  "detect_patterns": [
+    "^interface ",
+    "^object network",
+    "^access-list",
+    "^nat "
+  ],
+
+  "name_patterns": [
+    {"pattern": "^hostname\\s+(\\S+)", "group": 1, "priority": 100}
+  ],
+
+  "model_patterns": [
+    {"pattern": "^interface (GigabitEthernet\\d+/\\d+)", "group": 1, "priority": 40},
+    {"pattern": "^interface (Ethernet\\d+/\\d+)", "group": 1, "priority": 30}
+  ],
+
+  "type_inference": [
+    {"any": ["nameif", "security-level", "access-group", "nat ", "object network"], "type": "firewall", "score": 100},
+    {"any": ["failover", "standby"], "type": "firewall_ha", "score": 95},
+    {"any": ["vpn", "tunnel-group", "crypto"], "type": "firewall_vpn", "score": 90}
+  ],
+
+  "default_device_type": "firewall",
+
+  "model_fallback_rules": [
+    {
+      "description": "Cisco ASA 5505",
+      "conditions": {"any": ["interface Ethernet0/", "interface Vlan"]},
+      "model": "ASA 5505"
+    },
+    {
+      "description": "Cisco ASA 5500-X",
+      "conditions": {"any": ["interface GigabitEthernet0/"]},
+      "model": "ASA 5500-X"
+    },
+    {
+      "description": "Cisco ASA with FirePOWER",
+      "conditions": {"any": ["firepower", "ftd"]},
+      "model": "ASA with FirePOWER"
+    }
+  ],
+
+  "network_extraction_rules": {
+    "interfaces": {
+      "start": "^interface\\s+(\\S+)",
+      "ip_pattern": "ip address\\s+(\\S+)\\s+(\\S+)",
+      "disable_pattern": "^\\s*shutdown"
+    },
+    "vlans": {
+      "all_pattern": "^interface Vlan(\\d+)",
+      "active_pattern": "^interface Vlan(\\d+)"
+    }
+  },
+
+  "asa_extraction_rules": {
+    "enabled": true,
+    "asa_version_pattern": "^ASA Version\\s+(\\S+)",
+    "nameif_pattern": "^\\s+nameif\\s+(\\S+)",
+    "security_level_pattern": "^\\s+security-level\\s+(\\d+)",
+    "object_network_pattern": "^object network\\s+(\\S+)",
+    "object_subnet_pattern": "^\\s+subnet\\s+(\\S+)\\s+(\\S+)",
+    "object_host_pattern": "^\\s+host\\s+(\\S+)",
+    "nat_pattern": "^\\s+nat\\s+\\((\\S+),(\\S+)\\)",
+    "access_list_pattern": "^access-list\\s+(\\S+)",
+    "access_group_pattern": "^access-group\\s+(\\S+)\\s+interface\\s+(\\S+)"
+  },
+
+  "failover_extraction_rules": {
+    "enabled": true,
+    "failover_lan_pattern": "^failover lan (interface|unit|link)\\s+(\\S+)",
+    "failover_interface_pattern": "^failover (interface|link)\\s+(\\S+)",
+    "standby_ip_pattern": "^\\s+ip address\\s+(\\S+)\\s+(\\S+)\\s+standby\\s+(\\S+)"
+  },
+
+  "vpn_extraction_rules": {
+    "enabled": true,
+    "tunnel_group_pattern": "^tunnel-group\\s+(\\S+)\\s+type\\s+(\\S+)",
+    "group_policy_pattern": "^group-policy\\s+(\\S+)\\s+attributes",
+    "crypto_map_pattern": "^crypto map\\s+(\\S+)"
+  },
+
+  "lldp_extraction_rules": {
+    "enabled": true,
+    "lldp_run_pattern": "^lldp run",
+    "neighbor_description_pattern": "^\\s+description\\s+(.+)",
+    "lldp_agent_pattern": "^\\s+lldp tlv-select",
+    "chassis_id_pattern": "lldp tlv-select.*chassis-id",
+    "port_id_pattern": "lldp tlv-select.*port-id"
+  },
+
+  "interface_status_rules": {
+    "enabled": true,
+    "shutdown_pattern": "^\\s*shutdown\\s*$",
+    "no_shutdown_pattern": "^\\s*no\\s+shutdown\\s*$"
+  },
+
+  "model_type_mapping": {
+    "ASA5505": "firewall",
+    "ASA5510": "firewall",
+    "ASA5520": "firewall",
+    "ASA5540": "firewall",
+    "ASA5550": "firewall",
+    "ASA5585": "firewall",
+    "ASA5506": "firewall",
+    "ASA5506-X": "firewall",
+    "ASA5506W": "firewall",
+    "ASA5508": "firewall",
+    "ASA5508-X": "firewall",
+    "ASA5512": "firewall",
+    "ASA5512-X": "firewall",
+    "ASA5515": "firewall",
+    "ASA5515-X": "firewall",
+    "ASA5525": "firewall",
+    "ASA5525-X": "firewall",
+    "ASA5545": "firewall",
+    "ASA5545-X": "firewall",
+    "ASA5555": "firewall",
+    "ASA5555-X": "firewall",
+    "ASA5585-X": "firewall"
+  }
+}

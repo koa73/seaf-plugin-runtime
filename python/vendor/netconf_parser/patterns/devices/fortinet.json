@@ -1,0 +1,52 @@
+{
+  "vendor": "Fortinet",
+  "version": "1.1",
+  "vendor_signatures": [
+    "^# FortiGate",
+    "^config system global",
+    "^FGT-\\w+-\\d+"
+  ],
+  "detect_patterns": [
+    "^config firewall policy",
+    "^config system interface",
+    "^config router static"
+  ],
+  "name_patterns": [
+    {"pattern": "^set hostname\\s+\"?([^\\s\"]+)\"?", "group": 1}
+  ],
+  "model_patterns": [
+    {"pattern": "^# FortiGate-(\\S+) -", "group": 1},
+    {"pattern": "^FGT-(\\w+)-\\d+", "group": 1},
+    {"pattern": "^config system global\\s+set hostname \"[^\\s]+\"\\s+set model-id (\\S+)", "group": 1, "multiline": true}
+  ],
+  "type_inference": [
+    {"any": ["config firewall policy", "config firewall address", "config system accprofile"], "type": "firewall", "score": 100}
+  ],
+  "default_device_type": "firewall",
+  "network_extraction_rules": {
+    "interfaces": {
+      "start": "^edit\\s+\"?([^\\s\"]+)\"?",
+      "ip_pattern": "set ip\\s+(\\S+)\\s+(\\S+)",
+      "disable_pattern": "set status down"
+    },
+    "vlans": {
+      "all_pattern": "^edit\\s+\"vlan(\\d+)\"",
+      "active_pattern": "^edit\\s+\"vlan(\\d+)\""
+    }
+  },
+
+  "lldp_extraction_rules": {
+    "enabled": true,
+    "lldp_run_pattern": "^config system lldp",
+    "neighbor_description_pattern": "^\\s+set description\\s+(.+)",
+    "lldp_agent_pattern": "^config system lldp",
+    "chassis_id_pattern": "set chassis-id",
+    "port_id_pattern": "set port-id"
+  },
+
+  "interface_status_rules": {
+    "enabled": true,
+    "shutdown_pattern": "set status down",
+    "no_shutdown_pattern": "set status up"
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "vendor": "b4com",
+  "version": "1.3",
+  "vendor_signatures": [
+    "^! Software version: BCOM_",
+    "^feature netconf-ssh",
+    "^feature netconf-tls"
+  ],
+  "detect_patterns": [
+    "^hostname\\s+",
+    "^vlan database",
+    "^interface\\s+",
+    "^nvo vxlan"
+  ],
+  "name_patterns": [
+    {"pattern": "^hostname\\s+(\\S+)", "group": 1}
+  ],
+  "model_patterns": [
+    {"pattern": "^! Software version: (BCOM_[A-Z0-9\\-]+)", "group": 1},
+    {"pattern": "^! Software version: (BCOM-MR[0-9]+-[A-Z0-9\\-]+)", "group": 1},
+    {"pattern": "^! Software version: BCOM_([A-Z0-9]+)", "group": 1}
+  ],
+  "type_inference": [
+    {"any": ["evpn", "vxlan", "nvo vxlan", "mac vrf"], "type": "switch", "score": 95},
+    {"any": ["router bgp", "address-family ipv4", "address-family l2vpn evpn"], "type": "router", "score": 90},
+    {"any": ["bridge", "vlan database", "switchport"], "type": "switch", "score": 85},
+    {"any": ["data-center-bridging", "port-group", "load-balance"], "type": "switch", "score": 80},
+    {"any": ["router ospf", "ospf router-id"], "type": "router", "score": 88},
+    {"all": ["router bgp", "neighbor.*remote-as", "address-family l2vpn evpn", "nvo vxlan"], "type": "spine-leaf switch", "score": 98},
+    {"all": ["router ospf", "ip vrf forwarding", "encapsulation dot1q"], "type": "border router", "score": 92}
+  ],
+  "default_device_type": "switch",
+  "vrf_extraction_rules": {
+    "enabled": true,
+    "vrf_definition_pattern": "^ip vrf\\s+(\\S+)",
+    "vrf_description_pattern": "^\\s+description\\s+(.+)",
+    "vrf_forwarding_pattern": "^\\s+ip vrf forwarding\\s+(\\S+)"
+  },
+  "ospf_extraction_rules": {
+    "enabled": true,
+    "process_pattern": "^router ospf\\s+(\\d+)\\s*(\\S+)?",
+    "router_id_pattern": "^\\s+ospf router-id\\s+(\\S+)",
+    "area_pattern": "^\\s+area\\s+(\\S+)\\s+authentication\\s+(\\S+)",
+    "network_pattern": "^\\s+network\\s+(\\S+)\\s+area\\s+(\\S+)"
+  },
+  "lldp_extraction_rules": {
+    "enabled": true,
+    "lldp_run_pattern": "^lldp\\s+run",
+    "neighbor_description_pattern": "^\\s+description\\s+(.+)",
+    "lldp_agent_pattern": "^\\s+lldp-agent",
+    "chassis_id_pattern": "set lldp chassis-id-tlv\\s+(\\S+)",
+    "port_id_pattern": "set lldp port-id-tlv\\s+(\\S+)"
+  },
+  "interface_status_rules": {
+    "enabled": true,
+    "shutdown_pattern": "^\\s*shutdown\\s*$",
+    "no_shutdown_pattern": "^\\s*no\\s+shutdown\\s*$"
+  },
+  "network_extraction_rules": {
+    "interfaces": {
+      "start": "^interface\\s+(\\S+)",
+      "ip_pattern": "ip address\\s+(\\S+)\\s+(\\S+)",
+      "disable_pattern": "^\\s*shutdown"
+    },
+    "vlans": {
+      "all_pattern": "vlan\\s+(\\d+)\\s+bridge",
+      "active_pattern": "vlan\\s+(\\d+)\\s+bridge.*state\\s+enable"
+    }
+  },
+  "bgp_extraction_rules": {
+    "enabled": true,
+    "asn_pattern": "^router bgp\\s+(\\d+)",
+    "router_id_pattern": "bgp router-id\\s+(\\S+)",
+    "neighbor_pattern": "^\\s+neighbor\\s+(\\S+)\\s+remote-as\\s+(\\d+)",
+    "neighbor_desc_pattern": "^\\s+neighbor\\s+(\\S+)\\s+description\\s+(\\S+)",
+    "address_family_pattern": "^\\s+address-family\\s+(\\S+)\\s+(\\S+)",
+    "evpn_neighbors_pattern": "^\\s+neighbor\\s+(\\S+)\\s+activate\\s*$"
+  },
+  "port_channel_extraction_rules": {
+    "enabled": true,
+    "port_channel_pattern": "^interface\\s+(po\\d+)",
+    "port_channel_desc_pattern": "^\\s+description\\s+(.+)",
+    "port_channel_members_pattern": "^\\s+channel-group\\s+(\\d+)\\s+mode\\s+(\\S+)",
+    "port_channel_vlans_pattern": "^\\s+switchport trunk allowed vlan.*?([\\d\\-,]+)"
+  },
+  "vxlan_extraction_rules": {
+    "enabled": true,
+    "vtep_ip_pattern": "^nvo vxlan vtep-ip-global\\s+(\\S+)",
+    "vni_pattern": "^nvo vxlan id\\s+(\\d+)\\s+ingress-replication bridge-vlan\\s+(\\d+)",
+    "vni_name_pattern": "^\\s+vni-name\\s+(\\S+)",
+    "evpn_irb_mac_pattern": "^evpn irb-forwarding anycast-gateway-mac\\s+(\\S+)",
+    "mac_vrf_pattern": "^mac vrf\\s+(\\S+)",
+    "mac_vrf_rd_pattern": "^\\s+rd\\s+(\\S+)",
+    "mac_vrf_rt_pattern": "^\\s+route-target both\\s+(\\S+)",
+    "mac_vrf_desc_pattern": "^\\s+description\\s+(\\S+)"
+  },
+  "management_extraction_rules": {
+    "enabled": true,
+    "mgmt_interface_pattern": "^interface\\s+(eth0|mgmt\\d+)",
+    "mgmt_ip_pattern": "^\\s+ip address\\s+(\\S+)\\s+(\\S+)",
+    "mgmt_vrf_pattern": "^\\s+ip vrf forwarding\\s+(\\S+)",
+    "default_route_pattern": "^ip route vrf (\\S+)\\s+0\\.0\\.0\\.0/0\\s+(\\S+)"
+  }
+}

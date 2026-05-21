@@ -1,0 +1,99 @@
+{
+  "vendor": "Unknown (D-Link/TFortis OEM)",
+  "version": "1.0",
+  "description": "Универсальный шаблон для неопределенных устройств на базе D-Link/TFortis OEM платформы",
+  
+  "vendor_signatures": [
+    "snmp-server engine-id local 800007e5",
+    "snmp-server security-to-group model v3",
+    "access-list ace",
+    "ddmi",
+    "spanning-tree mst name 00-1d-77",
+    "Building configuration...",
+    "enable secret 5"
+  ],
+  
+  "detect_patterns": [
+    "^interface GigabitEthernet [\\d/]+",
+    "^hostname [\\w\\-]+",
+    "^vlan [\\d,]+",
+    "^switchport access vlan"
+  ],
+  
+  "name_patterns": [
+    {"pattern": "^hostname\\s+([\\w\\-\\.]+)", "group": 1, "priority": 100},
+    {"pattern": "^(\\S+)\\s+s.*sh run", "group": 1, "priority": 80}
+  ],
+  
+  "model_patterns": [
+    {"pattern": "Board Type\\s*:\\s*(NIS-[\\d]+-[A-Z\\d]+)", "group": 1, "priority": 100},
+    {"pattern": "(NIS-3500-3226PGE)", "group": 1, "priority": 95},
+    {"pattern": "(NIS-3500-3408PGE)", "group": 1, "priority": 95},
+    {"pattern": "System Description.*?(NIS-[\\d]+-[A-Z\\d]+)", "group": 1, "priority": 90}
+  ],
+  
+  "type_inference": [
+    {"any": ["switchport", "vlan", "spanning-tree"], "type": "switch", "score": 95},
+    {"any": ["poe mode enable"], "type": "switch", "score": 90},
+    {"any": ["ip routing", "router ospf"], "type": "router", "score": 80}
+  ],
+  
+  "default_device_type": "switch",
+  
+  "network_extraction_rules": {
+    "interfaces": {
+      "start": "^interface\\s+(GigabitEthernet|Vlan)\\s+([\\d/]+)",
+      "ip_pattern": "ip address\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)",
+      "disable_pattern": "^\\s*shutdown\\s*$"
+    },
+    "vlans": {
+      "all_pattern": "^vlan\\s+([\\d,]+)",
+      "active_pattern": "(?:switchport access vlan|switchport trunk allowed vlan)\\s+([\\d,]+)"
+    }
+  },
+  
+  "bgp_extraction_rules": {
+    "enabled": false
+  },
+  
+  "port_channel_extraction_rules": {
+    "enabled": false
+  },
+  
+  "vxlan_extraction_rules": {
+    "enabled": false
+  },
+  
+  "management_extraction_rules": {
+    "enabled": true,
+    "mgmt_interface_pattern": "^interface\\s+vlan\\s+(\\d+)",
+    "mgmt_ip_pattern": "^\\s*ip address\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)",
+    "mgmt_ip_group": 1,
+    "default_gateway_pattern": "^ip route\\s+0\\.0\\.0\\.0\\s+0\\.0\\.0\\.0\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)",
+    "ntp_server_pattern": "^\\s*ntp server\\s+\\d+\\s+ip-address\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)",
+    "snmp_server_pattern": "^\\s*snmp-server host\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)"
+  },
+  
+  "lldp_extraction_rules": {
+    "enabled": true,
+    "neighbor_pattern": "^\\s*Local Interface\\s*:\\s*([\\w\\s\\d/]+)\\s*\\n\\s*Chassis ID\\s*:\\s*([\\da-fA-F-]+)\\s*\\n\\s*System Name\\s*:\\s*([\\w\\-\\.]+)",
+    "system_name_pattern": "^\\s*System Name\\s*:\\s*([\\w\\-\\.]+)"
+  },
+
+  "interface_status_rules": {
+    "enabled": true,
+    "shutdown_pattern": "^\\s*shutdown\\s*$",
+    "no_shutdown_pattern": "^\\s*no\\s+shutdown\\s*$"
+  },
+
+  "port_security_rules": {
+    "enabled": true,
+    "max_pattern": "^\\s*port-security maximum\\s+(\\d+)",
+    "violation_pattern": "^\\s*port-security violation\\s+(\\w+)"
+  },
+  
+  "model_type_mapping": {
+    "NIS-3500-3226PGE": "switch",
+    "NIS-3500-3408PGE": "switch"
+  }
+}

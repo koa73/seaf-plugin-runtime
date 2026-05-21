@@ -1,0 +1,82 @@
+{
+  "vendor": "Juniper",
+  "version": "1.2",
+  "vendor_signatures": [
+    "^## Last commit:",
+    "^set version \\d"
+  ],
+  "detect_patterns": [
+    "system \\{",
+    "set system host-name"
+  ],
+  "name_patterns": [
+    {"pattern": "^set system host-name\\s+\"?([^\\s\"]+)\"?", "group": 1},
+    {"pattern": "^host-name\\s+\"?([^\\s;}\"]+)\"?", "group": 1},
+    {"pattern": "^\\s*system\\s+\\{[^}]*?host-name\\s+([^\";\\s]+)", "group": 1, "multiline": true},
+    {"pattern": "^\\s*system\\s+\\{[^}]*?host-name\\s+\"([^\"]+)\"", "group": 1, "multiline": true},
+    {"pattern": "^\\s*host-name\\s+([^\";\\s]+);", "group": 1},
+    {"pattern": "^\\s*host-name\\s+\"([^\"]+)\";", "group": 1}
+  ],
+  "model_patterns": [
+    {"pattern": "^set version \\d[^\\s]*\\s+\\(\\s*(QFX\\d+-\\S+|EX\\d+-\\S+|MX\\d+-\\S+|PTX\\d+-\\S+|SRX\\d+-\\S+)\\s*\\)", "group": 1},
+    {"pattern": "^\\s*#\\s*(QFX\\d+-\\S+|EX\\d+-\\S+|MX\\d+-\\S+|PTX\\d+-\\S+|SRX\\d+-\\S+)", "group": 1},
+    {"pattern": "^[\\s\\S]*?model:\\s+(QFX\\d+|EX\\d+|MX\\d+|PTX\\d+|SRX\\d+)", "group": 1},
+    {"pattern": "^[\\s\\S]*?Product Model:\\s+(QFX\\d+|EX\\d+|MX\\d+|PTX\\d+|SRX\\d+)", "group": 1}
+  ],
+  "type_inference": [
+    {"any": ["QFX", "EX", "ethernet-switching", "vlans {", "evpn", "vxlan"], "type": "switch", "score": 95},
+    {"any": ["SRX", "security {", "zones"], "type": "firewall", "score": 90},
+    {"any": ["MX", "PTX", "protocols {", "router-id", "ospf", "bgp", "mpls"], "type": "router", "score": 85}
+  ],
+  "default_device_type": "router_or_switch",
+
+  "model_fallback_rules": [
+    {
+      "description": "Juniper QFX Series (EVPN/VXLAN)",
+      "conditions": {"any": ["qfx", "evpn", "vxlan"]},
+      "model": "QFX Series (EVPN/VXLAN Switch)"
+    },
+    {
+      "description": "Juniper EX Series Switch",
+      "conditions": {"any": ["ex", "ethernet-switching"]},
+      "model": "EX Series (Switch)"
+    },
+    {
+      "description": "Juniper SRX Series Firewall",
+      "conditions": {"any": ["srx", "security {"]},
+      "model": "SRX Series (Firewall)"
+    },
+    {
+      "description": "Juniper MX Series Router",
+      "conditions": {"any": ["mx", "mpls"]},
+      "model": "MX Series (Router)"
+    }
+  ],
+
+  "network_extraction_rules": {
+    "interfaces": {
+      "start": "^(?:interface\\s+|set interfaces\\s+)([^{\\s]+)",
+      "ip_pattern": "(?:address|family inet address)\\s+([\\d\\.\\/]+)",
+      "disable_pattern": "disable"
+    },
+    "vlans": {
+      "all_pattern": "(?:vlan-id|set vlans \\S+ vlan-id)\\s+(\\d+)",
+      "active_pattern": "(?:unit \\d+|encapsulation dot1q)\\s+vid\\s+(\\d+)"
+    }
+  },
+
+  "lldp_extraction_rules": {
+    "enabled": true,
+    "lldp_run_pattern": "^set protocols lldp interface",
+    "neighbor_description_pattern": "^set protocols lldp interface.*description\\s+(.+)",
+    "lldp_agent_pattern": "^set protocols lldp",
+    "chassis_id_pattern": "lldp interface.*chassis-id",
+    "port_id_pattern": "lldp interface.*port-id"
+  },
+
+  "interface_status_rules": {
+    "enabled": true,
+    "shutdown_pattern": "disable",
+    "no_shutdown_pattern": "active"
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "vendor": "TFortis",
+  "version": "1.0",
+  "description": "Шаблон для коммутаторов TFortis (NIS-3500 серии на базе D-Link OEM)",
+  
+  "vendor_signatures": [
+    "TFortis",
+    "TFortis PSW",
+    "NIS-3500",
+    "ringv2 protect group",
+    "mep os-tlv oui 0xC",
+    "profile alarm",
+    "System Description.*TFortis"
+  ],
+  
+  "detect_patterns": [
+    "^interface GigabitEthernet [\\d/]+",
+    "^hostname [\\w\\-]+",
+    "^vlan [\\d,]+",
+    "^ringv2 protect group"
+  ],
+  
+  "name_patterns": [
+    {"pattern": "^hostname\\s+([\\w\\-\\.]+)", "group": 1, "priority": 100},
+    {"pattern": "^System Name\\s*:\\s*([\\w\\-\\.]+)", "group": 1, "priority": 90},
+    {"pattern": "^(\\S+)\\s+s.*sh ver", "group": 1, "priority": 80}
+  ],
+  
+  "model_patterns": [
+    {"pattern": "Board Type\\s*:\\s*(NIS-[\\d]+-[A-Z\\d]+)", "group": 1, "priority": 100},
+    {"pattern": "(NIS-3500-3226PGE)", "group": 1, "priority": 95},
+    {"pattern": "(NIS-3500-3408PGE)", "group": 1, "priority": 95},
+    {"pattern": "System Description.*?(TFortis PSW-[\\dA-Z\\-]+)", "group": 1, "priority": 90},
+    {"pattern": "(TFortis PSW-2G4F-UPS)", "group": 1, "priority": 90}
+  ],
+  
+  "type_inference": [
+    {"any": ["NIS-3500", "TFortis PSW", "switchport", "vlan"], "type": "switch", "score": 95},
+    {"any": ["ringv2 protect", "spanning-tree aggregation"], "type": "switch", "score": 90},
+    {"any": ["poe mode enable"], "type": "switch", "score": 85}
+  ],
+  
+  "default_device_type": "switch",
+  
+  "network_extraction_rules": {
+    "interfaces": {
+      "start": "^interface\\s+(GigabitEthernet|Vlan)\\s+([\\d/]+)",
+      "ip_pattern": "ip address\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)",
+      "disable_pattern": "^\\s*shutdown\\s*$"
+    },
+    "vlans": {
+      "all_pattern": "^vlan\\s+([\\d,]+)",
+      "active_pattern": "(?:switchport access vlan|switchport trunk allowed vlan)\\s+([\\d,]+)"
+    }
+  },
+  
+  "bgp_extraction_rules": {
+    "enabled": false
+  },
+  
+  "port_channel_extraction_rules": {
+    "enabled": false
+  },
+  
+  "vxlan_extraction_rules": {
+    "enabled": false
+  },
+  
+  "management_extraction_rules": {
+    "enabled": true,
+    "mgmt_interface_pattern": "^interface\\s+vlan\\s+(\\d+)",
+    "mgmt_ip_pattern": "^\\s*ip address\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)",
+    "mgmt_ip_group": 1,
+    "default_gateway_pattern": "^ip route\\s+0\\.0\\.0\\.0\\s+0\\.0\\.0\\.0\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)",
+    "ntp_server_pattern": "^\\s*ntp server\\s+\\d+\\s+ip-address\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)",
+    "snmp_server_pattern": "^\\s*snmp-server host\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)"
+  },
+  
+  "lldp_extraction_rules": {
+    "enabled": true,
+    "neighbor_pattern": "^\\s*Local Interface\\s*:\\s*([\\w\\s\\d/]+)\\s*\\n\\s*Chassis ID\\s*:\\s*([\\da-fA-F-]+)\\s*\\n\\s*Port ID\\s*:\\s*([\\w\\-/]+)\\s*\\n\\s*System Name\\s*:\\s*([\\w\\-\\.]+)",
+    "system_name_pattern": "^\\s*System Name\\s*:\\s*([\\w\\-\\.]+)"
+  },
+
+  "interface_status_rules": {
+    "enabled": true,
+    "shutdown_pattern": "^\\s*shutdown\\s*$",
+    "no_shutdown_pattern": "^\\s*no\\s+shutdown\\s*$"
+  },
+
+  "ring_protection_rules": {
+    "enabled": true,
+    "group_pattern": "^ringv2 protect group(\\d+)"
+  },
+  
+  "model_type_mapping": {
+    "NIS-3500-3226PGE": "switch",
+    "NIS-3500-3408PGE": "switch",
+    "TFortis PSW-2G4F-UPS": "switch",
+    "TFortis PSW-4G2F-UPS": "switch"
+  }
+}
