@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.56
+
+- **NetConf_Parser**: добавлен `lib/seaf_converter.py` (lite) для `network_visualizer` — исправлен `ModuleNotFoundError: lib.seaf_converter` при interactive terminal; полный SEAF YAML export по-прежнему не используется.
+
 ## 0.5.55
 
 - **NetConf_Parser**: `patterns/` не параметризуется в `scriptEnvEditor` — всегда `python/vendor/netconf_parser/patterns/` относительно vendored-пакета в runtime.
