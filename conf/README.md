@@ -87,9 +87,41 @@
 Содержит полный список команд main menu (`commands[]`) с:
 - `id`, `title`, `script`, `execution`, `input`, `output`, `postActions`;
 - `menu.main.*`;
-- при необходимости `clientAction` и `configEditor`.
+- при необходимости `clientAction` и `configEditor`;
+- опционально `scriptEnvEditor` — ссылка на файл схемы предзапускного диалога переменных.
 
 Именно здесь хранится `seafEditConfig` schema для `Edit Config`.
+
+### Опциональный `scriptEnvEditor` (предзапускная параметризация)
+
+Предзапускное окно переменных **необязательно**. Команды без `scriptEnvEditor` (Export, Import и т.д.) запускаются без дополнительного диалога.
+
+Если `scriptEnvEditor` задан, **обязателен** внешний файл схемы под `conf/` (относительный путь от каталога `conf` runtime):
+
+```yaml
+scriptEnvEditor: conf/scripts/my_command.script_env.yaml
+```
+
+Допустима объектная форма:
+
+```yaml
+scriptEnvEditor:
+  configFile: conf/scripts/my_command.script_env.yaml
+```
+
+Inline-поля `fields` в `main_menu.yaml` **не поддерживаются** — только ссылка на файл.
+
+Файл `conf/scripts/*.script_env.yaml` описывает UI (как `configEditor.fields`):
+
+| Поле | Назначение |
+|---|---|
+| `title` | Заголовок диалога |
+| `persist` | `none` (только текущий запуск), `global` (запись в `env.yaml`), `scriptDefaults` (отдельный YAML значений) |
+| `defaultsFile` | Путь к YAML значений по умолчанию (при `persist: scriptDefaults`) |
+| `mergeGlobalEnv` | Подставить `env.yaml` как baseline (`true` по умолчанию) |
+| `fields[]` | `label`, `envKey`, `inputMethod` (`text`, `list`, `radio`, `checkbox`, `filePicker`), `required`, `options`, `fileDialog`, `helpText`, `syncFrom`, `disableWhen` |
+
+При Run значения попадают в `payload.env` и `SEAF_ENV_*` (interactive terminal). При Cancel запуск прерывается.
 
 ### Поля `menu.main.*`
 
@@ -133,7 +165,11 @@
         submenuTitle: P41
   - id: seafToolsNetConfParser
     title: Net_Conf_Parser
+    clientAction: interactiveTerminal
     script: main_menu/net_conf_parser.py
+    execution:
+      mode: interactive_terminal
+    scriptEnvEditor: conf/scripts/net_conf_parser.script_env.yaml
     menu:
       main:
         enabled: true

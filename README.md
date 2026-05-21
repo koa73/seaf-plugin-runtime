@@ -92,7 +92,23 @@
 
 Контекстное меню — только команды с `menu.context.enabled: true` (например `Создать страницу` в `context_menu.yaml`); команды без `menu.main.enabled: true` в главное меню не попадают.
 
-В поставке `main_menu.yaml` (помимо `Edit Config`): подменю **P41** (`Export` → YAML в файл или каталог; `Import` → обратная загрузка YAML в стенсилы по `schema+OID`) и **Tools** (`Net_Conf_Parser` → заглушка).
+В поставке `main_menu.yaml` (помимо `Edit Config`): подменю **P41** (`Export` / `Import`) и **Tools** (`Script Env Demo`, `Net_Conf_Parser`).
+
+### Опциональный `scriptEnvEditor`
+
+- Предзапускный диалог переменных подключается **только** если в команде задан `scriptEnvEditor: conf/scripts/<name>.script_env.yaml`.
+- Без `scriptEnvEditor` команда запускается как раньше (Export, Import и т.д.).
+- Схема полей — во внешнем YAML (`conf/scripts/*.script_env.yaml`), не inline в `main_menu.yaml`.
+- Значения попадают в `payload.env`, `payload.scriptEnv` и `SEAF_ENV_*` (interactive terminal).
+- `persist: scriptDefaults` — отдельный файл значений (`defaultsFile`); IPC `getSeafScriptEnvDefaults` / `saveSeafScriptEnvDefaults`.
+
+### Tools → Net_Conf_Parser
+
+- Пункт меню: `seafToolsNetConfParser`, `clientAction: interactiveTerminal`, `execution.mode: interactive_terminal`.
+- Перед запуском — `scriptEnvEditor: conf/scripts/net_conf_parser.script_env.yaml` (каталоги data/patterns/output).
+- Launcher: `python/scripts/main_menu/net_conf_parser.py` → `vendor/netconf_parser/main_entry.py` (без SEAF-конвертации).
+- Обновление upstream: [`scripts/vendor/sync-netconf-parser.sh`](scripts/vendor/sync-netconf-parser.sh) (`NETCONF_PARSER_SRC` или clone [koa73/NetConf_Parser](https://github.com/koa73/NetConf_Parser)).
+- Зависимости: `python/requirements-netconf.txt` (N2G), устанавливаются через `extraRequirementsFiles` в `plugin.yaml`.
 
 ## Edit Config menu
 

@@ -1,0 +1,2 @@
+# Optional dependencies for vendored NetConf_Parser (Tools -> Net_Conf_Parser).
+N2G>=0.2.0

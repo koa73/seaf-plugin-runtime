@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.51
+ * Runtime script version: 0.5.52
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -4136,6 +4136,442 @@ Draw.loadPlugin(function(ui)
 		return out;
 	}
 
+	function resolveScriptEnvEditorConfigFile(command)
+	{
+		if (!command || command.scriptEnvEditor == null)
+		{
+			return '';
+		}
+
+		var raw = command.scriptEnvEditor;
+		if (typeof raw === 'string')
+		{
+			return raw.trim();
+		}
+
+		if (typeof raw === 'object' && typeof raw.configFile === 'string')
+		{
+			return raw.configFile.trim();
+		}
+
+		return '';
+	}
+
+	function applyScriptEnvToPayload(payload, scriptEnvOverrides)
+	{
+		if (!payload || typeof payload !== 'object' || !scriptEnvOverrides || typeof scriptEnvOverrides !== 'object')
+		{
+			return payload;
+		}
+
+		payload.scriptEnv = mxUtils.clone(scriptEnvOverrides);
+		var baseEnv = (payload.env && typeof payload.env === 'object') ? payload.env : {};
+		payload.env = Object.assign({}, baseEnv, scriptEnvOverrides);
+		if (!payload.arguments || typeof payload.arguments !== 'object')
+		{
+			payload.arguments = {};
+		}
+		for (var key in scriptEnvOverrides)
+		{
+			if (Object.prototype.hasOwnProperty.call(scriptEnvOverrides, key))
+			{
+				payload.arguments[key] = scriptEnvOverrides[key];
+			}
+		}
+		return payload;
+	}
+
+	function collectFieldValuesFromControls(fieldControls)
+	{
+		var nextEnv = {};
+		for (var key in fieldControls)
+		{
+			if (!Object.prototype.hasOwnProperty.call(fieldControls, key))
+			{
+				continue;
+			}
+			var entry = fieldControls[key];
+			if (entry.method === 'checkbox')
+			{
+				nextEnv[key] = entry.control.checked === true;
+			}
+			else if (entry.method === 'radio')
+			{
+				var selected = '';
+				for (var r = 0; r < entry.control.length; r++)
+				{
+					if (entry.control[r].checked)
+					{
+						selected = entry.control[r].value;
+						break;
+					}
+				}
+				nextEnv[key] = selected;
+			}
+			else
+			{
+				nextEnv[key] = entry.control.value != null ? String(entry.control.value) : '';
+			}
+		}
+		return nextEnv;
+	}
+
+	function validateRequiredScriptEnvFields(fields, envValues)
+	{
+		for (var i = 0; i < fields.length; i++)
+		{
+			var field = fields[i];
+			if (!field || field.required !== true || typeof field.envKey !== 'string')
+			{
+				continue;
+			}
+			var value = envValues[field.envKey];
+			if (field.inputMethod === 'checkbox')
+			{
+				continue;
+			}
+			if (value == null || String(value).trim().length === 0)
+			{
+				return field.label || field.envKey;
+			}
+		}
+		return '';
+	}
+
+	function openScriptEnvFieldsDialog(dialogOpts)
+	{
+		return new Promise(function(resolve)
+		{
+			var baseInset = 8;
+			var editorCfg = dialogOpts || {};
+			var fields = Array.isArray(editorCfg.fields) ? editorCfg.fields : [];
+			var env = (editorCfg.env && typeof editorCfg.env === 'object') ? editorCfg.env : {};
+			var persist = (typeof editorCfg.persist === 'string') ? editorCfg.persist : 'none';
+			var configFile = (typeof editorCfg.configFile === 'string') ? editorCfg.configFile : '';
+			var container = document.createElement('div');
+			container.style.minWidth = '420px';
+			container.style.maxWidth = '760px';
+			container.style.overflow = 'hidden';
+			container.style.padding = baseInset + 'px';
+			container.style.boxSizing = 'border-box';
+			var formBody = document.createElement('div');
+			formBody.style.overflowY = 'auto';
+			formBody.style.overflowX = 'hidden';
+			formBody.style.boxSizing = 'border-box';
+			container.appendChild(formBody);
+			var estimatedRows = 0;
+			var hasChoiceControls = false;
+			var fieldControls = {};
+			var fieldByKey = {};
+			var applyFieldRelations = function(){};
+
+			var createRow = function(labelText, field)
+			{
+				var row = document.createElement('div');
+				row.style.marginBottom = '10px';
+				var labelWrap = document.createElement('div');
+				labelWrap.style.display = 'inline-flex';
+				labelWrap.style.alignItems = 'center';
+				labelWrap.style.gap = '4px';
+				labelWrap.style.marginBottom = '4px';
+				var label = document.createElement('div');
+				label.style.fontWeight = 'bold';
+				label.textContent = labelText;
+				labelWrap.appendChild(label);
+				var helpText = (field && typeof field.helpText === 'string') ? field.helpText.trim() : '';
+				if (helpText.length > 0)
+				{
+					var helpFallback = document.createElement('span');
+					helpFallback.textContent = '?';
+					helpFallback.setAttribute('title', helpText);
+					helpFallback.setAttribute('aria-label', helpText);
+					labelWrap.appendChild(helpFallback);
+				}
+				row.appendChild(labelWrap);
+				formBody.appendChild(row);
+				return row;
+			};
+
+			for (var i = 0; i < fields.length; i++)
+			{
+				var field = fields[i];
+				if (!field || typeof field.envKey !== 'string')
+				{
+					continue;
+				}
+				fieldByKey[field.envKey] = field;
+				var row = createRow(field.label || field.envKey, field);
+				var method = field.inputMethod || 'text';
+				var currentValue = normalizeFieldValue(field, env[field.envKey]);
+				var input = null;
+				estimatedRows += 1;
+
+				if (method === 'checkbox')
+				{
+					input = document.createElement('input');
+					input.type = 'checkbox';
+					input.checked = currentValue === true;
+					row.appendChild(input);
+				}
+				else if (method === 'list')
+				{
+					hasChoiceControls = true;
+					input = document.createElement('select');
+					input.style.width = '100%';
+					var options = Array.isArray(field.options) ? field.options : [];
+					for (var j = 0; j < options.length; j++)
+					{
+						var opt = document.createElement('option');
+						opt.value = String(options[j]);
+						opt.textContent = String(options[j]);
+						input.appendChild(opt);
+					}
+					input.value = currentValue;
+					row.appendChild(input);
+				}
+				else if (method === 'radio')
+				{
+					hasChoiceControls = true;
+					input = [];
+					var radioWrap = document.createElement('div');
+					var radioOptions = Array.isArray(field.options) ? field.options : [];
+					for (var k = 0; k < radioOptions.length; k++)
+					{
+						var radioLabel = document.createElement('label');
+						radioLabel.style.display = 'block';
+						var radio = document.createElement('input');
+						radio.type = 'radio';
+						radio.name = 'seaf-script-radio-' + field.envKey;
+						radio.value = String(radioOptions[k]);
+						radio.checked = String(radioOptions[k]) === currentValue;
+						radioLabel.appendChild(radio);
+						radioLabel.appendChild(document.createTextNode(' ' + String(radioOptions[k])));
+						radioWrap.appendChild(radioLabel);
+						input.push(radio);
+					}
+					row.appendChild(radioWrap);
+				}
+				else
+				{
+					var inputWrap = document.createElement('div');
+					inputWrap.style.display = 'flex';
+					inputWrap.style.gap = '6px';
+					input = document.createElement('input');
+					input.type = 'text';
+					input.style.flex = '1';
+					input.value = currentValue;
+					inputWrap.appendChild(input);
+					if (method === 'filePicker')
+					{
+						var browseBtn = mxUtils.button('Browse...', function(){});
+						browseBtn.className = 'geBtn';
+						browseBtn.onclick = (function(targetInput, targetField)
+						{
+							return async function()
+							{
+								var fileDialog = targetField.fileDialog || {};
+								var currentPath = (targetInput.value != null) ? String(targetInput.value).trim() : '';
+								var requestPayload = {
+									action: 'selectSeafEnvFile',
+									filters: Array.isArray(fileDialog.filters) ? fileDialog.filters : [],
+									properties: Array.isArray(fileDialog.properties) && fileDialog.properties.length > 0 ?
+										fileDialog.properties : ['openFile']
+								};
+								if (currentPath.length > 0)
+								{
+									requestPayload.defaultPath = currentPath;
+								}
+								try
+								{
+									var picked = await requestAsync(requestPayload);
+									if (picked != null && String(picked).length > 0)
+									{
+										targetInput.value = String(picked);
+										applyFieldRelations();
+									}
+								}
+								catch (e)
+								{
+									showError('Не удалось открыть выбор файла: ' + e.message);
+								}
+							};
+						})(input, field);
+						inputWrap.appendChild(browseBtn);
+					}
+					row.appendChild(inputWrap);
+				}
+
+				fieldControls[field.envKey] = {
+					method: method,
+					control: input
+				};
+			}
+
+			applyFieldRelations = function(){};
+
+			var footer = document.createElement('div');
+			footer.style.textAlign = 'right';
+			footer.style.marginTop = baseInset + 'px';
+			footer.style.whiteSpace = 'nowrap';
+			var cancelBtn = mxUtils.button(mxResources.get('cancel'), function()
+			{
+				ui.hideDialog();
+				resolve({cancelled: true});
+			});
+			cancelBtn.className = 'geBtn';
+
+			var runBtn = mxUtils.button('Run', async function()
+			{
+				var nextEnv = collectFieldValuesFromControls(fieldControls);
+				var missing = validateRequiredScriptEnvFields(fields, nextEnv);
+				if (missing.length > 0)
+				{
+					showError('Заполните обязательное поле: ' + missing);
+					return;
+				}
+				ui.hideDialog();
+				resolve({cancelled: false, env: nextEnv});
+			});
+			runBtn.className = 'geBtn gePrimaryBtn';
+
+			var saveBtn = null;
+			if (persist === 'global' || persist === 'scriptDefaults')
+			{
+				saveBtn = mxUtils.button(mxResources.get('save'), async function()
+				{
+					var nextEnv = collectFieldValuesFromControls(fieldControls);
+					var missing = validateRequiredScriptEnvFields(fields, nextEnv);
+					if (missing.length > 0)
+					{
+						showError('Заполните обязательное поле: ' + missing);
+						return;
+					}
+					try
+					{
+						if (persist === 'global')
+						{
+							var saved = await requestAsync({
+								action: 'saveSeafEnvConfig',
+								configPath: state.configPath,
+								env: nextEnv
+							});
+							state.envConfig = saved;
+							state.logging = computeUiLoggingFromEnv(state.config ? state.config.logging : null, state.envConfig);
+						}
+						else if (persist === 'scriptDefaults' && configFile.length > 0)
+						{
+							await requestAsync({
+								action: 'saveSeafScriptEnvDefaults',
+								configPath: state.configPath,
+								configFile: configFile,
+								env: nextEnv
+							});
+						}
+					}
+					catch (e)
+					{
+						showError('Failed to save defaults: ' + e.message);
+						return;
+					}
+				});
+				saveBtn.className = 'geBtn';
+			}
+
+			if (saveBtn != null)
+			{
+				footer.appendChild(runBtn);
+				footer.appendChild(saveBtn);
+				footer.appendChild(cancelBtn);
+			}
+			else
+			{
+				footer.appendChild(runBtn);
+				footer.appendChild(cancelBtn);
+			}
+			container.appendChild(footer);
+
+			var dialogWidth = 460 + (hasChoiceControls ? 40 : 0);
+			dialogWidth = Math.max(420, Math.min(760, dialogWidth));
+			var dialogHeight = 360;
+			formBody.style.maxHeight = '280px';
+			ui.showDialog(container, dialogWidth, dialogHeight, true, true);
+		});
+	}
+
+	async function collectScriptEnvOverrides(command)
+	{
+		var configFile = resolveScriptEnvEditorConfigFile(command);
+		if (!configFile)
+		{
+			return {};
+		}
+
+		var schema = null;
+		try
+		{
+			schema = await requestAsync({
+				action: 'getSeafScriptEnvSchema',
+				configPath: state.configPath,
+				configFile: configFile
+			});
+		}
+		catch (e)
+		{
+			await writeLog('error', 'scriptEnvEditor schema load failed', {
+				commandId: command && command.id ? command.id : '',
+				configFile: configFile,
+				error: e.message
+			});
+			showError('Ошибка конфигурации scriptEnvEditor: ' + e.message);
+			return null;
+		}
+
+		var initialEnv = {};
+		if (schema.mergeGlobalEnv !== false && state.envConfig != null && typeof state.envConfig.env === 'object')
+		{
+			initialEnv = Object.assign({}, state.envConfig.env);
+		}
+
+		if (schema.persist === 'scriptDefaults')
+		{
+			try
+			{
+				var defaults = await requestAsync({
+					action: 'getSeafScriptEnvDefaults',
+					configPath: state.configPath,
+					configFile: configFile
+				});
+				if (defaults && defaults.env && typeof defaults.env === 'object')
+				{
+					initialEnv = Object.assign(initialEnv, defaults.env);
+				}
+			}
+			catch (defaultsErr)
+			{
+				await writeLog('warn', 'scriptEnvEditor defaults load failed', {
+					commandId: command && command.id ? command.id : '',
+					configFile: configFile,
+					error: defaultsErr.message
+				});
+			}
+		}
+
+		var dialogResult = await openScriptEnvFieldsDialog({
+			title: schema.title || 'Script parameters',
+			fields: schema.fields,
+			env: initialEnv,
+			persist: schema.persist || 'none',
+			configFile: configFile
+		});
+
+		if (dialogResult == null || dialogResult.cancelled === true)
+		{
+			return null;
+		}
+
+		return dialogResult.env || {};
+	}
+
 	async function openEditConfigDialog(command)
 	{
 		var baseInset = 8;
@@ -7194,7 +7630,14 @@ Draw.loadPlugin(function(ui)
 
 	async function executeInteractiveTerminalCommand(command, source)
 	{
+		var scriptEnvOverrides = await collectScriptEnvOverrides(command);
+		if (scriptEnvOverrides == null)
+		{
+			return;
+		}
+
 		var payload = buildPayload(command);
+		applyScriptEnvToPayload(payload, scriptEnvOverrides);
 		var overlayToken = 'pending-' + String(Date.now());
 		payload.source = source;
 
@@ -7270,7 +7713,14 @@ Draw.loadPlugin(function(ui)
 			return;
 		}
 
+		var scriptEnvOverrides = await collectScriptEnvOverrides(command);
+		if (scriptEnvOverrides == null)
+		{
+			return;
+		}
+
 		var payload = buildPayload(command, sourceCell || null);
+		applyScriptEnvToPayload(payload, scriptEnvOverrides);
 		payload.source = source;
 		var indicatorCfg = getIndicatorConfig(command);
 

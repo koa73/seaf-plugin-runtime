@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.52
+
+- **scriptEnvEditor (optional)**: предзапускный диалог переменных для команд `main_menu.yaml`; схема во внешнем `conf/scripts/*.script_env.yaml` (обязателен при включении опции). IPC: `getSeafScriptEnvSchema`, `getSeafScriptEnvDefaults`, `saveSeafScriptEnvDefaults`. Demo: `seafToolsScriptEnvDemo`.
+- **NetConf_Parser**: vendored `vendor/netconf_parser/` (без `seaf_converter`), `scripts/vendor/sync-netconf-parser.sh`, `main_entry.py` с путями из `SEAF_ENV_*`, Tools → `Net_Conf_Parser` в `interactive_terminal` + `scriptEnvEditor`, `requirements-netconf.txt` (N2G).
+
 ## 0.5.51
 
 - **Linked page sync**: при смене `title`/`label` у `seaf.company.ta.services.dcs` / `dc_offices` с существующей graph-link на страницу — `renameLinkedPage` + `setCellLinkToPage` (модуль `linked_page_sync`; Import и data_mirror). Дубликат имени страницы — один `mxUtils.confirm` на `(pageId, title)`; без `showMessage` из Python.

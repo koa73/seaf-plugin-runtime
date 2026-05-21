@@ -102,14 +102,31 @@ commands:
         section: seaf
         submenu: p41
         submenuTitle: P41
-  - id: seafToolsNetConfParser
-    title: Net_Conf_Parser
-    script: main_menu/net_conf_parser.py
+  - id: seafToolsScriptEnvDemo
+    title: Script Env Demo
+    script: main_menu/script_env_demo.py
     execution:
       mode: sync
       timeoutSec: 30
     input:
       includeDiagramXml: false
+    scriptEnvEditor: conf/scripts/script_env_demo.script_env.yaml
+    menu:
+      main:
+        enabled: true
+        section: seaf
+        submenu: tools
+        submenuTitle: Tools
+  - id: seafToolsNetConfParser
+    title: Net_Conf_Parser
+    clientAction: interactiveTerminal
+    script: main_menu/net_conf_parser.py
+    execution:
+      mode: interactive_terminal
+      timeoutSec: 0
+    input:
+      includeDiagramXml: false
+    scriptEnvEditor: conf/scripts/net_conf_parser.script_env.yaml
     menu:
       main:
         enabled: true
