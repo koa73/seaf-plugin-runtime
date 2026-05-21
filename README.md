@@ -106,9 +106,15 @@
 
 - Пункт меню: `seafToolsNetConfParser`, `clientAction: interactiveTerminal`, `execution.mode: interactive_terminal`.
 - Перед запуском — `scriptEnvEditor: scripts/net_conf_parser.script_env.yaml` (каталоги data/patterns/output).
-- Launcher: `python/scripts/main_menu/net_conf_parser.py` → `vendor/netconf_parser/main_entry.py` (без SEAF-конвертации).
-- Обновление upstream: [`scripts/vendor/sync-netconf-parser.sh`](scripts/vendor/sync-netconf-parser.sh) (`NETCONF_PARSER_SRC` или clone [koa73/NetConf_Parser](https://github.com/koa73/NetConf_Parser)).
-- Зависимости: `python/requirements-netconf.txt` (N2G), устанавливаются через `extraRequirementsFiles` в `plugin.yaml`.
+- Launcher: `python/scripts/main_menu/net_conf_parser.py` → `python/vendor/netconf_parser/main_entry.py` (без SEAF-конвертации).
+- Обновление upstream: [`scripts/vendor/sync-netconf-parser.sh`](scripts/vendor/sync-netconf-parser.sh) → `python/vendor/netconf_parser/`.
+- Зависимости: единый [`python/requirements.txt`](python/requirements.txt) (PyYAML, N2G).
+
+### Vendored Python (`python/vendor/`)
+
+Все сторонние Python-библиотеки runtime размещаются **только** в `seaf-plugin-runtime/python/vendor/<package>/`.  
+Не создавать `vendor/` в корне runtime и не дублировать пакеты в `python/scripts/`.  
+Синхронизация внешних репозиториев — скрипты в `scripts/vendor/`.
 
 ## Edit Config menu
 

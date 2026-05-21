@@ -1,0 +1,41 @@
+title: NetConf Parser
+persist: scriptDefaults
+defaultsFile: scripts/net_conf_parser.defaults.yaml
+mergeGlobalEnv: true
+fields:
+  - label: Data directory
+    envKey: netconfDataDir
+    inputMethod: filePicker
+    required: true
+    helpText: "Каталог с файлами конфигураций (.cfg)"
+    fileDialog:
+      title: Select config directory
+      properties:
+        - openDirectory
+  - label: Patterns directory
+    envKey: netconfPatternsDir
+    inputMethod: filePicker
+    required: true
+    helpText: "Каталог patterns (devices, drawio)"
+    fileDialog:
+      title: Select patterns directory
+      properties:
+        - openDirectory
+  - label: Output directory
+    envKey: netconfOutputDir
+    inputMethod: filePicker
+    required: true
+    helpText: "Каталог для network_diagram.drawio и network_details.txt"
+    fileDialog:
+      title: Select output directory
+      properties:
+        - openDirectory
+  - label: Default layout algorithm
+    envKey: netconfDefaultLayout
+    inputMethod: list
+    options:
+      - circular
+      - grid
+      - force_directed
+      - clustered
+      - spine_leaf

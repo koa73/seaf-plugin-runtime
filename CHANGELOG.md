@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.54
+
+- **python/vendor**: все vendored-пакеты только в `seaf-plugin-runtime/python/vendor/` (`yaml_schema_generator`, `netconf_parser`); удалён корневой `vendor/` и каталог `python/yaml_schema_generator_examples/`.
+- **requirements**: единый `python/requirements.txt` (PyYAML + N2G); удалён `requirements-netconf.txt` и `extraRequirementsFiles` из `plugin.yaml`.
+
 ## 0.5.53
 
 - **scriptEnvEditor paths**: пути `scriptEnvEditor` и `defaultsFile` — относительно каталога `conf/` (`scripts/...`, не `conf/scripts/...`); исправлен ENOENT `conf/conf/scripts` при загрузке схемы.
@@ -50,7 +55,7 @@
 
 - **Export (P41)**: интеграция vendored `yaml_schema_generator` — SEAF YAML с обёрткой `schema` + OID; PyYAML в `python/requirements.txt`.
 - **`lib/main_menu/export_yaml_generator.py`**, **`export_report.py`**: генерация, нормализация attrs (`[]` → list), отчёт eligible/exported/skipped/validation в лог (`pluginLogLevel: info` — summary, `debug` — detail).
-- **`build-runtime.sh`**: в tar только production Python (`vendor`, scripts без `examples/`); `python/tests/`, `yaml_schema_generator_examples/` — только в репозитории.
+- **`build-runtime.sh`**: в tar только production Python (`python/vendor`, scripts без `examples/`); `python/tests/` — только в репозитории.
 
 ## 0.5.42
 

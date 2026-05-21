@@ -10,8 +10,9 @@ import sys
 from pathlib import Path
 
 
-def _runtime_root() -> Path:
-    return Path(__file__).resolve().parents[3]
+def _python_root() -> Path:
+    """Runtime layout: .../seaf_plugin/python/scripts/main_menu/this.py -> python/."""
+    return Path(__file__).resolve().parents[2]
 
 
 def _inject_payload_env() -> None:
@@ -34,8 +35,7 @@ def _inject_payload_env() -> None:
 
 
 def main() -> int:
-    root = _runtime_root()
-    vendor = root / "vendor" / "netconf_parser"
+    vendor = _python_root() / "vendor" / "netconf_parser"
     entry = vendor / "main_entry.py"
     if not entry.is_file():
         print(f"NetConf vendor entry not found: {entry}", file=sys.stderr)

@@ -1,6 +1,0 @@
-seaf.company.ta.services.stands:
-  jupiter.stand.prod:
-    description: Стенд для продакшена
-    env: jupiter.environment.prod
-    external_id: jupiter.environment.prod
-    title: stand.prod

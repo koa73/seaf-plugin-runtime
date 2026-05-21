@@ -3,12 +3,10 @@ plugin:
   id: seaf_plugin
   name: SEAF Plugin
   description: Dynamic menu integration with modular config includes
-  runtimeVersion: 0.5.53
+  runtimeVersion: 0.5.54
 python:
   executable: python3
   requirementsFile: ../python/requirements.txt
-  extraRequirementsFiles:
-    - ../python/requirements-netconf.txt
   requiredModules:
     - lib.io
   scriptsDir: ../python/scripts

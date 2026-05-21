@@ -1,5 +1,0 @@
-seaf.company.ta.services.dc_regions:
-  jupiter.dc_region.russia:
-    title: Регион Россия
-    description: Регион присутствия ЦОДов и офисов Jupiter
-    external_id: dc_region.russia
