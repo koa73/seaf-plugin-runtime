@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.59
+
+- **NetConf**: подсказка в `script_env` про права на каталог данных (без правок vendored `netconf_parser` lib).
+- **Desktop**: tail вывода interactive terminal (~16 KB) в `seaf-plugin.log` при failed или `pluginLogLevel: debug`.
+
 ## 0.5.58
 
 - Удалены demo `seafToolsScriptEnvDemo`, `script_env_demo.py`, `conf/scripts/script_env_demo.*` и тест `test-script-env-demo-python.mjs`.

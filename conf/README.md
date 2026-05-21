@@ -127,6 +127,13 @@ Inline-поля `fields` в `main_menu.yaml` **не поддерживаются
 
 При Run значения попадают в `payload.env` и `SEAF_ENV_*` (interactive terminal). При Cancel запуск прерывается.
 
+**NetConf Parser (`seafToolsNetConfParser`):**
+
+- Скрипт работает от имени пользователя ОС, под которым запущен draw.io (без sandbox); ограничения — только права на файлы в `netconfDataDir`.
+- Каталог данных должен быть **читаем** текущим пользователем: при `Permission denied` (часто файлы `600` и владелец другой UID) файл пропускается; сообщение — в stderr терминала (vendored NetConf_Parser).
+- Артефакты: `{netconfOutputDir}/network_details.txt`, `{netconfOutputDir}/network_diagram.drawio`; отдельного `*.log` у скрипта нет.
+- В `seaf-plugin.log` при **failed** interactive terminal пишется tail вывода PTY (~16 KB); при `pluginLogLevel: debug` — tail и при успешном завершении.
+
 ### Поля `menu.main.*`
 
 | Параметр | Тип | Назначение |

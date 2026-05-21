@@ -7,7 +7,7 @@ fields:
     envKey: netconfDataDir
     inputMethod: filePicker
     required: true
-    helpText: "Каталог с файлами конфигураций (.cfg)"
+    helpText: "Каталог с файлами конфигураций. Файлы должны быть читаемы пользователем draw.io (типичная ошибка: mode 600 и владелец другой UID — Permission denied)."
     fileDialog:
       title: Select config directory
       properties:
