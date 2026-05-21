@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.56
+ * Runtime script version: 0.5.57
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -4238,6 +4238,99 @@ Draw.loadPlugin(function(ui)
 		return '';
 	}
 
+	function hideFieldHelpTooltip(tooltipState)
+	{
+		if (tooltipState != null && tooltipState.el != null && tooltipState.el.parentNode != null)
+		{
+			tooltipState.el.parentNode.removeChild(tooltipState.el);
+		}
+
+		if (tooltipState != null)
+		{
+			tooltipState.el = null;
+		}
+	}
+
+	function showFieldHelpTooltip(helpEl, helpText, tooltipState)
+	{
+		hideFieldHelpTooltip(tooltipState);
+
+		var tip = document.createElement('div');
+		tip.className = 'geHint';
+		tip.textContent = helpText;
+		tip.style.position = 'fixed';
+		tip.style.zIndex = '10010';
+		tip.style.maxWidth = '320px';
+		tip.style.whiteSpace = 'normal';
+		tip.style.pointerEvents = 'none';
+
+		var rect = helpEl.getBoundingClientRect();
+		tip.style.left = Math.round(rect.right + 6) + 'px';
+		tip.style.top = Math.round(rect.top) + 'px';
+		document.body.appendChild(tip);
+		tooltipState.el = tip;
+	}
+
+	function appendFieldHelpIcon(labelWrap, field)
+	{
+		var helpText = (field && typeof field.helpText === 'string') ? field.helpText.trim() : '';
+
+		if (helpText.length === 0)
+		{
+			return;
+		}
+
+		var helpEl = null;
+
+		if (typeof Editor !== 'undefined' && Editor != null && typeof Editor.helpImage === 'string' && Editor.helpImage.length > 0)
+		{
+			helpEl = document.createElement('img');
+			helpEl.setAttribute('src', Editor.helpImage);
+			helpEl.className = 'geHelpIcon';
+		}
+		else
+		{
+			helpEl = document.createElement('span');
+			helpEl.textContent = '?';
+			helpEl.style.display = 'inline-block';
+			helpEl.style.width = '14px';
+			helpEl.style.height = '14px';
+			helpEl.style.lineHeight = '14px';
+			helpEl.style.textAlign = 'center';
+			helpEl.style.borderRadius = '50%';
+			helpEl.style.border = '1px solid #909090';
+			helpEl.style.fontSize = '10px';
+			helpEl.style.fontWeight = 'bold';
+		}
+
+		helpEl.setAttribute('title', helpText);
+		helpEl.setAttribute('aria-label', helpText);
+		helpEl.style.cursor = 'help';
+
+		var tooltipState = {el: null};
+		var onEnter = function()
+		{
+			showFieldHelpTooltip(helpEl, helpText, tooltipState);
+		};
+		var onLeave = function()
+		{
+			hideFieldHelpTooltip(tooltipState);
+		};
+
+		if (typeof mxEvent !== 'undefined' && mxEvent != null && typeof mxEvent.addListener === 'function')
+		{
+			mxEvent.addListener(helpEl, 'mouseenter', onEnter);
+			mxEvent.addListener(helpEl, 'mouseleave', onLeave);
+		}
+		else
+		{
+			helpEl.addEventListener('mouseenter', onEnter);
+			helpEl.addEventListener('mouseleave', onLeave);
+		}
+
+		labelWrap.appendChild(helpEl);
+	}
+
 	function openScriptEnvFieldsDialog(dialogOpts)
 	{
 		return new Promise(function(resolve)
@@ -4278,15 +4371,7 @@ Draw.loadPlugin(function(ui)
 				label.style.fontWeight = 'bold';
 				label.textContent = labelText;
 				labelWrap.appendChild(label);
-				var helpText = (field && typeof field.helpText === 'string') ? field.helpText.trim() : '';
-				if (helpText.length > 0)
-				{
-					var helpFallback = document.createElement('span');
-					helpFallback.textContent = '?';
-					helpFallback.setAttribute('title', helpText);
-					helpFallback.setAttribute('aria-label', helpText);
-					labelWrap.appendChild(helpFallback);
-				}
+				appendFieldHelpIcon(labelWrap, field);
 				row.appendChild(labelWrap);
 				formBody.appendChild(row);
 				return row;
@@ -4612,37 +4697,7 @@ Draw.loadPlugin(function(ui)
 			label.style.fontWeight = 'bold';
 			label.textContent = labelText;
 			labelWrap.appendChild(label);
-			var helpText = (field && typeof field.helpText === 'string') ? field.helpText.trim() : '';
-			if (helpText.length > 0)
-			{
-				if (typeof Editor !== 'undefined' && Editor != null && typeof Editor.helpImage === 'string' && Editor.helpImage.length > 0)
-				{
-					var helpIcon = document.createElement('img');
-					helpIcon.setAttribute('src', Editor.helpImage);
-					helpIcon.setAttribute('title', helpText);
-					helpIcon.setAttribute('aria-label', helpText);
-					helpIcon.className = 'geHelpIcon';
-					labelWrap.appendChild(helpIcon);
-				}
-				else
-				{
-					var helpFallback = document.createElement('span');
-					helpFallback.textContent = '?';
-					helpFallback.setAttribute('title', helpText);
-					helpFallback.setAttribute('aria-label', helpText);
-					helpFallback.style.display = 'inline-block';
-					helpFallback.style.width = '14px';
-					helpFallback.style.height = '14px';
-					helpFallback.style.lineHeight = '14px';
-					helpFallback.style.textAlign = 'center';
-					helpFallback.style.borderRadius = '50%';
-					helpFallback.style.border = '1px solid #909090';
-					helpFallback.style.fontSize = '10px';
-					helpFallback.style.fontWeight = 'bold';
-					helpFallback.style.cursor = 'help';
-					labelWrap.appendChild(helpFallback);
-				}
-			}
+			appendFieldHelpIcon(labelWrap, field);
 			row.appendChild(labelWrap);
 			formBody.appendChild(row);
 			return row;

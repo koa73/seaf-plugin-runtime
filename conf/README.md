@@ -123,6 +123,8 @@ Inline-поля `fields` в `main_menu.yaml` **не поддерживаются
 | `mergeGlobalEnv` | Подставить `env.yaml` как baseline (`true` по умолчанию) |
 | `fields[]` | `label`, `envKey`, `inputMethod` (`text`, `list`, `radio`, `checkbox`, `filePicker`), `required`, `options`, `fileDialog`, `helpText`, `syncFrom`, `disableWhen` |
 
+`helpText` — подсказка у иконки «?» / `geHelpIcon`: при наведении показывается всплывающий блок (класс `geHint`), плюс `title` для доступности.
+
 При Run значения попадают в `payload.env` и `SEAF_ENV_*` (interactive terminal). При Cancel запуск прерывается.
 
 ### Поля `menu.main.*`

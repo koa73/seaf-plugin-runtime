@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.57
+
+- **scriptEnvEditor**: общая `appendFieldHelpIcon` для диалогов параметров скрипта и env; подсказка `helpText` через hover-tooltip (`geHint`), не только `title` — исправлено отсутствие подсказки у «?» в NetConf Parser.
+
 ## 0.5.56
 
 - **NetConf_Parser**: добавлен `lib/seaf_converter.py` (lite) для `network_visualizer` — исправлен `ModuleNotFoundError: lib.seaf_converter` при interactive terminal; полный SEAF YAML export по-прежнему не используется.
