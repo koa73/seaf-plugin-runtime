@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.58
+
+- Удалены demo `seafToolsScriptEnvDemo`, `script_env_demo.py`, `conf/scripts/script_env_demo.*` и тест `test-script-env-demo-python.mjs`.
+
 ## 0.5.57
 
 - **scriptEnvEditor**: общая `appendFieldHelpIcon` для диалогов параметров скрипта и env; подсказка `helpText` через hover-tooltip (`geHint`), не только `title` — исправлено отсутствие подсказки у «?» в NetConf Parser.
@@ -24,7 +28,7 @@
 
 ## 0.5.52
 
-- **scriptEnvEditor (optional)**: предзапускный диалог переменных для команд `main_menu.yaml`; схема во внешнем `conf/scripts/*.script_env.yaml` (обязателен при включении опции). IPC: `getSeafScriptEnvSchema`, `getSeafScriptEnvDefaults`, `saveSeafScriptEnvDefaults`. Demo: `seafToolsScriptEnvDemo`.
+- **scriptEnvEditor (optional)**: предзапускный диалог переменных для команд `main_menu.yaml`; схема во внешнем `conf/scripts/*.script_env.yaml` (обязателен при включении опции). IPC: `getSeafScriptEnvSchema`, `getSeafScriptEnvDefaults`, `saveSeafScriptEnvDefaults`.
 - **NetConf_Parser**: vendored `vendor/netconf_parser/` (без `seaf_converter`), `scripts/vendor/sync-netconf-parser.sh`, `main_entry.py` с путями из `SEAF_ENV_*`, Tools → `Net_Conf_Parser` в `interactive_terminal` + `scriptEnvEditor`, `requirements-netconf.txt` (N2G).
 
 ## 0.5.51

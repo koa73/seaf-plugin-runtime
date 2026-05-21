@@ -92,7 +92,7 @@
 
 Контекстное меню — только команды с `menu.context.enabled: true` (например `Создать страницу` в `context_menu.yaml`); команды без `menu.main.enabled: true` в главное меню не попадают.
 
-В поставке `main_menu.yaml` (помимо `Edit Config`): подменю **P41** (`Export` / `Import`) и **Tools** (`Script Env Demo`, `Net_Conf_Parser`).
+В поставке `main_menu.yaml` (помимо `Edit Config`): подменю **P41** (`Export` / `Import`) и **Tools** (`Net_Conf_Parser`).
 
 ### Опциональный `scriptEnvEditor`
 
