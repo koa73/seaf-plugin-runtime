@@ -96,22 +96,24 @@
 
 Предзапускное окно переменных **необязательно**. Команды без `scriptEnvEditor` (Export, Import и т.д.) запускаются без дополнительного диалога.
 
-Если `scriptEnvEditor` задан, **обязателен** внешний файл схемы под `conf/` (относительный путь от каталога `conf` runtime):
+Если `scriptEnvEditor` задан, **обязателен** внешний файл схемы (путь **относительно каталога `conf/`**, где лежит `plugin.yaml`):
 
 ```yaml
-scriptEnvEditor: conf/scripts/my_command.script_env.yaml
+scriptEnvEditor: scripts/my_command.script_env.yaml
 ```
 
 Допустима объектная форма:
 
 ```yaml
 scriptEnvEditor:
-  configFile: conf/scripts/my_command.script_env.yaml
+  configFile: scripts/my_command.script_env.yaml
 ```
+
+Не используйте префикс `conf/` в пути (`conf/scripts/...` даст ошибку `conf/conf/scripts` при резолве).
 
 Inline-поля `fields` в `main_menu.yaml` **не поддерживаются** — только ссылка на файл.
 
-Файл `conf/scripts/*.script_env.yaml` описывает UI (как `configEditor.fields`):
+Файл `conf/scripts/*.script_env.yaml` (в поставке — `scripts/*.script_env.yaml` относительно `conf/`) описывает UI (как `configEditor.fields`):
 
 | Поле | Назначение |
 |---|---|
@@ -169,7 +171,7 @@ Inline-поля `fields` в `main_menu.yaml` **не поддерживаются
     script: main_menu/net_conf_parser.py
     execution:
       mode: interactive_terminal
-    scriptEnvEditor: conf/scripts/net_conf_parser.script_env.yaml
+    scriptEnvEditor: scripts/net_conf_parser.script_env.yaml
     menu:
       main:
         enabled: true

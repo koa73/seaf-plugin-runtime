@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.53
+
+- **scriptEnvEditor paths**: пути `scriptEnvEditor` и `defaultsFile` — относительно каталога `conf/` (`scripts/...`, не `conf/scripts/...`); исправлен ENOENT `conf/conf/scripts` при загрузке схемы.
+- **build-runtime**: в tarball добавляются `vendor/netconf_parser/` и `python/requirements-netconf.txt`.
+
 ## 0.5.52
 
 - **scriptEnvEditor (optional)**: предзапускный диалог переменных для команд `main_menu.yaml`; схема во внешнем `conf/scripts/*.script_env.yaml` (обязателен при включении опции). IPC: `getSeafScriptEnvSchema`, `getSeafScriptEnvDefaults`, `saveSeafScriptEnvDefaults`. Demo: `seafToolsScriptEnvDemo`.

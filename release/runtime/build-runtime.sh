@@ -15,9 +15,18 @@ cp "${ROOT_DIR}/plugin/seaf.plugin.js" "${STAGE_DIR}/seaf.plugin.js"
 cp -r "${ROOT_DIR}/conf" "${STAGE_DIR}/seaf_plugin/conf"
 cp -r "${ROOT_DIR}/runtime" "${STAGE_DIR}/seaf_plugin/runtime"
 cp -r "${ROOT_DIR}/keys" "${STAGE_DIR}/seaf_plugin/keys"
+if [ -d "${ROOT_DIR}/vendor/netconf_parser" ]; then
+	mkdir -p "${STAGE_DIR}/seaf_plugin/vendor"
+	cp -r "${ROOT_DIR}/vendor/netconf_parser" "${STAGE_DIR}/seaf_plugin/vendor/netconf_parser"
+else
+	echo "WARN: vendor/netconf_parser missing; run scripts/vendor/sync-netconf-parser.sh" >&2
+fi
 
 # Python runtime: production scripts + vendor only (no tests/examples)
 cp "${PY_ROOT}/requirements.txt" "${STAGE_PY}/requirements.txt"
+if [ -f "${PY_ROOT}/requirements-netconf.txt" ]; then
+	cp "${PY_ROOT}/requirements-netconf.txt" "${STAGE_PY}/requirements-netconf.txt"
+fi
 cp -r "${PY_ROOT}/vendor" "${STAGE_PY}/vendor"
 mkdir -p "${STAGE_PY}/scripts"
 cp -r "${PY_ROOT}/scripts/lib" "${STAGE_PY}/scripts/lib"

@@ -110,7 +110,7 @@ commands:
       timeoutSec: 30
     input:
       includeDiagramXml: false
-    scriptEnvEditor: conf/scripts/script_env_demo.script_env.yaml
+    scriptEnvEditor: scripts/script_env_demo.script_env.yaml
     menu:
       main:
         enabled: true
@@ -126,7 +126,7 @@ commands:
       timeoutSec: 0
     input:
       includeDiagramXml: false
-    scriptEnvEditor: conf/scripts/net_conf_parser.script_env.yaml
+    scriptEnvEditor: scripts/net_conf_parser.script_env.yaml
     menu:
       main:
         enabled: true
