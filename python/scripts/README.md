@@ -24,6 +24,7 @@
 - `lib/main_menu/import_report.py` — отчёт Import в лог (`pluginLogLevel`: summary/detail).
 - `lib/main_menu/seaf_data_map.py` — общие функции нормализации/денормализации attrs для import/export.
 - `main_menu/net_conf_parser.py` — заглушка **Tools → Net_Conf_Parser**; логирует вызов аналогично.
+- `main_menu/edit_data.py` — **Tools → Edit Data**: принимает выбранную группу стенсилов (`stencilSchema`, `stencilSchemaConfig` из диалога плагина), сохраняет полную запись в модульную переменную `SELECTED_STENCIL_ENTRY`; `ScriptLogger.debug` при `pluginLogLevel: debug`.
 - `lib/oid/*` — модульная библиотека генерации/валидации OID и поиска конфликтов.
 - `lib/diagram/*` — библиотека переиспользуемых helper-функций для context-menu сценариев создания страниц и установки page links.
 - `lib/events/*` — service helper-слой для event handlers (`SEAF_INFO/SEAF_ERROR` логирование, сообщения о коллизиях, резолв env/arguments параметров).

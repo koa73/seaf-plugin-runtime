@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.63
+
+- **Tools → Edit Data**: пункт меню `seafToolsEditData` — диалог выбора группы стенсилов по `layer` из `conf/stencils/config.yaml`; полная запись schema передаётся в `main_menu/edit_data.py` (`stencilSchema`, `stencilSchemaConfig`); выбор сохраняется в `state.editDataSelection` (плагин) и `SELECTED_STENCIL_ENTRY` (Python); при `pluginLogLevel: debug` — запись в `seaf-plugin.log`.
+
 ## 0.5.62
 
 - **NetConf SEAF data parity**: vendored `lib/seaf_converter.py` — полный upstream (YAML `patterns/seaf` → `schema`, `app_components`, `location` и др. на объектах диаграммы); lite-заглушка удалена. `network_visualizer` передаёт `patterns/seaf` в `get_seaf_dictionary()`.

@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.62
+ * Runtime script version: 0.5.63
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -41,6 +41,7 @@ Draw.loadPlugin(function(ui)
 		originalShowDataDialog: null,
 		contextMenuLastCell: null,
 		stencilsLayerConfig: null,
+		editDataSelection: null,
 		features: {
 			intentEngineV2: true,
 			menuPresenterV2: true,
@@ -4407,8 +4408,17 @@ Draw.loadPlugin(function(ui)
 					for (var j = 0; j < options.length; j++)
 					{
 						var opt = document.createElement('option');
-						opt.value = String(options[j]);
-						opt.textContent = String(options[j]);
+						var rawOpt = options[j];
+						if (rawOpt != null && typeof rawOpt === 'object' && !Array.isArray(rawOpt))
+						{
+							opt.value = String(rawOpt.value != null ? rawOpt.value : '');
+							opt.textContent = String(rawOpt.label != null ? rawOpt.label : rawOpt.value);
+						}
+						else
+						{
+							opt.value = String(rawOpt);
+							opt.textContent = String(rawOpt);
+						}
 						input.appendChild(opt);
 					}
 					input.value = currentValue;
@@ -4655,6 +4665,95 @@ Draw.loadPlugin(function(ui)
 		}
 
 		return dialogResult.env || {};
+	}
+
+	function resolvePluginLogLevelForDebug()
+	{
+		var env = (state.envConfig != null && state.envConfig.env != null &&
+			typeof state.envConfig.env === 'object') ? state.envConfig.env : {};
+		return String(env.pluginLogLevel || 'none').trim().toLowerCase();
+	}
+
+	async function collectStencilSchemaPickerOverrides(command)
+	{
+		await loadStencilsLayerConfig();
+		var cfg = state.stencilsLayerConfig;
+		var schemas = (cfg != null && cfg.schemas != null && typeof cfg.schemas === 'object' &&
+			!Array.isArray(cfg.schemas)) ? cfg.schemas : {};
+		var schemaKeys = Object.keys(schemas);
+		if (schemaKeys.length === 0)
+		{
+			showError('Не найдены группы стенсилов в stencils/config.yaml');
+			return null;
+		}
+
+		schemaKeys.sort(function(a, b)
+		{
+			var layerA = (schemas[a] && schemas[a].layer) ? String(schemas[a].layer) : a;
+			var layerB = (schemas[b] && schemas[b].layer) ? String(schemas[b].layer) : b;
+			return layerA.localeCompare(layerB, undefined, {sensitivity: 'base'});
+		});
+
+		var listOptions = [];
+		for (var i = 0; i < schemaKeys.length; i++)
+		{
+			var schemaKey = schemaKeys[i];
+			var entry = schemas[schemaKey];
+			var layerLabel = (entry != null && entry.layer != null) ? String(entry.layer) : schemaKey;
+			listOptions.push({value: schemaKey, label: layerLabel});
+		}
+
+		var dialogResult = await openScriptEnvFieldsDialog({
+			title: 'Edit Data',
+			fields: [{
+				label: 'Группа стенсилов',
+				envKey: 'stencilSchema',
+				inputMethod: 'list',
+				required: true,
+				options: listOptions
+			}],
+			env: {stencilSchema: schemaKeys[0]},
+			persist: 'none'
+		});
+
+		if (dialogResult == null || dialogResult.cancelled === true)
+		{
+			return null;
+		}
+
+		var env = dialogResult.env || {};
+		var selectedSchema = String(env.stencilSchema || '').trim();
+		if (!selectedSchema || schemas[selectedSchema] == null)
+		{
+			showError('Не выбрана группа стенсилов');
+			return null;
+		}
+
+		var selectedEntry = schemas[selectedSchema];
+		var selectedLayer = (selectedEntry.layer != null) ? String(selectedEntry.layer) : selectedSchema;
+		var clonedConfig = mxUtils.clone(selectedEntry);
+		state.editDataSelection = {
+			schema: selectedSchema,
+			layer: selectedLayer,
+			config: clonedConfig
+		};
+
+		var logLevel = resolvePluginLogLevelForDebug();
+		if (logLevel === 'debug' || logLevel === 'trace')
+		{
+			await writeLog('debug', 'Stencil schema group selected', {
+				commandId: command && command.id ? command.id : '',
+				schema: selectedSchema,
+				layer: selectedLayer,
+				config: clonedConfig
+			});
+		}
+
+		return {
+			stencilSchema: selectedSchema,
+			stencilSchemaLayer: selectedLayer,
+			stencilSchemaConfig: JSON.stringify(clonedConfig)
+		};
 	}
 
 	async function openEditConfigDialog(command)
@@ -8028,7 +8127,15 @@ Draw.loadPlugin(function(ui)
 			return;
 		}
 
-		var scriptEnvOverrides = await collectScriptEnvOverrides(command);
+		var scriptEnvOverrides = null;
+		if (command && command.clientAction === 'stencilSchemaPicker')
+		{
+			scriptEnvOverrides = await collectStencilSchemaPickerOverrides(command);
+		}
+		else
+		{
+			scriptEnvOverrides = await collectScriptEnvOverrides(command);
+		}
 		if (scriptEnvOverrides == null)
 		{
 			return;

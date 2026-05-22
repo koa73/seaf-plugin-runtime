@@ -118,3 +118,31 @@ commands:
         section: seaf
         submenu: tools
         submenuTitle: Tools
+  - id: seafToolsEditData
+    title: Edit Data
+    clientAction: stencilSchemaPicker
+    script: main_menu/edit_data.py
+    execution:
+      mode: sync
+    input:
+      includeDiagramXml: false
+    menu:
+      main:
+        enabled: true
+        section: seaf
+        submenu: tools
+        submenuTitle: Tools
+  - id: seafToolsEditData
+    title: Edit Data
+    clientAction: stencilSchemaPicker
+    script: main_menu/edit_data.py
+    execution:
+      mode: sync
+    input:
+      includeDiagramXml: false
+    menu:
+      main:
+        enabled: true
+        section: seaf
+        submenu: tools
+        submenuTitle: Tools
