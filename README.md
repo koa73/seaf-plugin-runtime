@@ -107,6 +107,7 @@
 - **Tabulator** (~450 KB) — часть **сборки draw.io** (`drawio-standalone/.../js/vendor/tabulator/`), не runtime tarball.
 - **Bulk-модуль** — `plugin/seaf-bulk-edit-data-module.js`, в tarball в **корне**; после update должен быть в `plugins/seaf-bulk-edit-data-module.js`.
 - Для `edit_data: standard` bulk недоступен (только per-cell SEAF dialog).
+- При блокировке bulk по policy (`edit_data: standard`) plugin пишет `warn` в `seaf-plugin.log` (`Bulk Edit Data denied by schema policy`) с `schema/layer/editMode`.
 
 ### Опциональный `scriptEnvEditor`
 

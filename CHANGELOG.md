@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.70
+
+- **Tools → Edit Data (bulk)**: при блокировке bulk-режима по policy (`edit_data: standard`) renderer теперь пишет явный `warn` в `seaf-plugin.log` (`Bulk Edit Data denied by schema policy`) с `commandId/schema/layer/editMode`, чтобы отказ фиксировался в логах, а не только в UI popup.
+
 ## 0.5.69
 
 - **Bulk Edit Data (архитектура)**: Tabulator перенесён в draw.io webapp (`js/vendor/tabulator/`, preload в `ElectronApp.js`); runtime грузит только `seaf-bulk-edit-data-module.js` из корня plugins через `getPluginFile` + `script.src`.

@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.69
+ * Runtime script version: 0.5.70
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -4948,6 +4948,12 @@ Draw.loadPlugin(function(ui)
 		var editMode = getEditDataModeForSchema(schema);
 		if (editMode === 'standard')
 		{
+			await writeLog('warn', 'Bulk Edit Data denied by schema policy', {
+				commandId: command.id,
+				schema: schema,
+				layer: layerLabel,
+				editMode: editMode
+			});
 			showError('Для schema "' + schema + '" bulk Edit Data недоступен (edit_data: standard)');
 			return;
 		}

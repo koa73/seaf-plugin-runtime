@@ -12,7 +12,7 @@ schemas:
     #     required: true
   seaf.company.ta.services.dc_azs:
     layer: "Зона доступности"
-    edit_data: standard
+    edit_data: seaf
     parent:
       schema: seaf.company.ta.services.dc_regions
       field: region

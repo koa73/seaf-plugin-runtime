@@ -6,8 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="d1fe5f91-f987-493b-912e-17488c850970" name="Changes" comment="#0.5.69">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/release/out/checksums.txt" beforeDir="false" afterPath="$PROJECT_DIR$/release/out/checksums.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/release/out/seaf-plugin-runtime.tar.gz" beforeDir="false" afterPath="$PROJECT_DIR$/release/out/seaf-plugin-runtime.tar.gz" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/conf/stencils/config.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/conf/stencils/config.yaml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -69,22 +68,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1776327425613</updated>
-    </task>
-    <task id="LOCAL-00090" summary="#0.5.13">
-      <option name="closed" value="true" />
-      <created>1778261498926</created>
-      <option name="number" value="00090" />
-      <option name="presentableId" value="LOCAL-00090" />
-      <option name="project" value="LOCAL" />
-      <updated>1778261498937</updated>
-    </task>
-    <task id="LOCAL-00091" summary="#0.5.14">
-      <option name="closed" value="true" />
-      <created>1778262126288</created>
-      <option name="number" value="00091" />
-      <option name="presentableId" value="LOCAL-00091" />
-      <option name="project" value="LOCAL" />
-      <updated>1778262126288</updated>
     </task>
     <task id="LOCAL-00092" summary="#0.5.15">
       <option name="closed" value="true" />
@@ -462,7 +445,23 @@
       <option name="project" value="LOCAL" />
       <updated>1779461701221</updated>
     </task>
-    <option name="localTasksCounter" value="139" />
+    <task id="LOCAL-00139" summary="#0.5.69">
+      <option name="closed" value="true" />
+      <created>1779462292379</created>
+      <option name="number" value="00139" />
+      <option name="presentableId" value="LOCAL-00139" />
+      <option name="project" value="LOCAL" />
+      <updated>1779462292379</updated>
+    </task>
+    <task id="LOCAL-00140" summary="#0.5.69">
+      <option name="closed" value="true" />
+      <created>1779463835830</created>
+      <option name="number" value="00140" />
+      <option name="presentableId" value="LOCAL-00140" />
+      <option name="project" value="LOCAL" />
+      <updated>1779463835830</updated>
+    </task>
+    <option name="localTasksCounter" value="141" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
