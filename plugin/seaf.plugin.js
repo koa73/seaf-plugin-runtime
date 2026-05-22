@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.66
+ * Runtime script version: 0.5.67
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -4778,84 +4778,51 @@ Draw.loadPlugin(function(ui)
 		});
 	}
 
-	function resolvePluginsBasePath()
+	function loadConfAssetOnce(kind, relativeConfPath, loadedFlagKey)
 	{
-		if (typeof state.configPath !== 'string' || state.configPath.length === 0)
-		{
-			return '';
-		}
-		var normalized = state.configPath.replace(/\\/g, '/');
-		var marker = '/seaf_plugin/conf/plugin.yaml';
-		var idx = normalized.toLowerCase().indexOf(marker);
-		if (idx >= 0)
-		{
-			return normalized.substring(0, idx);
-		}
-		return normalized.replace(/\/conf\/plugin\.yaml$/i, '');
-	}
-
-	function resolvePluginsAssetUrl(relativePath)
-	{
-		var base = resolvePluginsBasePath();
-		if (!base)
-		{
-			return '';
-		}
-		var rel = String(relativePath || '').replace(/^\/+/, '');
-		var full = base + '/' + rel;
-		if (full.indexOf('file://') === 0)
-		{
-			return full;
-		}
-		return 'file://' + full;
-	}
-
-	function loadPluginAssetOnce(kind, relativePath, loadedFlagKey)
-	{
-		return new Promise(function(resolve, reject)
+		return new Promise(async function(resolve, reject)
 		{
 			if (state[loadedFlagKey] === true)
 			{
 				resolve();
 				return;
 			}
-			var assetUrl = resolvePluginsAssetUrl(relativePath);
-			if (!assetUrl)
+			if (!state.configPath)
 			{
-				reject(new Error('plugins base path is not resolved'));
+				reject(new Error('configPath is not resolved'));
 				return;
 			}
-			if (kind === 'css')
+			try
 			{
-				var link = document.createElement('link');
-				link.rel = 'stylesheet';
-				link.type = 'text/css';
-				link.href = assetUrl;
-				link.onload = function()
+				var text = await requestAsync({
+					action: 'readSeafPluginFile',
+					configPath: state.configPath,
+					relativePath: relativeConfPath,
+					encoding: 'utf8'
+				});
+				var normalizedText = (typeof text === 'string') ? text : String(text || '');
+				if (kind === 'css')
 				{
-					state[loadedFlagKey] = true;
-					resolve();
-				};
-				link.onerror = function()
+					var styleEl = document.createElement('style');
+					styleEl.setAttribute('data-seaf-asset', relativeConfPath);
+					styleEl.textContent = normalizedText;
+					document.head.appendChild(styleEl);
+				}
+				else
 				{
-					reject(new Error('failed to load stylesheet: ' + relativePath));
-				};
-				document.head.appendChild(link);
-				return;
-			}
-			var script = document.createElement('script');
-			script.type = 'text/javascript';
-			script.src = assetUrl;
-			script.onload = function()
-			{
+					var scriptEl = document.createElement('script');
+					scriptEl.setAttribute('data-seaf-asset', relativeConfPath);
+					scriptEl.type = 'text/javascript';
+					scriptEl.text = normalizedText;
+					document.head.appendChild(scriptEl);
+				}
 				state[loadedFlagKey] = true;
 				resolve();
-			};
-			script.onerror = function()
+			}
+			catch (e)
 			{
-				reject(new Error('failed to load script: ' + relativePath));
-			};
-			document.head.appendChild(script);
+				reject(new Error('failed to load asset ' + relativeConfPath + ': ' + (e && e.message ? e.message : String(e))));
+			}
 		});
 	}
 
@@ -4865,8 +4832,8 @@ Draw.loadPlugin(function(ui)
 		{
 			return;
 		}
-		await loadPluginAssetOnce('css', 'vendor/tabulator/tabulator.min.css', 'tabulatorCssLoaded');
-		await loadPluginAssetOnce('script', 'vendor/tabulator/tabulator.min.js', 'tabulatorJsLoaded');
+		await loadConfAssetOnce('css', 'vendor/tabulator/tabulator.min.css', 'tabulatorCssLoaded');
+		await loadConfAssetOnce('script', 'vendor/tabulator/tabulator.min.js', 'tabulatorJsLoaded');
 	}
 
 	async function ensureBulkEditDataModuleLoaded()
@@ -4876,7 +4843,7 @@ Draw.loadPlugin(function(ui)
 			return;
 		}
 		await ensureTabulatorLoaded();
-		await loadPluginAssetOnce('script', 'seaf-bulk-edit-data-module.js', 'bulkEditDataModuleLoaded');
+		await loadConfAssetOnce('script', 'seaf-bulk-edit-data-module.js', 'bulkEditDataModuleLoaded');
 	}
 
 	function getBulkEditDataDeps()

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.67
+
+- **Edit Data bulk**: загрузка Tabulator и bulk-модуля через `readSeafPluginFile` (файлы в `seaf_plugin/conf/vendor/`), исправлена ошибка `failed to load stylesheet: vendor/tabulator/...` в Electron.
+
 ## 0.5.66
 
 - **Tools → Edit Data (bulk)**: после выбора schema — табличный редактор (Tabulator) по всем объектам диаграммы; `data_lock` / `data_hidden`, выбор видимых колонок; Save → `edit_data_apply.py` → `updateStencilDataBulk` + linked-page sync (как Import). Vendored `plugin/vendor/tabulator`, `seaf-bulk-edit-data-module.js` в tarball.
