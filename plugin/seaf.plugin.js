@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.64
+ * Runtime script version: 0.5.65
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -4697,8 +4697,9 @@ Draw.loadPlugin(function(ui)
 			var defaultSchema = (typeof opts.defaultSchema === 'string') ? opts.defaultSchema : '';
 			var baseInset = 8;
 			var labelGapPx = 12;
+			var selectToButtonsGapPx = 28;
 			var dialogWidth = 460;
-			var dialogHeight = 120;
+			var dialogHeight = 148;
 
 			var container = document.createElement('div');
 			container.style.width = dialogWidth + 'px';
@@ -4715,7 +4716,7 @@ Draw.loadPlugin(function(ui)
 			var select = document.createElement('select');
 			select.style.width = '100%';
 			select.style.boxSizing = 'border-box';
-			select.style.marginBottom = baseInset + 'px';
+			select.style.marginBottom = selectToButtonsGapPx + 'px';
 			for (var i = 0; i < listOptions.length; i++)
 			{
 				var rawOpt = listOptions[i];
@@ -4747,6 +4748,7 @@ Draw.loadPlugin(function(ui)
 			var footer = document.createElement('div');
 			footer.style.textAlign = 'right';
 			footer.style.whiteSpace = 'nowrap';
+			footer.style.marginTop = '4px';
 			var cancelBtn = mxUtils.button(mxResources.get('cancel'), function()
 			{
 				ui.hideDialog();
