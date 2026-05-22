@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.68
+ * Runtime script version: 0.5.69
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -42,8 +42,6 @@ Draw.loadPlugin(function(ui)
 		contextMenuLastCell: null,
 		stencilsLayerConfig: null,
 		editDataSelection: null,
-		tabulatorCssLoaded: false,
-		tabulatorJsLoaded: false,
 		bulkEditDataModuleLoaded: false,
 		features: {
 			intentEngineV2: true,
@@ -592,31 +590,6 @@ Draw.loadPlugin(function(ui)
 			return null;
 		}
 		return normalized.slice(0, normalized.length - suffix.length);
-	}
-
-	function getConfDirPath()
-	{
-		var runtimeRoot = getRuntimeRootFromConfigPath();
-		if (!runtimeRoot)
-		{
-			return null;
-		}
-		return joinPathFragments(runtimeRoot, 'conf');
-	}
-
-	function resolveConfAssetFileUrl(relativeConfPath)
-	{
-		var confDir = getConfDirPath();
-		if (!confDir)
-		{
-			return '';
-		}
-		var full = joinPathFragments(confDir, relativeConfPath);
-		if (/^[A-Za-z]:/.test(full))
-		{
-			return 'file:///' + full;
-		}
-		return 'file://' + full;
 	}
 
 	function getStencilsConfigPath()
@@ -4806,79 +4779,76 @@ Draw.loadPlugin(function(ui)
 		});
 	}
 
-	function loadConfAssetOnce(kind, relativeConfPath, loadedFlagKey)
+	function loadPluginRootScriptOnce(pluginFileName, loadedFlagKey)
 	{
-		return new Promise(function(resolve, reject)
+		return new Promise(async function(resolve, reject)
 		{
 			if (state[loadedFlagKey] === true)
 			{
 				resolve();
 				return;
 			}
-			if (!state.configPath)
+			try
 			{
-				reject(new Error('configPath is not resolved'));
-				return;
-			}
-			var url = resolveConfAssetFileUrl(relativeConfPath);
-			if (!url)
-			{
-				reject(new Error('failed to resolve asset URL for ' + relativeConfPath));
-				return;
-			}
-			if (kind === 'css')
-			{
-				var linkEl = document.createElement('link');
-				linkEl.rel = 'stylesheet';
-				linkEl.setAttribute('data-seaf-asset', relativeConfPath);
-				linkEl.href = url;
-				linkEl.onload = function()
+				var pluginFile = await requestAsync({
+					action: 'getPluginFile',
+					plugin: pluginFileName
+				});
+				if (pluginFile == null || String(pluginFile).trim().length === 0)
+				{
+					reject(new Error('plugin file not found: ' + pluginFileName));
+					return;
+				}
+				var cacheBuster = '';
+				try
+				{
+					var stat = await requestAsync({
+						action: 'fileStat',
+						file: pluginFile
+					});
+					if (stat != null && Number.isFinite(stat.mtimeMs))
+					{
+						cacheBuster = '?v=' + Math.round(stat.mtimeMs);
+					}
+				}
+				catch (eStat)
+				{
+					// ignore stat errors
+				}
+				var url = 'file://' + pluginFile + cacheBuster;
+				var scriptEl = document.createElement('script');
+				scriptEl.setAttribute('data-seaf-plugin', pluginFileName);
+				scriptEl.type = 'text/javascript';
+				scriptEl.src = url;
+				scriptEl.onload = function()
 				{
 					state[loadedFlagKey] = true;
 					resolve();
 				};
-				linkEl.onerror = function()
+				scriptEl.onerror = function()
 				{
-					reject(new Error('failed to load stylesheet: ' + relativeConfPath));
+					reject(new Error('failed to load script: ' + pluginFileName + ' (' + url + ')'));
 				};
-				document.head.appendChild(linkEl);
-				return;
+				document.head.appendChild(scriptEl);
 			}
-			var scriptEl = document.createElement('script');
-			scriptEl.setAttribute('data-seaf-asset', relativeConfPath);
-			scriptEl.type = 'text/javascript';
-			scriptEl.src = url;
-			scriptEl.onload = function()
+			catch (e)
 			{
-				state[loadedFlagKey] = true;
-				resolve();
-			};
-			scriptEl.onerror = function()
-			{
-				reject(new Error('failed to load script: ' + relativeConfPath));
-			};
-			document.head.appendChild(scriptEl);
+				reject(e);
+			}
 		});
-	}
-
-	async function ensureTabulatorLoaded()
-	{
-		if (typeof window.Tabulator === 'function')
-		{
-			return;
-		}
-		await loadConfAssetOnce('css', 'vendor/tabulator/tabulator.min.css', 'tabulatorCssLoaded');
-		await loadConfAssetOnce('script', 'vendor/tabulator/tabulator.min.js', 'tabulatorJsLoaded');
 	}
 
 	async function ensureBulkEditDataModuleLoaded()
 	{
+		if (typeof window.Tabulator !== 'function')
+		{
+			throw new Error('Tabulator is not provided by draw.io host; update the desktop application');
+		}
 		if (window.SeafBulkEditData != null && typeof window.SeafBulkEditData.openBulkEditDataDialog === 'function')
 		{
 			return;
 		}
-		await ensureTabulatorLoaded();
-		await loadConfAssetOnce('script', 'seaf-bulk-edit-data-module.js', 'bulkEditDataModuleLoaded');
+		await loadPluginRootScriptOnce('seaf-bulk-edit-data-module.js', 'bulkEditDataModuleLoaded');
 	}
 
 	function getBulkEditDataDeps()
@@ -4900,7 +4870,8 @@ Draw.loadPlugin(function(ui)
 		await ensureBulkEditDataModuleLoaded();
 		if (window.SeafBulkEditData == null || typeof window.SeafBulkEditData.openBulkEditDataDialog !== 'function')
 		{
-			throw new Error('SeafBulkEditData module is not available');
+			throw new Error('SeafBulkEditData module is not available (Tabulator=' +
+				(typeof window.Tabulator) + ')');
 		}
 		return window.SeafBulkEditData.openBulkEditDataDialog(getBulkEditDataDeps(), {
 			schema: schema,
@@ -4909,7 +4880,7 @@ Draw.loadPlugin(function(ui)
 		});
 	}
 
-	async function runEditDataApplyCommand(schema, editedRows)
+	async function runEditDataApplyCommand(schema, editedRows, schemaObjects)
 	{
 		var applyCommand = state.commandsById.seafToolsEditDataApply;
 		if (applyCommand == null)
@@ -4918,6 +4889,10 @@ Draw.loadPlugin(function(ui)
 			return {status: 'error'};
 		}
 		var payload = buildPayload(applyCommand);
+		if (Array.isArray(schemaObjects))
+		{
+			payload.schemaObjects = schemaObjects;
+		}
 		payload.source = 'menu';
 		payload.arguments = payload.arguments || {};
 		payload.arguments.stencilSchema = schema;
@@ -4976,15 +4951,7 @@ Draw.loadPlugin(function(ui)
 			showError('Для schema "' + schema + '" bulk Edit Data недоступен (edit_data: standard)');
 			return;
 		}
-		var allObjects = collectSchemaObjectsAcrossPages();
-		var matched = [];
-		for (var i = 0; i < allObjects.length; i++)
-		{
-			if (allObjects[i] && allObjects[i].schema === schema)
-			{
-				matched.push(allObjects[i]);
-			}
-		}
+		var matched = collectSchemaObjectsAcrossPages(schema);
 		if (matched.length === 0)
 		{
 			showInfo('На диаграмме нет объектов для "' + layerLabel + '"');
@@ -5017,7 +4984,7 @@ Draw.loadPlugin(function(ui)
 		}
 		try
 		{
-			await runEditDataApplyCommand(schema, editedRows);
+			await runEditDataApplyCommand(schema, editedRows, matched);
 		}
 		catch (eApply)
 		{
@@ -6011,7 +5978,7 @@ Draw.loadPlugin(function(ui)
 		return out;
 	}
 
-	function collectSchemaObjectsAcrossPages()
+	function collectSchemaObjectsAcrossPages(schemaFilter)
 	{
 		var graph = ui && ui.editor ? ui.editor.graph : null;
 		if (!graph || !ui || !Array.isArray(ui.pages))
@@ -6020,6 +5987,10 @@ Draw.loadPlugin(function(ui)
 		}
 		syncCurrentPageRootFromGraph(graph);
 		var criteria = { requireSchema: true };
+		if (typeof schemaFilter === 'string' && schemaFilter.trim().length > 0)
+		{
+			criteria.schema = schemaFilter.trim();
+		}
 		var out = [];
 		var originalPage = ui.currentPage || null;
 		var originalSelection = [];

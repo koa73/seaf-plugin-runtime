@@ -9,20 +9,13 @@ PY_ROOT="${ROOT_DIR}/python"
 STAGE_PY="${STAGE_DIR}/seaf_plugin/python"
 
 rm -rf "${STAGE_DIR}"
-mkdir -p "${STAGE_DIR}/seaf_plugin" "${OUT_DIR}" "${STAGE_PY}"
+mkdir -p "${STAGE_DIR}/seaf_plugin/conf" "${OUT_DIR}" "${STAGE_PY}"
 
 cp "${ROOT_DIR}/plugin/seaf.plugin.js" "${STAGE_DIR}/seaf.plugin.js"
 if [ -f "${ROOT_DIR}/plugin/seaf-bulk-edit-data-module.js" ]; then
 	cp "${ROOT_DIR}/plugin/seaf-bulk-edit-data-module.js" "${STAGE_DIR}/seaf-bulk-edit-data-module.js"
 fi
-if [ -d "${ROOT_DIR}/plugin/vendor/tabulator" ]; then
-	mkdir -p "${STAGE_DIR}/seaf_plugin/conf/vendor/tabulator"
-	cp -r "${ROOT_DIR}/plugin/vendor/tabulator/." "${STAGE_DIR}/seaf_plugin/conf/vendor/tabulator/"
-fi
-if [ -f "${ROOT_DIR}/plugin/seaf-bulk-edit-data-module.js" ]; then
-	cp "${ROOT_DIR}/plugin/seaf-bulk-edit-data-module.js" "${STAGE_DIR}/seaf_plugin/conf/seaf-bulk-edit-data-module.js"
-fi
-cp -r "${ROOT_DIR}/conf" "${STAGE_DIR}/seaf_plugin/conf"
+cp -r "${ROOT_DIR}/conf/." "${STAGE_DIR}/seaf_plugin/conf/"
 cp -r "${ROOT_DIR}/runtime" "${STAGE_DIR}/seaf_plugin/runtime"
 cp -r "${ROOT_DIR}/keys" "${STAGE_DIR}/seaf_plugin/keys"
 

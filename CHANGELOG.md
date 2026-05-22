@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.69
+
+- **Bulk Edit Data (архитектура)**: Tabulator перенесён в draw.io webapp (`js/vendor/tabulator/`, preload в `ElectronApp.js`); runtime грузит только `seaf-bulk-edit-data-module.js` из корня plugins через `getPluginFile` + `script.src`.
+- **build-runtime.sh**: исправлено вложение `conf/conf/` (`cp conf/.` merge); Tabulator и дубль bulk-модуля в `conf/` убраны из tarball.
+- **Оптимизация**: `collectSchemaObjectsAcrossPages(schema)` фильтрует по schema при сборе; Apply получает только объекты выбранной schema.
+
 ## 0.5.68
 
 - **Edit Data bulk**: Tabulator и bulk-модуль загружаются через `file://` из `seaf_plugin/conf/` (`script.src` / `link.href`), а не inline — CSP `script-src 'self'` блокировал `script.text` и давал `SeafBulkEditData module is not available`.
