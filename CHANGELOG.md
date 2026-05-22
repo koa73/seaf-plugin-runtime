@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.60
+
+- **NetConf Parser (вариант A)**: после успешного построения диаграммы `main_entry.py` печатает `SEAF_NETCONF_DIAGRAM_READY`; плагин на `process-exit` импортирует `network_diagram.drawio` на страницу `netconf_perser` (существующая страница — замена содержимого). Desktop: `process-exit` передаёт `outputTail` для парсинга маркера (**a58+**).
+
 ## 0.5.59
 
 - **NetConf**: подсказка в `script_env` про права на каталог данных (без правок vendored `netconf_parser` lib).

@@ -109,6 +109,7 @@
 - Launcher: `python/scripts/main_menu/net_conf_parser.py` → `python/vendor/netconf_parser/main_entry.py` (без SEAF-конвертации).
 - Обновление upstream: [`scripts/vendor/sync-netconf-parser.sh`](scripts/vendor/sync-netconf-parser.sh) → `python/vendor/netconf_parser/`.
 - Ошибки чтения конфигов (`Permission denied` и др.) — stderr vendored-парсера; tail PTY в `seaf-plugin.log` при failed terminal или `pluginLogLevel: debug` (desktop **a57+**).
+- После успешного NetConf: импорт `network_diagram.drawio` на страницу **`netconf_perser`** в открытой диаграмме (desktop **a58+**, runtime **0.5.60+**).
 - Зависимости: единый [`python/requirements.txt`](python/requirements.txt) (PyYAML, N2G).
 
 ### Vendored Python (`python/vendor/`)

@@ -133,6 +133,7 @@ Inline-поля `fields` в `main_menu.yaml` **не поддерживаются
 - Каталог данных должен быть **читаем** текущим пользователем: при `Permission denied` (часто файлы `600` и владелец другой UID) файл пропускается; сообщение — в stderr терминала (vendored NetConf_Parser).
 - Артефакты: `{netconfOutputDir}/network_details.txt`, `{netconfOutputDir}/network_diagram.drawio`; отдельного `*.log` у скрипта нет.
 - В `seaf-plugin.log` при **failed** interactive terminal пишется tail вывода PTY (~16 KB); при `pluginLogLevel: debug` — tail и при успешном завершении.
+- После успешного построения диаграммы: страница **`netconf_perser`** в текущем файле — импорт из `{netconfOutputDir}/network_diagram.drawio` (повторный запуск заменяет содержимое страницы). Нужен desktop **a58+** (передача `outputTail` на `process-exit`).
 
 ### Поля `menu.main.*`
 

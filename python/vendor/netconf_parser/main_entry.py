@@ -5,6 +5,7 @@ Paths from SEAF_ENV_* / payload env; seaf_converter block removed.
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -124,6 +125,15 @@ def main() -> int:
 
     objects = viz.prepare_stencils(links_result, devices, layout_algorithm=layout_algorithm)
     viz.create_drawio_diagram(objects)
+
+    diagram_path = (output_dir / diagram_name).resolve()
+    page_name = "netconf_perser"
+    if diagram_path.is_file():
+        ready_payload = {
+            "diagramPath": str(diagram_path),
+            "pageName": page_name,
+        }
+        print(f"SEAF_NETCONF_DIAGRAM_READY {json.dumps(ready_payload, ensure_ascii=False)}")
 
     print("\n" + "=" * 60)
     print(f"Готово. Отчёт: {output_dir / report_name}, диаграмма: {output_dir / diagram_name}")

@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.59
+ * Runtime script version: 0.5.60
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -7683,6 +7683,207 @@ Draw.loadPlugin(function(ui)
 		showError(formatCommandError(command.id, 'async timeout'));
 	}
 
+	var NETCONF_PAGE_NAME = 'netconf_perser';
+	var NETCONF_DIAGRAM_FILENAME = 'network_diagram.drawio';
+	var NETCONF_READY_PREFIX = 'SEAF_NETCONF_DIAGRAM_READY ';
+
+	function stripTerminalAnsi(text)
+	{
+		return String(text || '').replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, '');
+	}
+
+	function joinDirFile(dirPath, fileName)
+	{
+		var base = String(dirPath || '').replace(/[\\/]+$/, '');
+		var file = String(fileName || '').replace(/^[\\/]+/, '');
+		if (!base)
+		{
+			return file;
+		}
+		return base + '/' + file;
+	}
+
+	function parseNetconfDiagramReady(terminalText)
+	{
+		var text = stripTerminalAnsi(terminalText);
+		if (!text)
+		{
+			return null;
+		}
+		var lines = text.split(/\r?\n/);
+		for (var i = lines.length - 1; i >= 0; i--)
+		{
+			var line = String(lines[i] || '').trim();
+			if (!line.startsWith(NETCONF_READY_PREFIX))
+			{
+				continue;
+			}
+			try
+			{
+				var parsed = JSON.parse(line.slice(NETCONF_READY_PREFIX.length));
+				if (parsed && typeof parsed.diagramPath === 'string' && parsed.diagramPath.trim().length > 0)
+				{
+					return {
+						diagramPath: parsed.diagramPath.trim(),
+						pageName: (typeof parsed.pageName === 'string' && parsed.pageName.trim().length > 0) ?
+							parsed.pageName.trim() : NETCONF_PAGE_NAME
+					};
+				}
+			}
+			catch (ignored)
+			{
+				// ignore malformed marker line
+			}
+		}
+		return null;
+	}
+
+	function resolveNetconfDiagramPath(scriptEnv, terminalText)
+	{
+		var fromMarker = parseNetconfDiagramReady(terminalText);
+		if (fromMarker != null)
+		{
+			return fromMarker;
+		}
+		var outputDir = (scriptEnv && typeof scriptEnv.netconfOutputDir === 'string') ?
+			scriptEnv.netconfOutputDir.trim() : '';
+		if (!outputDir)
+		{
+			return null;
+		}
+		return {
+			diagramPath: joinDirFile(outputDir, NETCONF_DIAGRAM_FILENAME),
+			pageName: NETCONF_PAGE_NAME
+		};
+	}
+
+	function clearCurrentPageGraphContent(graph)
+	{
+		if (!graph || !graph.model || typeof graph.getDefaultParent !== 'function')
+		{
+			return;
+		}
+		var parent = graph.getDefaultParent();
+		var children = graph.model.getChildren(parent);
+		if (children != null && children.length > 0)
+		{
+			graph.removeCells(children);
+		}
+		graph.refresh();
+	}
+
+	function selectOrCreateNetconfPage(pageName)
+	{
+		var title = (typeof pageName === 'string' && pageName.trim().length > 0) ?
+			pageName.trim() : NETCONF_PAGE_NAME;
+		var existing = findPageByName(title);
+		if (existing != null)
+		{
+			if (typeof ui.selectPage === 'function')
+			{
+				ui.selectPage(existing);
+			}
+			return {status: 'existing', pageName: title};
+		}
+		if (typeof ui.createPage !== 'function' || typeof ui.insertPage !== 'function' ||
+			typeof ui.createPageId !== 'function' || typeof ui.selectPage !== 'function')
+		{
+			return {status: 'error', reason: 'page_api_unavailable'};
+		}
+		var page = ui.createPage(title, ui.createPageId());
+		page = ui.insertPage(page);
+		ui.selectPage(page);
+		return {status: 'created', pageName: title};
+	}
+
+	async function importNetconfDiagramToPage(command, scriptEnv, terminalText)
+	{
+		var resolved = resolveNetconfDiagramPath(scriptEnv, terminalText);
+		if (resolved == null || !resolved.diagramPath)
+		{
+			await writeLog('warn', 'NetConf diagram import skipped: path not resolved', {
+				commandId: command && command.id ? command.id : ''
+			});
+			return {status: 'skipped', reason: 'path_not_resolved'};
+		}
+		if (typeof ui.importXml !== 'function')
+		{
+			showError(formatCommandError(command.id, 'importXml is not available in this draw.io build'));
+			return {status: 'error', reason: 'import_xml_unavailable'};
+		}
+
+		var diagramXml = null;
+		try
+		{
+			diagramXml = await requestAsync({
+				action: 'readFile',
+				filename: resolved.diagramPath,
+				encoding: 'utf8'
+			});
+		}
+		catch (e)
+		{
+			await writeLog('warn', 'NetConf diagram import skipped: read failed', {
+				commandId: command && command.id ? command.id : '',
+				diagramPath: resolved.diagramPath,
+				error: e.message
+			});
+			return {status: 'skipped', reason: 'read_failed', error: e.message};
+		}
+
+		if (typeof diagramXml !== 'string' || diagramXml.trim().length === 0)
+		{
+			return {status: 'skipped', reason: 'empty_diagram'};
+		}
+
+		var pageResult = selectOrCreateNetconfPage(resolved.pageName);
+		if (pageResult.status === 'error')
+		{
+			showError(formatCommandError(command.id, 'Unable to create or select page "' + resolved.pageName + '"'));
+			return pageResult;
+		}
+
+		var graph = ui && ui.editor ? ui.editor.graph : null;
+		if (!graph)
+		{
+			showError(formatCommandError(command.id, 'Graph is not available'));
+			return {status: 'error', reason: 'graph_unavailable'};
+		}
+
+		clearCurrentPageGraphContent(graph);
+		try
+		{
+			ui.importXml(diagramXml, 0, 0, true, true, false);
+		}
+		catch (e)
+		{
+			await writeLog('error', 'NetConf diagram import failed', {
+				commandId: command && command.id ? command.id : '',
+				diagramPath: resolved.diagramPath,
+				pageName: resolved.pageName,
+				error: e.message
+			});
+			showError(formatCommandError(command.id, 'Diagram import failed: ' + e.message));
+			return {status: 'error', reason: 'import_failed', error: e.message};
+		}
+
+		graph.refresh();
+		var infoText = 'NetConf: импорт на страницу «' + resolved.pageName + '» из ' + resolved.diagramPath;
+		showInfo(infoText);
+		await writeLog('info', 'NetConf diagram imported to page', {
+			commandId: command && command.id ? command.id : '',
+			diagramPath: resolved.diagramPath,
+			pageName: resolved.pageName,
+			pageStatus: pageResult.status
+		});
+		return {
+			status: 'imported',
+			diagramPath: resolved.diagramPath,
+			pageName: resolved.pageName,
+			pageStatus: pageResult.status
+		};
+	}
+
 	async function executeInteractiveTerminalCommand(command, source)
 	{
 		var scriptEnvOverrides = await collectScriptEnvOverrides(command);
@@ -7724,8 +7925,23 @@ Draw.loadPlugin(function(ui)
 				state.interactiveOverlay.sessionId = sessionId;
 			}
 
+			var netconfImportDone = false;
 			state.interactiveSessionHandlers[sessionId] = function(event)
 			{
+				if (event.type === 'process-exit' && event.status === 'completed' &&
+					command.id === 'seafToolsNetConfParser' && !netconfImportDone)
+				{
+					netconfImportDone = true;
+					var terminalText = (typeof event.outputTail === 'string') ? event.outputTail : '';
+					importNetconfDiagramToPage(command, scriptEnvOverrides, terminalText).catch(function(e)
+					{
+						writeLog('error', 'NetConf diagram import handler failed', {
+							commandId: command.id,
+							sessionId: sessionId,
+							error: e.message
+						});
+					});
+				}
 				if (event.type === 'terminal-closed')
 				{
 					clearInteractiveSessionWatchdog(sessionId);
