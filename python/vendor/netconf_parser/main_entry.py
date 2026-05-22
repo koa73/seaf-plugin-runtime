@@ -25,6 +25,42 @@ def _read_env_path(key: str, default: str = "") -> str:
     return default
 
 
+_SKIP_TOPOLOGY_FILENAMES = frozenset({
+    "cdp",
+    "cdp.old",
+    "version",
+    "version.old",
+    "inventory",
+})
+
+
+def _select_topology_config_files(config_dir: Path) -> tuple[list[Path], int, int]:
+    """Pick config files for topology: skip aux dumps; prefer running.current over running.* snapshots."""
+    all_files = [
+        f for f in config_dir.iterdir()
+        if f.is_file() and not f.name.startswith(".")
+    ]
+    if not all_files:
+        return [], 0, 0
+
+    selected: list[Path] = []
+    skipped = 0
+    running_current = config_dir / "running.current"
+    has_running_current = running_current.is_file()
+
+    for config_file in all_files:
+        name = config_file.name
+        if name in _SKIP_TOPOLOGY_FILENAMES:
+            skipped += 1
+            continue
+        if has_running_current and name.startswith("running.") and name != "running.current":
+            skipped += 1
+            continue
+        selected.append(config_file)
+
+    return selected, skipped, len(all_files)
+
+
 def _resolve_paths(vendor_root: Path) -> tuple[Path, Path, Path, str]:
     """patterns_dir is fixed under vendored package: python/vendor/netconf_parser/patterns/."""
     data_dir = _read_env_path("netconfDataDir", "./data")
@@ -72,13 +108,17 @@ def main() -> int:
         print(f"Каталог конфигураций не найден: {config_dir}", file=sys.stderr)
         return 1
 
-    config_files = [
-        f for f in config_dir.iterdir()
-        if f.is_file() and not f.name.startswith(".")
-    ]
+    config_files, skipped_files, total_files = _select_topology_config_files(config_dir)
     if not config_files:
         print(f"В каталоге '{config_dir}' нет файлов для анализа.", file=sys.stderr)
         return 1
+
+    if skipped_files:
+        print(
+            f"ℹ️  Для топологии использовано {len(config_files)} из {total_files} файлов "
+            f"(пропущено вспомогательных/дублей running.*: {skipped_files})",
+            file=sys.stderr,
+        )
 
     devices = []
     for config_file in config_files:

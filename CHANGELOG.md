@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.62
+
+- **NetConf SEAF data parity**: vendored `lib/seaf_converter.py` — полный upstream (YAML `patterns/seaf` → `schema`, `app_components`, `location` и др. на объектах диаграммы); lite-заглушка удалена. `network_visualizer` передаёт `patterns/seaf` в `get_seaf_dictionary()`.
+- **NetConf**: `main_entry.py` — для топологии пропускаются `cdp`/`version`/`inventory` и дубли `running.*` при наличии `running.current`; сводка «использовано N из M файлов» в stderr.
+- **sync-netconf-parser.sh**: копирует `seaf_converter.py` из upstream (DrawioConverter по-прежнему не вызывается из `main_entry`).
+
 ## 0.5.61
 
 - **NetConf import**: после фонового импорта на страницу `netconf_perser` восстанавливается исходная страница диаграммы и фокус возвращается в окно interactive terminal; убран модальный `showInfo`, который перехватывал фокус. Desktop: IPC `focusSeafInteractiveTerminalSession` (**a59+**).

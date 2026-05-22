@@ -33,7 +33,8 @@ class NetworkVisualizer:
         self.pattern_dir = Path(pattern_dir).resolve()
         self.drawio_template =  drawio_template
         self.drawio_stencil_templates = Path(drawio_stencil_templates).resolve()
-        self.data_pattern = get_seaf_dictionary()
+        seaf_patterns = self.pattern_dir.parent / "seaf"
+        self.data_pattern = get_seaf_dictionary(seaf_patterns)
         
         # Валидация базового каталога при инициализации
         if not self.pattern_dir.exists() or not self.pattern_dir.is_dir():

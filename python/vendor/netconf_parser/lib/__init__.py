@@ -1,1 +1,1 @@
-"""Vendored NetConf_Parser library (lite seaf_converter for draw.io only)."""
+"""Vendored NetConf_Parser library (full seaf_converter for SEAF diagram data templates)."""
