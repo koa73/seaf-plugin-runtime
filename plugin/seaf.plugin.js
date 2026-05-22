@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.65
+ * Runtime script version: 0.5.66
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -42,6 +42,9 @@ Draw.loadPlugin(function(ui)
 		contextMenuLastCell: null,
 		stencilsLayerConfig: null,
 		editDataSelection: null,
+		tabulatorCssLoaded: false,
+		tabulatorJsLoaded: false,
+		bulkEditDataModuleLoaded: false,
 		features: {
 			intentEngineV2: true,
 			menuPresenterV2: true,
@@ -4775,6 +4778,256 @@ Draw.loadPlugin(function(ui)
 		});
 	}
 
+	function resolvePluginsBasePath()
+	{
+		if (typeof state.configPath !== 'string' || state.configPath.length === 0)
+		{
+			return '';
+		}
+		var normalized = state.configPath.replace(/\\/g, '/');
+		var marker = '/seaf_plugin/conf/plugin.yaml';
+		var idx = normalized.toLowerCase().indexOf(marker);
+		if (idx >= 0)
+		{
+			return normalized.substring(0, idx);
+		}
+		return normalized.replace(/\/conf\/plugin\.yaml$/i, '');
+	}
+
+	function resolvePluginsAssetUrl(relativePath)
+	{
+		var base = resolvePluginsBasePath();
+		if (!base)
+		{
+			return '';
+		}
+		var rel = String(relativePath || '').replace(/^\/+/, '');
+		var full = base + '/' + rel;
+		if (full.indexOf('file://') === 0)
+		{
+			return full;
+		}
+		return 'file://' + full;
+	}
+
+	function loadPluginAssetOnce(kind, relativePath, loadedFlagKey)
+	{
+		return new Promise(function(resolve, reject)
+		{
+			if (state[loadedFlagKey] === true)
+			{
+				resolve();
+				return;
+			}
+			var assetUrl = resolvePluginsAssetUrl(relativePath);
+			if (!assetUrl)
+			{
+				reject(new Error('plugins base path is not resolved'));
+				return;
+			}
+			if (kind === 'css')
+			{
+				var link = document.createElement('link');
+				link.rel = 'stylesheet';
+				link.type = 'text/css';
+				link.href = assetUrl;
+				link.onload = function()
+				{
+					state[loadedFlagKey] = true;
+					resolve();
+				};
+				link.onerror = function()
+				{
+					reject(new Error('failed to load stylesheet: ' + relativePath));
+				};
+				document.head.appendChild(link);
+				return;
+			}
+			var script = document.createElement('script');
+			script.type = 'text/javascript';
+			script.src = assetUrl;
+			script.onload = function()
+			{
+				state[loadedFlagKey] = true;
+				resolve();
+			};
+			script.onerror = function()
+			{
+				reject(new Error('failed to load script: ' + relativePath));
+			};
+			document.head.appendChild(script);
+		});
+	}
+
+	async function ensureTabulatorLoaded()
+	{
+		if (typeof window.Tabulator === 'function')
+		{
+			return;
+		}
+		await loadPluginAssetOnce('css', 'vendor/tabulator/tabulator.min.css', 'tabulatorCssLoaded');
+		await loadPluginAssetOnce('script', 'vendor/tabulator/tabulator.min.js', 'tabulatorJsLoaded');
+	}
+
+	async function ensureBulkEditDataModuleLoaded()
+	{
+		if (window.SeafBulkEditData != null && typeof window.SeafBulkEditData.openBulkEditDataDialog === 'function')
+		{
+			return;
+		}
+		await ensureTabulatorLoaded();
+		await loadPluginAssetOnce('script', 'seaf-bulk-edit-data-module.js', 'bulkEditDataModuleLoaded');
+	}
+
+	function getBulkEditDataDeps()
+	{
+		return {
+			ui: ui,
+			mxUtils: mxUtils,
+			mxResources: mxResources,
+			getDataLockForSchema: getDataLockForSchema,
+			getDataHiddenForSchema: getDataHiddenForSchema,
+			getEditDataModeForSchema: getEditDataModeForSchema,
+			getSeafEditDataLockTooltip: getSeafEditDataLockTooltip,
+			showError: showError
+		};
+	}
+
+	async function openBulkEditDataDialogForSchema(schema, layerLabel, schemaObjects)
+	{
+		await ensureBulkEditDataModuleLoaded();
+		if (window.SeafBulkEditData == null || typeof window.SeafBulkEditData.openBulkEditDataDialog !== 'function')
+		{
+			throw new Error('SeafBulkEditData module is not available');
+		}
+		return window.SeafBulkEditData.openBulkEditDataDialog(getBulkEditDataDeps(), {
+			schema: schema,
+			layerLabel: layerLabel,
+			schemaObjects: schemaObjects
+		});
+	}
+
+	async function runEditDataApplyCommand(schema, editedRows)
+	{
+		var applyCommand = state.commandsById.seafToolsEditDataApply;
+		if (applyCommand == null)
+		{
+			showError('Команда seafToolsEditDataApply не найдена в конфигурации');
+			return {status: 'error'};
+		}
+		var payload = buildPayload(applyCommand);
+		payload.source = 'menu';
+		payload.arguments = payload.arguments || {};
+		payload.arguments.stencilSchema = schema;
+		payload.arguments.editedRows = JSON.stringify(editedRows);
+		await writeLog('info', 'Edit Data apply started', {
+			commandId: applyCommand.id,
+			schema: schema,
+			rowsCount: Array.isArray(editedRows) ? editedRows.length : 0
+		});
+		var response = await requestAsync({
+			action: 'runSeafPluginCommand',
+			configPath: state.configPath,
+			commandId: applyCommand.id,
+			payload: payload
+		});
+		var result = response.result || {};
+		var uiResults = executeInteractiveCommands(result);
+		if (result.status === 'error')
+		{
+			if (!resultHasErrorShowMessage(result) &&
+				typeof result.message === 'string' && result.message.trim().length > 0)
+			{
+				showError(formatCommandError(applyCommand.id, result.message));
+			}
+			return result;
+		}
+		if (typeof result.message === 'string' && result.message.trim().length > 0)
+		{
+			showInfo(result.message);
+		}
+		await writeLog('info', 'Edit Data apply finished', {
+			commandId: applyCommand.id,
+			schema: schema,
+			status: result.status,
+			uiCommandResults: uiResults || []
+		});
+		return result;
+	}
+
+	async function executeBulkEditDataCommand(command, source)
+	{
+		var pickerOverrides = await collectStencilSchemaPickerOverrides(command);
+		if (pickerOverrides == null)
+		{
+			return;
+		}
+		var schema = String(pickerOverrides.stencilSchema || '').trim();
+		var layerLabel = String(pickerOverrides.stencilSchemaLayer || schema);
+		if (!schema)
+		{
+			return;
+		}
+		var editMode = getEditDataModeForSchema(schema);
+		if (editMode === 'standard')
+		{
+			showError('Для schema "' + schema + '" bulk Edit Data недоступен (edit_data: standard)');
+			return;
+		}
+		var allObjects = collectSchemaObjectsAcrossPages();
+		var matched = [];
+		for (var i = 0; i < allObjects.length; i++)
+		{
+			if (allObjects[i] && allObjects[i].schema === schema)
+			{
+				matched.push(allObjects[i]);
+			}
+		}
+		if (matched.length === 0)
+		{
+			showInfo('На диаграмме нет объектов для "' + layerLabel + '"');
+			return;
+		}
+		var dialogResult = null;
+		try
+		{
+			dialogResult = await openBulkEditDataDialogForSchema(schema, layerLabel, matched);
+		}
+		catch (e)
+		{
+			await writeLog('error', 'Bulk Edit Data dialog failed', {
+				commandId: command.id,
+				schema: schema,
+				error: e.message
+			});
+			showError(formatCommandError(command.id, e.message));
+			return;
+		}
+		if (dialogResult == null || dialogResult.cancelled === true || dialogResult.save !== true)
+		{
+			return;
+		}
+		var editedRows = Array.isArray(dialogResult.editedRows) ? dialogResult.editedRows : [];
+		if (editedRows.length === 0)
+		{
+			showInfo('Нет изменений для сохранения');
+			return;
+		}
+		try
+		{
+			await runEditDataApplyCommand(schema, editedRows);
+		}
+		catch (eApply)
+		{
+			await writeLog('error', 'Edit Data apply invocation failed', {
+				commandId: command.id,
+				schema: schema,
+				error: eApply.message
+			});
+			showError(formatCommandError(command.id, eApply.message));
+		}
+	}
+
 	async function collectStencilSchemaPickerOverrides(command)
 	{
 		await loadStencilsLayerConfig();
@@ -8216,6 +8469,12 @@ Draw.loadPlugin(function(ui)
 		if (command && command.clientAction === 'interactiveTerminal')
 		{
 			await executeInteractiveTerminalCommand(command, source);
+			return;
+		}
+
+		if (command && command.clientAction === 'bulkEditData')
+		{
+			await executeBulkEditDataCommand(command, source);
 			return;
 		}
 

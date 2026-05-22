@@ -14,8 +14,8 @@ from lib.io import (
     write_response,
 )
 from lib.logging import build_script_logger
-from lib.main_menu.export_helpers import is_seaf_export_schema
 from lib.main_menu.import_helpers import resolve_input_targets
+from lib.main_menu.diagram_index import build_diagram_index_by_schema_oid
 from lib.main_menu.import_report import ImportReport, log_import_report
 from lib.diagram.linked_page_sync import build_linked_page_sync_commands
 from lib.diagram.page_service import list_pages
@@ -39,34 +39,6 @@ def _error_response(logger, report: ImportReport, message: str, reason: str) -> 
         commands=[{"name": "showMessage", "args": {"level": "error", "text": message}}],
         errors=[message],
     )
-
-
-def _build_diagram_index(schema_objects: List[Dict[str, Any]]) -> Dict[Tuple[str, str], List[Dict[str, Any]]]:
-    out: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
-    for item in schema_objects:
-        if not isinstance(item, dict):
-            continue
-        schema = str(item.get("schema") or "").strip()
-        oid = str(item.get("oid") or item.get("OID") or "").strip()
-        object_id = str(item.get("objectId") or item.get("id") or "").strip()
-        if not schema or not oid or not object_id:
-            continue
-        if not is_seaf_export_schema(schema):
-            continue
-        cell_data = item.get("data") if isinstance(item.get("data"), dict) else {}
-        linked_page_id = str(item.get("linkedPageId") or "").strip()
-        out.setdefault((schema, oid), []).append(
-            {
-                "pageId": item.get("pageId"),
-                "pageName": item.get("pageName") or "",
-                "objectId": object_id,
-                "schema": schema,
-                "oid": oid,
-                "data": dict(cell_data),
-                "linkedPageId": linked_page_id,
-            }
-        )
-    return out
 
 
 def _append_unmatched(report: ImportReport, schema: str, oid: str) -> None:
@@ -171,7 +143,7 @@ def main() -> int:
     schema_objects = payload.get("schemaObjects")
     if not isinstance(schema_objects, list):
         schema_objects = []
-    diagram_index = _build_diagram_index(schema_objects)
+    diagram_index = build_diagram_index_by_schema_oid(schema_objects)
     pages = list_pages(payload)
     updates, page_sync_commands = _build_updates(import_map, diagram_index, pages, report)
 

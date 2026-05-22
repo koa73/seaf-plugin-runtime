@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.66
+
+- **Tools → Edit Data (bulk)**: после выбора schema — табличный редактор (Tabulator) по всем объектам диаграммы; `data_lock` / `data_hidden`, выбор видимых колонок; Save → `edit_data_apply.py` → `updateStencilDataBulk` + linked-page sync (как Import). Vendored `plugin/vendor/tabulator`, `seaf-bulk-edit-data-module.js` в tarball.
+
 ## 0.5.65
 
 - **Tools → Edit Data**: увеличен отступ между выпадающим списком и кнопками OK/Отмена; высота диалога 148 px.

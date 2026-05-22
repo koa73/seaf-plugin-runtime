@@ -12,6 +12,13 @@ rm -rf "${STAGE_DIR}"
 mkdir -p "${STAGE_DIR}/seaf_plugin" "${OUT_DIR}" "${STAGE_PY}"
 
 cp "${ROOT_DIR}/plugin/seaf.plugin.js" "${STAGE_DIR}/seaf.plugin.js"
+if [ -f "${ROOT_DIR}/plugin/seaf-bulk-edit-data-module.js" ]; then
+	cp "${ROOT_DIR}/plugin/seaf-bulk-edit-data-module.js" "${STAGE_DIR}/seaf-bulk-edit-data-module.js"
+fi
+if [ -d "${ROOT_DIR}/plugin/vendor/tabulator" ]; then
+	mkdir -p "${STAGE_DIR}/vendor/tabulator"
+	cp -r "${ROOT_DIR}/plugin/vendor/tabulator/." "${STAGE_DIR}/vendor/tabulator/"
+fi
 cp -r "${ROOT_DIR}/conf" "${STAGE_DIR}/seaf_plugin/conf"
 cp -r "${ROOT_DIR}/runtime" "${STAGE_DIR}/seaf_plugin/runtime"
 cp -r "${ROOT_DIR}/keys" "${STAGE_DIR}/seaf_plugin/keys"

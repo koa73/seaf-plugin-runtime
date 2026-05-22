@@ -120,15 +120,29 @@ commands:
         submenuTitle: Tools
   - id: seafToolsEditData
     title: Edit Data
-    clientAction: stencilSchemaPicker
+    clientAction: bulkEditData
     script: main_menu/edit_data.py
     execution:
       mode: sync
     input:
       includeDiagramXml: false
+      includeSchemaObjects: true
+      includePages: true
     menu:
       main:
         enabled: true
         section: seaf
         submenu: tools
         submenuTitle: Tools
+  - id: seafToolsEditDataApply
+    title: Edit Data Apply
+    script: main_menu/edit_data_apply.py
+    execution:
+      mode: sync
+    input:
+      includeDiagramXml: false
+      includeSchemaObjects: true
+      includePages: true
+    menu:
+      main:
+        enabled: false
