@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.67
+ * Runtime script version: 0.5.68
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -579,7 +579,7 @@ Draw.loadPlugin(function(ui)
 		return out;
 	}
 
-	function getStencilsConfigPath()
+	function getRuntimeRootFromConfigPath()
 	{
 		if (typeof state.configPath !== 'string' || state.configPath.length === 0)
 		{
@@ -591,23 +591,51 @@ Draw.loadPlugin(function(ui)
 		{
 			return null;
 		}
-		var runtimeRoot = normalized.slice(0, normalized.length - suffix.length);
+		return normalized.slice(0, normalized.length - suffix.length);
+	}
+
+	function getConfDirPath()
+	{
+		var runtimeRoot = getRuntimeRootFromConfigPath();
+		if (!runtimeRoot)
+		{
+			return null;
+		}
+		return joinPathFragments(runtimeRoot, 'conf');
+	}
+
+	function resolveConfAssetFileUrl(relativeConfPath)
+	{
+		var confDir = getConfDirPath();
+		if (!confDir)
+		{
+			return '';
+		}
+		var full = joinPathFragments(confDir, relativeConfPath);
+		if (/^[A-Za-z]:/.test(full))
+		{
+			return 'file:///' + full;
+		}
+		return 'file://' + full;
+	}
+
+	function getStencilsConfigPath()
+	{
+		var runtimeRoot = getRuntimeRootFromConfigPath();
+		if (!runtimeRoot)
+		{
+			return null;
+		}
 		return joinPathFragments(runtimeRoot, 'conf', 'stencils', 'libraries.json');
 	}
 
 	function getStencilsLayerConfigPath()
 	{
-		if (typeof state.configPath !== 'string' || state.configPath.length === 0)
+		var runtimeRoot = getRuntimeRootFromConfigPath();
+		if (!runtimeRoot)
 		{
 			return null;
 		}
-		var normalized = state.configPath.replace(/\\/g, '/');
-		var suffix = '/conf/plugin.yaml';
-		if (normalized.length <= suffix.length || normalized.slice(-suffix.length) !== suffix)
-		{
-			return null;
-		}
-		var runtimeRoot = normalized.slice(0, normalized.length - suffix.length);
 		return joinPathFragments(runtimeRoot, 'conf', 'stencils', 'config.yaml');
 	}
 
@@ -4780,7 +4808,7 @@ Draw.loadPlugin(function(ui)
 
 	function loadConfAssetOnce(kind, relativeConfPath, loadedFlagKey)
 	{
-		return new Promise(async function(resolve, reject)
+		return new Promise(function(resolve, reject)
 		{
 			if (state[loadedFlagKey] === true)
 			{
@@ -4792,37 +4820,44 @@ Draw.loadPlugin(function(ui)
 				reject(new Error('configPath is not resolved'));
 				return;
 			}
-			try
+			var url = resolveConfAssetFileUrl(relativeConfPath);
+			if (!url)
 			{
-				var text = await requestAsync({
-					action: 'readSeafPluginFile',
-					configPath: state.configPath,
-					relativePath: relativeConfPath,
-					encoding: 'utf8'
-				});
-				var normalizedText = (typeof text === 'string') ? text : String(text || '');
-				if (kind === 'css')
+				reject(new Error('failed to resolve asset URL for ' + relativeConfPath));
+				return;
+			}
+			if (kind === 'css')
+			{
+				var linkEl = document.createElement('link');
+				linkEl.rel = 'stylesheet';
+				linkEl.setAttribute('data-seaf-asset', relativeConfPath);
+				linkEl.href = url;
+				linkEl.onload = function()
 				{
-					var styleEl = document.createElement('style');
-					styleEl.setAttribute('data-seaf-asset', relativeConfPath);
-					styleEl.textContent = normalizedText;
-					document.head.appendChild(styleEl);
-				}
-				else
+					state[loadedFlagKey] = true;
+					resolve();
+				};
+				linkEl.onerror = function()
 				{
-					var scriptEl = document.createElement('script');
-					scriptEl.setAttribute('data-seaf-asset', relativeConfPath);
-					scriptEl.type = 'text/javascript';
-					scriptEl.text = normalizedText;
-					document.head.appendChild(scriptEl);
-				}
+					reject(new Error('failed to load stylesheet: ' + relativeConfPath));
+				};
+				document.head.appendChild(linkEl);
+				return;
+			}
+			var scriptEl = document.createElement('script');
+			scriptEl.setAttribute('data-seaf-asset', relativeConfPath);
+			scriptEl.type = 'text/javascript';
+			scriptEl.src = url;
+			scriptEl.onload = function()
+			{
 				state[loadedFlagKey] = true;
 				resolve();
-			}
-			catch (e)
+			};
+			scriptEl.onerror = function()
 			{
-				reject(new Error('failed to load asset ' + relativeConfPath + ': ' + (e && e.message ? e.message : String(e))));
-			}
+				reject(new Error('failed to load script: ' + relativeConfPath));
+			};
+			document.head.appendChild(scriptEl);
 		});
 	}
 

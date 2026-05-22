@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.68
+
+- **Edit Data bulk**: Tabulator и bulk-модуль загружаются через `file://` из `seaf_plugin/conf/` (`script.src` / `link.href`), а не inline — CSP `script-src 'self'` блокировал `script.text` и давал `SeafBulkEditData module is not available`.
+
 ## 0.5.67
 
 - **Edit Data bulk**: загрузка Tabulator и bulk-модуля через `readSeafPluginFile` (файлы в `seaf_plugin/conf/vendor/`), исправлена ошибка `failed to load stylesheet: vendor/tabulator/...` в Electron.
