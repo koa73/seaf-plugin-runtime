@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.61
+
+- **NetConf import**: после фонового импорта на страницу `netconf_perser` восстанавливается исходная страница диаграммы и фокус возвращается в окно interactive terminal; убран модальный `showInfo`, который перехватывал фокус. Desktop: IPC `focusSeafInteractiveTerminalSession` (**a59+**).
+
 ## 0.5.60
 
 - **NetConf Parser (вариант A)**: после успешного построения диаграммы `main_entry.py` печатает `SEAF_NETCONF_DIAGRAM_READY`; плагин на `process-exit` импортирует `network_diagram.drawio` на страницу `netconf_perser` (существующая страница — замена содержимого). Desktop: `process-exit` передаёт `outputTail` для парсинга маркера (**a58+**).

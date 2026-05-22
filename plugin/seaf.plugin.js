@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.60
+ * Runtime script version: 0.5.61
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -7772,31 +7772,49 @@ Draw.loadPlugin(function(ui)
 		graph.refresh();
 	}
 
-	function selectOrCreateNetconfPage(pageName)
+	function getOrCreateNetconfPage(pageName)
 	{
 		var title = (typeof pageName === 'string' && pageName.trim().length > 0) ?
 			pageName.trim() : NETCONF_PAGE_NAME;
 		var existing = findPageByName(title);
 		if (existing != null)
 		{
-			if (typeof ui.selectPage === 'function')
-			{
-				ui.selectPage(existing);
-			}
-			return {status: 'existing', pageName: title};
+			return {status: 'existing', pageName: title, page: existing};
 		}
 		if (typeof ui.createPage !== 'function' || typeof ui.insertPage !== 'function' ||
-			typeof ui.createPageId !== 'function' || typeof ui.selectPage !== 'function')
+			typeof ui.createPageId !== 'function')
 		{
-			return {status: 'error', reason: 'page_api_unavailable'};
+			return {status: 'error', reason: 'page_api_unavailable', page: null};
 		}
 		var page = ui.createPage(title, ui.createPageId());
 		page = ui.insertPage(page);
-		ui.selectPage(page);
-		return {status: 'created', pageName: title};
+		return {status: 'created', pageName: title, page: page};
 	}
 
-	async function importNetconfDiagramToPage(command, scriptEnv, terminalText)
+	async function restoreInteractiveTerminalFocus(sessionId)
+	{
+		if (typeof sessionId !== 'string' || sessionId.trim().length === 0)
+		{
+			return;
+		}
+
+		try
+		{
+			await requestAsync({
+				action: 'focusSeafInteractiveTerminalSession',
+				sessionId: sessionId
+			});
+		}
+		catch (e)
+		{
+			await writeLog('debug', 'Interactive terminal refocus skipped', {
+				sessionId: sessionId,
+				error: e.message
+			});
+		}
+	}
+
+	async function importNetconfDiagramToPage(command, scriptEnv, terminalText, sessionId)
 	{
 		var resolved = resolveNetconfDiagramPath(scriptEnv, terminalText);
 		if (resolved == null || !resolved.diagramPath)
@@ -7836,16 +7854,31 @@ Draw.loadPlugin(function(ui)
 			return {status: 'skipped', reason: 'empty_diagram'};
 		}
 
-		var pageResult = selectOrCreateNetconfPage(resolved.pageName);
-		if (pageResult.status === 'error')
+		var originalPage = ui.currentPage || null;
+		var pageResult = getOrCreateNetconfPage(resolved.pageName);
+		if (pageResult.status === 'error' || pageResult.page == null)
 		{
 			showError(formatCommandError(command.id, 'Unable to create or select page "' + resolved.pageName + '"'));
+			await restoreInteractiveTerminalFocus(sessionId);
 			return pageResult;
+		}
+
+		var switchedPage = false;
+		if (typeof ui.selectPage === 'function' && ui.currentPage !== pageResult.page)
+		{
+			ui.selectPage(pageResult.page);
+			switchedPage = true;
 		}
 
 		var graph = ui && ui.editor ? ui.editor.graph : null;
 		if (!graph)
 		{
+			if (switchedPage && originalPage != null && typeof ui.selectPage === 'function' &&
+				ui.currentPage !== originalPage)
+			{
+				ui.selectPage(originalPage);
+			}
+			await restoreInteractiveTerminalFocus(sessionId);
 			showError(formatCommandError(command.id, 'Graph is not available'));
 			return {status: 'error', reason: 'graph_unavailable'};
 		}
@@ -7857,6 +7890,12 @@ Draw.loadPlugin(function(ui)
 		}
 		catch (e)
 		{
+			if (switchedPage && originalPage != null && typeof ui.selectPage === 'function' &&
+				ui.currentPage !== originalPage)
+			{
+				ui.selectPage(originalPage);
+			}
+			await restoreInteractiveTerminalFocus(sessionId);
 			await writeLog('error', 'NetConf diagram import failed', {
 				commandId: command && command.id ? command.id : '',
 				diagramPath: resolved.diagramPath,
@@ -7868,13 +7907,18 @@ Draw.loadPlugin(function(ui)
 		}
 
 		graph.refresh();
-		var infoText = 'NetConf: импорт на страницу «' + resolved.pageName + '» из ' + resolved.diagramPath;
-		showInfo(infoText);
+		if (switchedPage && originalPage != null && typeof ui.selectPage === 'function' &&
+			ui.currentPage !== originalPage)
+		{
+			ui.selectPage(originalPage);
+		}
+		await restoreInteractiveTerminalFocus(sessionId);
 		await writeLog('info', 'NetConf diagram imported to page', {
 			commandId: command && command.id ? command.id : '',
 			diagramPath: resolved.diagramPath,
 			pageName: resolved.pageName,
-			pageStatus: pageResult.status
+			pageStatus: pageResult.status,
+			restoredOriginalPage: originalPage != null
 		});
 		return {
 			status: 'imported',
@@ -7933,7 +7977,7 @@ Draw.loadPlugin(function(ui)
 				{
 					netconfImportDone = true;
 					var terminalText = (typeof event.outputTail === 'string') ? event.outputTail : '';
-					importNetconfDiagramToPage(command, scriptEnvOverrides, terminalText).catch(function(e)
+					importNetconfDiagramToPage(command, scriptEnvOverrides, terminalText, sessionId).catch(function(e)
 					{
 						writeLog('error', 'NetConf diagram import handler failed', {
 							commandId: command.id,
