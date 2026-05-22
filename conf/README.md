@@ -187,7 +187,27 @@ Inline-поля `fields` в `main_menu.yaml` **не поддерживаются
         enabled: true
         submenu: tools
         submenuTitle: Tools
+  - id: seafToolsEditData
+    title: Edit Data
+    clientAction: bulkEditData
+    script: main_menu/edit_data.py
+    input:
+      includeSchemaObjects: true
+      includePages: true
+    menu:
+      main:
+        enabled: true
+        submenu: tools
+        submenuTitle: Tools
+  - id: seafToolsEditDataApply
+    title: Edit Data Apply
+    script: main_menu/edit_data_apply.py
+    menu:
+      main:
+        enabled: false
 ```
+
+**Tools → Edit Data:** UI в [`plugin/seaf-bulk-edit-data-module.js`](../plugin/seaf-bulk-edit-data-module.js) (lazy-load). После **SEAF → Обновить плагин** файл должен появиться в `~/.config/draw.io/plugins/seaf-bulk-edit-data-module.js` автоматически (см. `applyRuntimeFromExtractRoot` в draw.io desktop). Tabulator — в сборке draw.io, не в runtime tarball.
 
 ---
 

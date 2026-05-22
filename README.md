@@ -22,6 +22,7 @@
 ## Layout
 
 - `plugin/seaf.plugin.js` - полный renderer plugin (меню, IPC, async, системный update); при эмиссии stencil `modify` для userObject с `schema` под `events.schemaPrefix` в `dataBefore`/`dataAfter` включается **`label`**; in-place смена подписи на схеме для таких ячеек также может эмитить `modify` (см. `CHANGELOG` 0.5.35).
+- `plugin/seaf-bulk-edit-data-module.js` - UI bulk **Tools → Edit Data** (Tabulator-таблица, lazy-load); в tarball и в `plugins/` лежит **в корне** рядом с `seaf.plugin.js` (не в `conf/`).
 - `conf/plugin.yaml` - core-конфигурация full runtime (общие настройки + includes).
 - `conf/main_menu.yaml` - описание main menu команд.
 - `conf/context_menu.yaml` - описание context menu правил (overrides по id).
@@ -57,10 +58,13 @@
 Рабочий runtime находится в пользовательском каталоге плагинов, например:
 
 - `~/.config/draw.io/plugins/seaf.plugin.js`
+- `~/.config/draw.io/plugins/seaf-bulk-edit-data-module.js` (full runtime ≥ 0.5.69; выкладывается **автоматически** при «Обновить плагин»)
 - `~/.config/draw.io/plugins/seaf_plugin/conf/*`
 - `~/.config/draw.io/plugins/seaf_plugin/python/*` (для full runtime)
 - `~/.config/draw.io/plugins/seaf_plugin/runtime/*`
 - `~/.config/draw.io/plugins/seaf_plugin/keys/*`
+
+Ручная распаковка tarball в `plugins/` **не требуется** и **не является** штатным способом обновления.
 
 ## Update flow
 
@@ -78,6 +82,8 @@
 11. Библиотека `SEAF_Р41` отображается в `More Shapes -> SEAF`, а после включения появляется отдельной палитрой в левой панели.
 12. Для SEAF библиотек действует политика `respect_saved`: если draw.io уже сохранил пользовательский выбор библиотек, он приоритетнее `enabledByDefault`; `enabledByDefault` используется только как стартовый дефолт при первом выборе.
 13. Названия кастомных SEAF секций/библиотек передаются как локализуемые объекты (`{main: ...}`), чтобы корректно отображаться через `EditorUi.getResource` без `UNDEFINED`.
+14. **`applyRuntimeFromExtractRoot`** (draw.io desktop, `seafPluginService.js`) выкладывает из архива: `seaf.plugin.js`, дерево `seaf_plugin/`, **`seaf-bulk-edit-data-module.js`**. Если в архиве нет bulk-модуля, а новый `seaf.plugin.js` его требует — update завершается ошибкой (без «полуобновления»). `env.yaml` merge: канонический путь `seaf_plugin/conf/env.yaml` (legacy `conf/conf/env.yaml` поддерживается при чтении).
+15. Tarball собирается через `cp conf/.` → merge в `seaf_plugin/conf/` (без вложенного `conf/conf/`). См. `release/runtime/build-runtime.sh`.
 
 ## Menu order contract
 
@@ -92,7 +98,15 @@
 
 Контекстное меню — только команды с `menu.context.enabled: true` (например `Создать страницу` в `context_menu.yaml`); команды без `menu.main.enabled: true` в главное меню не попадают.
 
-В поставке `main_menu.yaml` (помимо `Edit Config`): подменю **P41** (`Export` / `Import`) и **Tools** (`Net_Conf_Parser`).
+В поставке `main_menu.yaml` (помимо `Edit Config`): подменю **P41** (`Export` / `Import`) и **Tools** (`Net_Conf_Parser`, **Edit Data**).
+
+### Tools → Edit Data (bulk)
+
+- Пункт: `seafToolsEditData`, `clientAction: bulkEditData` в [`conf/main_menu.yaml`](conf/main_menu.yaml).
+- Поток: выбор `schema` по `layer` → сбор объектов на всех страницах → диалог Tabulator → Save → скрытая команда `seafToolsEditDataApply` / [`python/scripts/main_menu/edit_data_apply.py`](python/scripts/main_menu/edit_data_apply.py).
+- **Tabulator** (~450 KB) — часть **сборки draw.io** (`drawio-standalone/.../js/vendor/tabulator/`), не runtime tarball.
+- **Bulk-модуль** — `plugin/seaf-bulk-edit-data-module.js`, в tarball в **корне**; после update должен быть в `plugins/seaf-bulk-edit-data-module.js`.
+- Для `edit_data: standard` bulk недоступен (только per-cell SEAF dialog).
 
 ### Опциональный `scriptEnvEditor`
 
