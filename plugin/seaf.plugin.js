@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.63
+ * Runtime script version: 0.5.64
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -4367,7 +4367,13 @@ Draw.loadPlugin(function(ui)
 				labelWrap.style.display = 'inline-flex';
 				labelWrap.style.alignItems = 'center';
 				labelWrap.style.gap = '4px';
-				labelWrap.style.marginBottom = '4px';
+				var labelGapPx = (field != null && field.labelMarginBottom != null) ?
+					parseInt(field.labelMarginBottom, 10) : 4;
+				if (isNaN(labelGapPx) || labelGapPx < 0)
+				{
+					labelGapPx = 4;
+				}
+				labelWrap.style.marginBottom = labelGapPx + 'px';
 				var label = document.createElement('div');
 				label.style.fontWeight = 'bold';
 				label.textContent = labelText;
@@ -4587,8 +4593,16 @@ Draw.loadPlugin(function(ui)
 
 			var dialogWidth = 460 + (hasChoiceControls ? 40 : 0);
 			dialogWidth = Math.max(420, Math.min(760, dialogWidth));
-			var dialogHeight = 360;
-			formBody.style.maxHeight = '280px';
+			var defaultDialogHeight = 360;
+			var defaultFormBodyMaxHeight = 280;
+			var dialogHeight = (editorCfg.dialogHeight != null && !isNaN(parseInt(editorCfg.dialogHeight, 10))) ?
+				parseInt(editorCfg.dialogHeight, 10) : defaultDialogHeight;
+			var formBodyMaxHeight = (editorCfg.formBodyMaxHeight != null &&
+				!isNaN(parseInt(editorCfg.formBodyMaxHeight, 10))) ?
+				parseInt(editorCfg.formBodyMaxHeight, 10) : defaultFormBodyMaxHeight;
+			dialogHeight = Math.max(100, dialogHeight);
+			formBodyMaxHeight = Math.max(60, formBodyMaxHeight);
+			formBody.style.maxHeight = formBodyMaxHeight + 'px';
 			ui.showDialog(container, dialogWidth, dialogHeight, true, true);
 		});
 	}
@@ -4674,6 +4688,91 @@ Draw.loadPlugin(function(ui)
 		return String(env.pluginLogLevel || 'none').trim().toLowerCase();
 	}
 
+	function openStencilSchemaPickerDialog(dialogOpts)
+	{
+		return new Promise(function(resolve)
+		{
+			var opts = dialogOpts || {};
+			var listOptions = Array.isArray(opts.options) ? opts.options : [];
+			var defaultSchema = (typeof opts.defaultSchema === 'string') ? opts.defaultSchema : '';
+			var baseInset = 8;
+			var labelGapPx = 12;
+			var dialogWidth = 460;
+			var dialogHeight = 120;
+
+			var container = document.createElement('div');
+			container.style.width = dialogWidth + 'px';
+			container.style.boxSizing = 'border-box';
+			container.style.padding = baseInset + 'px';
+			container.style.overflow = 'hidden';
+
+			var labelWrap = document.createElement('div');
+			labelWrap.style.fontWeight = 'bold';
+			labelWrap.style.marginBottom = labelGapPx + 'px';
+			labelWrap.textContent = 'Выбор объектов для редактирования';
+			container.appendChild(labelWrap);
+
+			var select = document.createElement('select');
+			select.style.width = '100%';
+			select.style.boxSizing = 'border-box';
+			select.style.marginBottom = baseInset + 'px';
+			for (var i = 0; i < listOptions.length; i++)
+			{
+				var rawOpt = listOptions[i];
+				var opt = document.createElement('option');
+				if (rawOpt != null && typeof rawOpt === 'object' && !Array.isArray(rawOpt))
+				{
+					opt.value = String(rawOpt.value != null ? rawOpt.value : '');
+					opt.textContent = String(rawOpt.label != null ? rawOpt.label : rawOpt.value);
+				}
+				else
+				{
+					opt.value = String(rawOpt);
+					opt.textContent = String(rawOpt);
+				}
+				select.appendChild(opt);
+			}
+			if (defaultSchema.length > 0)
+			{
+				select.value = defaultSchema;
+			}
+			else if (listOptions.length > 0)
+			{
+				var firstOpt = listOptions[0];
+				select.value = (firstOpt != null && typeof firstOpt === 'object') ?
+					String(firstOpt.value != null ? firstOpt.value : '') : String(firstOpt);
+			}
+			container.appendChild(select);
+
+			var footer = document.createElement('div');
+			footer.style.textAlign = 'right';
+			footer.style.whiteSpace = 'nowrap';
+			var cancelBtn = mxUtils.button(mxResources.get('cancel'), function()
+			{
+				ui.hideDialog();
+				resolve({cancelled: true});
+			});
+			cancelBtn.className = 'geBtn';
+			var okBtn = mxUtils.button(mxResources.get('ok'), function()
+			{
+				var schema = String(select.value || '').trim();
+				if (!schema.length)
+				{
+					showError('Не выбрана группа стенсилов');
+					return;
+				}
+				ui.hideDialog();
+				resolve({cancelled: false, stencilSchema: schema});
+			});
+			okBtn.className = 'geBtn gePrimaryBtn';
+			footer.appendChild(okBtn);
+			footer.appendChild(cancelBtn);
+			container.appendChild(footer);
+
+			ui.showDialog(container, dialogWidth, dialogHeight, true, true, null, true);
+		});
+	}
+
 	async function collectStencilSchemaPickerOverrides(command)
 	{
 		await loadStencilsLayerConfig();
@@ -4703,17 +4802,9 @@ Draw.loadPlugin(function(ui)
 			listOptions.push({value: schemaKey, label: layerLabel});
 		}
 
-		var dialogResult = await openScriptEnvFieldsDialog({
-			title: 'Edit Data',
-			fields: [{
-				label: 'Группа стенсилов',
-				envKey: 'stencilSchema',
-				inputMethod: 'list',
-				required: true,
-				options: listOptions
-			}],
-			env: {stencilSchema: schemaKeys[0]},
-			persist: 'none'
+		var dialogResult = await openStencilSchemaPickerDialog({
+			options: listOptions,
+			defaultSchema: schemaKeys[0]
 		});
 
 		if (dialogResult == null || dialogResult.cancelled === true)
@@ -4721,8 +4812,7 @@ Draw.loadPlugin(function(ui)
 			return null;
 		}
 
-		var env = dialogResult.env || {};
-		var selectedSchema = String(env.stencilSchema || '').trim();
+		var selectedSchema = String(dialogResult.stencilSchema || '').trim();
 		if (!selectedSchema || schemas[selectedSchema] == null)
 		{
 			showError('Не выбрана группа стенсилов');

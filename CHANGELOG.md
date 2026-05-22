@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.64
+
+- **Tools → Edit Data**: компактный диалог выбора стенсилов (`openStencilSchemaPickerDialog`, высота 120 px); подпись «Выбор объектов для редактирования»; исправлен tarball обновления (актуальный `seaf.plugin.js` в пакете).
+
 ## 0.5.63
 
 - **Tools → Edit Data**: пункт меню `seafToolsEditData` — диалог выбора группы стенсилов по `layer` из `conf/stencils/config.yaml`; полная запись schema передаётся в `main_menu/edit_data.py` (`stencilSchema`, `stencilSchemaConfig`); выбор сохраняется в `state.editDataSelection` (плагин) и `SELECTED_STENCIL_ENTRY` (Python); при `pluginLogLevel: debug` — запись в `seaf-plugin.log`.
