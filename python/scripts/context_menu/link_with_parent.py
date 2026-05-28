@@ -163,13 +163,18 @@ def main() -> int:
                 )
             )
 
+        collision_messages_seen: set[str] = set()
         for row in collisions:
+            text = _collision_text(row)
+            if text in collision_messages_seen:
+                continue
+            collision_messages_seen.add(text)
             commands.append(
                 {
                     "name": "showMessage",
                     "args": {
                         "level": "error",
-                        "text": _collision_text(row),
+                        "text": text,
                     },
                 }
             )
