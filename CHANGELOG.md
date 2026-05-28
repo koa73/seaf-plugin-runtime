@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.72
+
+- **Context menu config fix**: удалён дублирующийся root-блок `version/commands` в `conf/context_menu.yaml`; `seafLinkWithParent` больше не теряется при загрузке конфига и корректно доступен для `target: selection_multi`.
+
 ## 0.5.71
 
 - **Context menu**: добавлена команда `seafLinkWithParent` («Связать с родителем») с `target: selection_multi`.

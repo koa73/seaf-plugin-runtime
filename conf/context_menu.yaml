@@ -36,25 +36,3 @@ commands:
         enabled: true
         scope: stencil
         target: selection_multi
-version: 1
-commands:
-  - id: seafAddPage
-    title: Создать страницу
-    script: context_menu/add_page.py
-    execution:
-      mode: sync
-      timeoutSec: 20
-    input:
-      includeDiagramXml: false
-      includeCurrentPage: true
-      includePages: true
-    menu:
-      main:
-        enabled: false
-      context:
-        enabled: true
-        scope: stencil
-        target: selection_single
-        schemaPattern:
-          - seaf.company.ta.services.dc_offices
-          - seaf.company.ta.services.dcs
