@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.70
+ * Runtime script version: 0.5.71
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -8679,6 +8679,10 @@ Draw.loadPlugin(function(ui)
 		if (target === 'selection_non_empty')
 		{
 			targetMatched = selection.length > 0;
+		}
+		else if (target === 'selection_multi')
+		{
+			targetMatched = selection.length > 1;
 		}
 		else if (target === 'selection_single')
 		{

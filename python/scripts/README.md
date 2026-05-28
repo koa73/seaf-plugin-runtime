@@ -14,6 +14,7 @@
 - `events/data_mirror.py` — production orchestrator для `modify`-синхронизации `schema+OID` (схемы `dcs`/`dc_offices`) через атомарную runtime-команду; перед санитизацией patch выравнивает `title`/`label` через `lib/events/title_label_sync.py`.
 - `events/label_title.py` — wildcard `modify` для остальных `seaf.company.ta.*`: при необходимости дописывает парное поле через `updateStencilDataBulk` с `suppressStencilEvents: true`.
 - `context_menu/add_page.py` — production handler для команды «Создать страницу»: валидирует `selection.data.title`, проверяет дубли имен страниц и возвращает `commands[]` для create page + установки link на исходный стенсил.
+- `context_menu/link_with_parent.py` — production handler для команды «Связать с родителем»: для multi-selection ищет parent по `conf/stencils/config.yaml` (`parent.schema` / `parent.field`) и массово пишет ссылки `child.<field> = parent.OID` через `updateStencilDataBulk`; коллизии parent (2+) всегда дают popup, `missing parent` — popup только если не установлено ни одной связи.
 - `main_menu/export.py` — **P41 → Export** (async + `SEAF_PROGRESS`): строит `{schema: {OID: {attrs}}}` из `payload.schemaObjects`, генерирует SEAF YAML через vendored `yaml_schema_generator` (обёртка `seaf.company.ta.*` + OID); каталог — файл на schema (`services.network_segments.yaml`); при пустом пути — ошибка + popup.
 - `lib/main_menu/export_helpers.py` — `build_export_by_schema`, `schema_to_export_filename`, `resolve_output_path`.
 - `lib/main_menu/export_yaml_generator.py` — адаптер `export_map` → `YAMLGenerator`, каталог схем `python/vendor/yaml_schema_generator/schemas`.
@@ -32,6 +33,7 @@
 - `lib/diagram/*` — библиотека переиспользуемых helper-функций для context-menu сценариев создания страниц и установки page links.
 - `lib/events/*` — service helper-слой для event handlers (`SEAF_INFO/SEAF_ERROR` логирование, сообщения о коллизиях, резолв env/arguments параметров).
 - `lib/logging/*` — централизованный слой логирования runtime-скриптов (уровни и emit `SEAF_INFO/SEAF_ERROR`); метод `ScriptLogger.debug` пишет `SEAF_INFO` только при `pluginLogLevel: debug|trace` (для трассировки `title_label_sync` и др.).
+  Для `context_menu/link_with_parent.py` debug-лог включает статистику `updated/missing/collisions`.
 
 Последовательность команд в `events/data_mirror.py`:
 1. Выравнивание `title`/`label` в копии `dataAfter` (общий модуль `title_label_sync`; отключение точечно: `sync_title_with_label: false` в `conf/stencils/config.yaml` для схемы).

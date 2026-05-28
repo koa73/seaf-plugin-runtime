@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.71
+
+- **Context menu**: добавлена команда `seafLinkWithParent` («Связать с родителем») с `target: selection_multi`.
+- **Parent binding**: новый handler `context_menu/link_with_parent.py` связывает выбранные child с parent по `conf/stencils/config.yaml` (`parent.schema` / `parent.field`) и пишет батч через `updateStencilDataBulk`.
+- **Collision policy**: popup всегда для коллизий parent (2+ кандидата); для `missing parent` popup только если не установлена ни одна связь.
+- **Debug logging**: статистика `processed/updated/missing/collisions` и детали конфликтов пишутся в debug (`pluginLogLevel: debug|trace`).
+
 ## 0.5.70
 
 - **Tools → Edit Data (bulk)**: при блокировке bulk-режима по policy (`edit_data: standard`) renderer теперь пишет явный `warn` в `seaf-plugin.log` (`Bulk Edit Data denied by schema policy`) с `commandId/schema/layer/editMode`, чтобы отказ фиксировался в логах, а не только в UI popup.
