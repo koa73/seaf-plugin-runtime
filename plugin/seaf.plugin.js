@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.72
+ * Runtime script version: 0.5.73
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -31,6 +31,7 @@ Draw.loadPlugin(function(ui)
 		seafStencilSections: [],
 		eventConfig: null,
 		stencilModelListenerInstalled: false,
+		stencilIndexLifecycleHooksInstalled: false,
 		stencilEventDispatchInFlight: false,
 		pendingStencilBatches: [],
 		stencilEventsSuppressedDepth: 0,
@@ -2291,7 +2292,7 @@ Draw.loadPlugin(function(ui)
 		return oid;
 	}
 
-	function buildIndexEntryFromCell(cell, graph)
+	function buildIndexEntryFromCell(cell, graph, forcedPageId)
 	{
 		if (!cell || !cell.id || !graph)
 		{
@@ -2302,16 +2303,23 @@ Draw.loadPlugin(function(ui)
 		var schema = schemaMeta && typeof schemaMeta.schema === 'string' ? schemaMeta.schema.trim() : '';
 		var oid = getOidFromData(data);
 		var pageId = '';
-		try
+		if (typeof forcedPageId === 'string' && forcedPageId.trim().length > 0)
 		{
-			if (ui && ui.currentPage && typeof ui.currentPage.getId === 'function')
-			{
-				pageId = String(ui.currentPage.getId() || '').trim();
-			}
+			pageId = forcedPageId.trim();
 		}
-		catch (ePage)
+		else
 		{
-			pageId = '';
+			try
+			{
+				if (ui && ui.currentPage && typeof ui.currentPage.getId === 'function')
+				{
+					pageId = String(ui.currentPage.getId() || '').trim();
+				}
+			}
+			catch (ePage)
+			{
+				pageId = '';
+			}
 		}
 		return {
 			objectId: cell.id,
@@ -2411,40 +2419,142 @@ Draw.loadPlugin(function(ui)
 		{
 			return;
 		}
-		var model = graph.model;
-		var root = model.getRoot ? model.getRoot() : model.root;
-		var all = [];
-		if (typeof model.filterDescendants === 'function')
+		syncCurrentPageRootFromGraph(graph);
+		var pages = (ui && Array.isArray(ui.pages)) ? ui.pages : [];
+		if (pages.length === 0)
 		{
-			all = model.filterDescendants(function(cell)
+			var model = graph.model;
+			var root = model.getRoot ? model.getRoot() : model.root;
+			var all = [];
+			if (typeof model.filterDescendants === 'function')
 			{
-				return model.isVertex(cell) || model.isEdge(cell);
-			}, root) || [];
-		}
-		else if (typeof model.getDescendants === 'function')
-		{
-			all = model.getDescendants(root) || [];
-		}
-		for (var i = 0; i < all.length; i++)
-		{
-			var cell = all[i];
-			if (!cell || !cell.id)
-			{
-				continue;
+				all = model.filterDescendants(function(cell)
+				{
+					return model.isVertex(cell) || model.isEdge(cell);
+				}, root) || [];
 			}
-			if (!(model.isVertex(cell) || model.isEdge(cell)))
+			else if (typeof model.getDescendants === 'function')
 			{
-				continue;
+				all = model.getDescendants(root) || [];
 			}
-			var entry = buildIndexEntryFromCell(cell, graph);
-			if (entry)
+			for (var i = 0; i < all.length; i++)
 			{
-				addEntryToStencilIndex(entry);
+				var cell = all[i];
+				if (!cell || !cell.id)
+				{
+					continue;
+				}
+				if (!(model.isVertex(cell) || model.isEdge(cell)))
+				{
+					continue;
+				}
+				var entry = buildIndexEntryFromCell(cell, graph);
+				if (entry)
+				{
+					addEntryToStencilIndex(entry);
+				}
+			}
+		}
+		else
+		{
+			for (var p = 0; p < pages.length; p++)
+			{
+				var page = pages[p];
+				if (!page)
+				{
+					continue;
+				}
+				var pageId = '';
+				try
+				{
+					if (typeof page.getId === 'function')
+					{
+						pageId = String(page.getId() || '').trim();
+					}
+					else
+					{
+						pageId = String(page.id || '').trim();
+					}
+				}
+				catch (ePageId)
+				{
+					pageId = '';
+				}
+				try
+				{
+					var cells = getCellsByCriteriaForPage(graph, page, {});
+					for (var c = 0; c < cells.length; c++)
+					{
+						var pageCell = cells[c];
+						if (!pageCell || !pageCell.id)
+						{
+							continue;
+						}
+						var pageEntry = buildIndexEntryFromCell(pageCell, graph, pageId);
+						if (pageEntry)
+						{
+							addEntryToStencilIndex(pageEntry);
+						}
+					}
+				}
+				catch (ePage)
+				{
+					// ignore page-level scan errors and continue indexing remaining pages
+				}
 			}
 		}
 		state.stencilIndex.total = Object.keys(state.stencilIndex.byObjectId).length;
 		state.stencilIndex.ready = true;
 		state.stencilIndex.lastRebuildAt = new Date().toISOString();
+	}
+
+	function ensureStencilIndexReady()
+	{
+		if (state.stencilIndex.ready === true)
+		{
+			return;
+		}
+		rebuildStencilIndex();
+	}
+
+	function installStencilIndexLifecycleHooks()
+	{
+		if (state.stencilIndexLifecycleHooksInstalled)
+		{
+			return;
+		}
+		var editor = ui && ui.editor ? ui.editor : null;
+		if (!editor || typeof editor.addListener !== 'function')
+		{
+			return;
+		}
+		var rebuildFromLifecycle = function(source)
+		{
+			try
+			{
+				rebuildStencilIndex();
+				writeLog('debug', 'Stencil index lifecycle rebuild completed', {
+					source: source,
+					total: state.stencilIndex.total
+				});
+			}
+			catch (e)
+			{
+				writeLog('error', 'Stencil index lifecycle rebuild failed', {
+					source: source,
+					error: e && e.message ? e.message : String(e)
+				});
+			}
+		};
+		editor.addListener('fileLoaded', function()
+		{
+			rebuildFromLifecycle('fileLoaded');
+		});
+		editor.addListener('pageSelected', function()
+		{
+			rebuildFromLifecycle('pageSelected');
+		});
+		state.stencilIndexLifecycleHooksInstalled = true;
 	}
 
 	function makeStencilIndexSnapshot()
@@ -2916,6 +3026,7 @@ Draw.loadPlugin(function(ui)
 					{
 						if (group.execution === 'async')
 						{
+							ensureStencilIndexReady();
 							var asyncCommandId = group.commandId;
 							var asyncEventType = group.operation;
 							var asyncTxId = batch.txId;
@@ -2957,6 +3068,7 @@ Draw.loadPlugin(function(ui)
 						}
 						else
 						{
+							ensureStencilIndexReady();
 							await runStencilEventCommand(group.commandId, {
 								eventType: group.operation,
 								txId: batch.txId,
@@ -9217,6 +9329,11 @@ Draw.loadPlugin(function(ui)
 			await runInitStep('stencil_index_rebuild', function()
 			{
 				rebuildStencilIndex();
+				return Promise.resolve();
+			}, false);
+			await runInitStep('install_stencil_index_lifecycle_hooks', function()
+			{
+				installStencilIndexLifecycleHooks();
 				return Promise.resolve();
 			}, false);
 			await runInitStep('install_stencil_model_listener', installStencilModelListener, false);

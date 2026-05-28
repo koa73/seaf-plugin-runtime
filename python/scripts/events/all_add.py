@@ -15,13 +15,60 @@ from lib.logging import build_script_logger
 from lib.oid import build_oid_updates_for_empty_oid_items, collect_import_conflicts
 
 
+def _normalize_index_maps(event: Any, log_info: Callable[[Dict], None]) -> Tuple[Dict[str, Any], Dict[str, str]]:
+    """Normalize event.index maps to keep OID generation robust."""
+    if not isinstance(event, dict):
+        log_info({"handler": "all_add", "action": "normalize_index", "warning": "event is not a dict"})
+        return {}, {}
+    index = event.get("index")
+    if not isinstance(index, dict):
+        if index is not None:
+            log_info({"handler": "all_add", "action": "normalize_index", "warning": "event.index is not a dict"})
+        return {}, {}
+
+    raw_by_oid = index.get("byOid")
+    by_oid: Dict[str, Any] = {}
+    if isinstance(raw_by_oid, dict):
+        for oid_raw, owners_raw in raw_by_oid.items():
+            oid = str(oid_raw or "").strip()
+            if not oid:
+                continue
+            owners: List[str] = []
+            if isinstance(owners_raw, list):
+                owners = [str(row).strip() for row in owners_raw if str(row).strip()]
+            elif isinstance(owners_raw, dict):
+                object_ids = owners_raw.get("objectIds")
+                if isinstance(object_ids, list):
+                    owners = [str(row).strip() for row in object_ids if str(row).strip()]
+                else:
+                    owners = [str(key).strip() for key in owners_raw.keys() if str(key).strip()]
+            elif isinstance(owners_raw, str):
+                owner = owners_raw.strip()
+                if owner:
+                    owners = [owner]
+            by_oid[oid] = owners
+    elif raw_by_oid is not None:
+        log_info({"handler": "all_add", "action": "normalize_index", "warning": "event.index.byOid is not a dict"})
+
+    raw_object_page = index.get("objectPage")
+    object_page: Dict[str, str] = {}
+    if isinstance(raw_object_page, dict):
+        for object_id_raw, page_raw in raw_object_page.items():
+            object_id = str(object_id_raw or "").strip()
+            if not object_id:
+                continue
+            object_page[object_id] = str(page_raw or "").strip()
+    elif raw_object_page is not None:
+        log_info({"handler": "all_add", "action": "normalize_index", "warning": "event.index.objectPage is not a dict"})
+
+    return by_oid, object_page
+
+
 def create_oid(payload: Dict, log_info: Callable[[Dict], None]) -> Tuple[List[Dict], List[Dict]]:
     """Create OID updates and optional conflict notification command."""
-    event = payload.get("event") or {}
+    event = payload.get("event") if isinstance(payload.get("event"), dict) else {}
     items = event.get("items") or []
-    index = event.get("index") or {}
-    by_oid = index.get("byOid") or {}
-    object_page = index.get("objectPage") or {}
+    by_oid, object_page = _normalize_index_maps(event, log_info)
     page = event.get("page") or {}
     event_page_id = str(page.get("id") or "").strip()
     company_prefix = resolve_company_prefix(payload)

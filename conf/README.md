@@ -443,6 +443,7 @@ rules:
   - эмиссия `modify` в renderer сравнивает `dataBefore` и `dataAfter` (нормализованная карта атрибутов из `Edit Data`), чтобы не терять изменения из‑за сериализации XML-узла через `sanitizeForIpc`; при успешном матче в логе появляются `Stencil modify candidate evaluated` и далее `Stencil event handler started` перед `runSeafPluginCommand`.
 - В `payload.event.index` передаётся снимок stencil-index:
   - `bySchema`, `byOid` (как раньше);
+  - индекс rebuild-ится по всем страницам диаграммы при `fileLoaded` и `pageSelected`, поэтому `byOid` включает OID не только активной страницы;
   - `objectPage`: карта `objectId -> pageId` (id страницы draw.io в момент индексации ячейки). Используется в `all_add` / `collect_import_conflicts`: коллизия OID при импорте учитывается **только между ячейками на той же странице**, что и `payload.event.page.id`; один и тот же OID на разных страницах (зеркала) не считается конфликтом.
 - Команды контекстного меню получают те же ключевые поля в `payload.selection[]`:
   - `id`, `objectId`, `geometry`, `data`.

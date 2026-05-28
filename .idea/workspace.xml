@@ -4,13 +4,14 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d1fe5f91-f987-493b-912e-17488c850970" name="Changes" comment="#0.5.70">
+    <list default="true" id="d1fe5f91-f987-493b-912e-17488c850970" name="Changes" comment="#0.5.72">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/CHANGELOG.md" beforeDir="false" afterPath="$PROJECT_DIR$/CHANGELOG.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/conf/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/conf/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/conf/context_menu.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/conf/context_menu.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/conf/plugin.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/conf/plugin.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/plugin/seaf.plugin.js" beforeDir="false" afterPath="$PROJECT_DIR$/plugin/seaf.plugin.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/python/scripts/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/python/scripts/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/python/scripts/events/all_add.py" beforeDir="false" afterPath="$PROJECT_DIR$/python/scripts/events/all_add.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/release/out/checksums.txt" beforeDir="false" afterPath="$PROJECT_DIR$/release/out/checksums.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/release/out/seaf-plugin-runtime.tar.gz" beforeDir="false" afterPath="$PROJECT_DIR$/release/out/seaf-plugin-runtime.tar.gz" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/runtime/version.json" beforeDir="false" afterPath="$PROJECT_DIR$/runtime/version.json" afterDir="false" />
@@ -75,22 +76,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1776327425613</updated>
-    </task>
-    <task id="LOCAL-00093" summary="#0.5.15">
-      <option name="closed" value="true" />
-      <created>1778661971351</created>
-      <option name="number" value="00093" />
-      <option name="presentableId" value="LOCAL-00093" />
-      <option name="project" value="LOCAL" />
-      <updated>1778661971351</updated>
-    </task>
-    <task id="LOCAL-00094" summary="#0.5.16">
-      <option name="closed" value="true" />
-      <created>1778663487756</created>
-      <option name="number" value="00094" />
-      <option name="presentableId" value="LOCAL-00094" />
-      <option name="project" value="LOCAL" />
-      <updated>1778663487756</updated>
     </task>
     <task id="LOCAL-00095" summary="#0.5.17">
       <option name="closed" value="true" />
@@ -468,7 +453,23 @@
       <option name="project" value="LOCAL" />
       <updated>1779465023657</updated>
     </task>
-    <option name="localTasksCounter" value="142" />
+    <task id="LOCAL-00142" summary="#0.5.71">
+      <option name="closed" value="true" />
+      <created>1779962856914</created>
+      <option name="number" value="00142" />
+      <option name="presentableId" value="LOCAL-00142" />
+      <option name="project" value="LOCAL" />
+      <updated>1779962856914</updated>
+    </task>
+    <task id="LOCAL-00143" summary="#0.5.72">
+      <option name="closed" value="true" />
+      <created>1779964467901</created>
+      <option name="number" value="00143" />
+      <option name="presentableId" value="LOCAL-00143" />
+      <option name="project" value="LOCAL" />
+      <updated>1779964467901</updated>
+    </task>
+    <option name="localTasksCounter" value="144" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -495,8 +496,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="#0.5.35" />
-    <MESSAGE value="#0.5.36" />
     <MESSAGE value="#0.5.37" />
     <MESSAGE value="#0.5.38" />
     <MESSAGE value="#0.5.41" />
@@ -520,6 +519,8 @@
     <MESSAGE value="#0.5.68" />
     <MESSAGE value="#0.5.69" />
     <MESSAGE value="#0.5.70" />
-    <option name="LAST_COMMIT_MESSAGE" value="#0.5.70" />
+    <MESSAGE value="#0.5.71" />
+    <MESSAGE value="#0.5.72" />
+    <option name="LAST_COMMIT_MESSAGE" value="#0.5.72" />
   </component>
 </project>

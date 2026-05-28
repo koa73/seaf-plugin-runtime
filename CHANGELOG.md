@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.73
+
+- **OID index bootstrap**: `stencilIndex` в renderer теперь пересобирается по всем страницам диаграммы и обновляется на lifecycle событиях `fileLoaded`/`pageSelected`, чтобы `all_add` получал актуальный `index.byOid` и не генерировал дубликаты OID после открытия существующих файлов.
+- **all_add hardening**: добавлена нормализация `payload.event.index.byOid/objectPage` в `events/all_add.py` для устойчивой генерации OID при деградированных payload.
+
 ## 0.5.72
 
 - **Context menu config fix**: удалён дублирующийся root-блок `version/commands` в `conf/context_menu.yaml`; `seafLinkWithParent` больше не теряется при загрузке конфига и корректно доступен для `target: selection_multi`.
