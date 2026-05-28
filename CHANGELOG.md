@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.78
+
+- **Layer routing (grouped stencils)**: для event-сценариев `all_add` и `reparent` команды `moveObjectsToLayer` переключены на `targetMode: groupRoot`, чтобы переносить на слой корень группы (`style=group`) и не разрывать составные P41-стенсилы.
+- **Renderer move target mode**: добавлен режим `groupRoot` в `resolveMoveTargetsByObjectIds` (fallback на текущую target-логику, если group-root не найден).
+- **Tests**: обновлён контракт `test-all-add-layer-routing.mjs` и добавлен `test-reparent-layer-routing.mjs` для контроля нового targetMode.
+
 ## 0.5.77
 
 - **Add page**: после `assignEmptyOidOnPage` добавлен автоматический шаг `autoLinkParentsOnPage`, который предзаполняет parent-поля для стенсилов новой страницы по `parent.schema[]/parent.field`.

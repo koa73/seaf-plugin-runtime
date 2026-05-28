@@ -4,20 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d1fe5f91-f987-493b-912e-17488c850970" name="Changes" comment="#0.5.76">
-      <change afterPath="$PROJECT_DIR$/python/scripts/lib/diagram/parent_linking.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/CHANGELOG.md" beforeDir="false" afterPath="$PROJECT_DIR$/CHANGELOG.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/conf/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/conf/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/conf/plugin.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/conf/plugin.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/plugin/seaf.plugin.js" beforeDir="false" afterPath="$PROJECT_DIR$/plugin/seaf.plugin.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/python/scripts/context_menu/add_page.py" beforeDir="false" afterPath="$PROJECT_DIR$/python/scripts/context_menu/add_page.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/python/scripts/context_menu/link_with_parent.py" beforeDir="false" afterPath="$PROJECT_DIR$/python/scripts/context_menu/link_with_parent.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/release/out/checksums.txt" beforeDir="false" afterPath="$PROJECT_DIR$/release/out/checksums.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/release/out/seaf-plugin-runtime.tar.gz" beforeDir="false" afterPath="$PROJECT_DIR$/release/out/seaf-plugin-runtime.tar.gz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/runtime/version.json" beforeDir="false" afterPath="$PROJECT_DIR$/runtime/version.json" afterDir="false" />
-    </list>
+    <list default="true" id="d1fe5f91-f987-493b-912e-17488c850970" name="Changes" comment="#0.5.77" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -78,14 +65,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1776327425613</updated>
-    </task>
-    <task id="LOCAL-00099" summary="#0.5.21">
-      <option name="closed" value="true" />
-      <created>1778679567461</created>
-      <option name="number" value="00099" />
-      <option name="presentableId" value="LOCAL-00099" />
-      <option name="project" value="LOCAL" />
-      <updated>1778679567461</updated>
     </task>
     <task id="LOCAL-00100" summary="#0.5.23">
       <option name="closed" value="true" />
@@ -471,7 +450,15 @@
       <option name="project" value="LOCAL" />
       <updated>1779971305551</updated>
     </task>
-    <option name="localTasksCounter" value="148" />
+    <task id="LOCAL-00148" summary="#0.5.77">
+      <option name="closed" value="true" />
+      <created>1779973362450</created>
+      <option name="number" value="00148" />
+      <option name="presentableId" value="LOCAL-00148" />
+      <option name="project" value="LOCAL" />
+      <updated>1779973362450</updated>
+    </task>
+    <option name="localTasksCounter" value="149" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -498,7 +485,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="#0.5.43" />
     <MESSAGE value="#0.5.44" />
     <MESSAGE value="#0.5.45" />
     <MESSAGE value="#0.5.46" />
@@ -523,7 +509,8 @@
     <MESSAGE value="#0.5.74" />
     <MESSAGE value="#0.5.75" />
     <MESSAGE value="#0.5.76" />
-    <option name="LAST_COMMIT_MESSAGE" value="#0.5.76" />
+    <MESSAGE value="#0.5.77" />
+    <option name="LAST_COMMIT_MESSAGE" value="#0.5.77" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

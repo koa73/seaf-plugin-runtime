@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.77
+ * Runtime script version: 0.5.78
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -5684,6 +5684,60 @@ Draw.loadPlugin(function(ui)
 		return cell;
 	}
 
+	function isGroupStyleText(styleText)
+	{
+		var style = String(styleText || '').trim();
+		if (!style)
+		{
+			return false;
+		}
+		if (style === 'group')
+		{
+			return true;
+		}
+		if (/(^|;)group(;|$)/i.test(style))
+		{
+			return true;
+		}
+		if (/(^|;)shape=group(;|$)/i.test(style))
+		{
+			return true;
+		}
+		return false;
+	}
+
+	function resolveGroupRootCell(cell, graph)
+	{
+		if (!cell || !graph || !graph.model)
+		{
+			return cell || null;
+		}
+		var model = graph.model;
+		var root = (typeof model.getRoot === 'function') ? model.getRoot() : model.root;
+		var current = cell;
+		var groupRoot = null;
+		var guard = 0;
+		while (current && guard < 256)
+		{
+			guard++;
+			if (isGroupStyleText(current.style))
+			{
+				groupRoot = current;
+			}
+			var parent = (typeof model.getParent === 'function') ? model.getParent(current) : current.parent;
+			if (!parent || parent === root || (typeof model.isLayer === 'function' && model.isLayer(parent)))
+			{
+				break;
+			}
+			current = parent;
+		}
+		if (groupRoot)
+		{
+			return groupRoot;
+		}
+		return resolveMoveTargetCell(cell, graph);
+	}
+
 	function resolveMoveTargetsByObjectIds(graph, objectIds, targetMode)
 	{
 		if (!graph || !Array.isArray(objectIds))
@@ -5692,6 +5746,7 @@ Draw.loadPlugin(function(ui)
 		}
 		var mode = (typeof targetMode === 'string') ? targetMode.trim().toLowerCase() : '';
 		var useSchemaCell = (mode === 'schemacell');
+		var useGroupRoot = (mode === 'grouproot' || mode === 'schemagrouproot');
 		var out = [];
 		var seen = {};
 		for (var i = 0; i < objectIds.length; i++)
@@ -5706,7 +5761,19 @@ Draw.loadPlugin(function(ui)
 			{
 				continue;
 			}
-			var target = useSchemaCell ? cell : resolveMoveTargetCell(cell, graph);
+			var target = null;
+			if (useSchemaCell)
+			{
+				target = cell;
+			}
+			else if (useGroupRoot)
+			{
+				target = resolveGroupRootCell(cell, graph);
+			}
+			else
+			{
+				target = resolveMoveTargetCell(cell, graph);
+			}
 			if (!target || !target.id || Object.prototype.hasOwnProperty.call(seen, target.id))
 			{
 				continue;

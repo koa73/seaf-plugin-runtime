@@ -92,7 +92,7 @@ def build_layer_commands_for_items(
                 layer_name,
                 object_ids,
                 suppress_stencil_events=suppress_move_events,
-                target_mode="schemaCell",
+                target_mode="groupRoot",
             )
         )
     return commands
