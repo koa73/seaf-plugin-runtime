@@ -4,14 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d1fe5f91-f987-493b-912e-17488c850970" name="Changes" comment="#0.5.72">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    <list default="true" id="d1fe5f91-f987-493b-912e-17488c850970" name="Changes" comment="#0.5.73">
+      <change afterPath="$PROJECT_DIR$/python/scripts/context_menu/link_with_parent.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/CHANGELOG.md" beforeDir="false" afterPath="$PROJECT_DIR$/CHANGELOG.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/conf/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/conf/README.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/conf/plugin.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/conf/plugin.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/plugin/seaf.plugin.js" beforeDir="false" afterPath="$PROJECT_DIR$/plugin/seaf.plugin.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/python/scripts/events/all_add.py" beforeDir="false" afterPath="$PROJECT_DIR$/python/scripts/events/all_add.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/release/out/checksums.txt" beforeDir="false" afterPath="$PROJECT_DIR$/release/out/checksums.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/release/out/seaf-plugin-runtime.tar.gz" beforeDir="false" afterPath="$PROJECT_DIR$/release/out/seaf-plugin-runtime.tar.gz" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/runtime/version.json" beforeDir="false" afterPath="$PROJECT_DIR$/runtime/version.json" afterDir="false" />
@@ -76,14 +73,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1776327425613</updated>
-    </task>
-    <task id="LOCAL-00095" summary="#0.5.17">
-      <option name="closed" value="true" />
-      <created>1778668821667</created>
-      <option name="number" value="00095" />
-      <option name="presentableId" value="LOCAL-00095" />
-      <option name="project" value="LOCAL" />
-      <updated>1778668821668</updated>
     </task>
     <task id="LOCAL-00096" summary="#0.5.18">
       <option name="closed" value="true" />
@@ -469,7 +458,15 @@
       <option name="project" value="LOCAL" />
       <updated>1779964467901</updated>
     </task>
-    <option name="localTasksCounter" value="144" />
+    <task id="LOCAL-00144" summary="#0.5.73">
+      <option name="closed" value="true" />
+      <created>1779966364380</created>
+      <option name="number" value="00144" />
+      <option name="presentableId" value="LOCAL-00144" />
+      <option name="project" value="LOCAL" />
+      <updated>1779966364380</updated>
+    </task>
+    <option name="localTasksCounter" value="145" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -496,7 +493,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="#0.5.37" />
     <MESSAGE value="#0.5.38" />
     <MESSAGE value="#0.5.41" />
     <MESSAGE value="#0.5.42" />
@@ -521,6 +517,18 @@
     <MESSAGE value="#0.5.70" />
     <MESSAGE value="#0.5.71" />
     <MESSAGE value="#0.5.72" />
-    <option name="LAST_COMMIT_MESSAGE" value="#0.5.72" />
+    <MESSAGE value="#0.5.73" />
+    <option name="LAST_COMMIT_MESSAGE" value="#0.5.73" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/python/scripts/context_menu/link_with_parent.py</url>
+          <line>5</line>
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
 </project>
