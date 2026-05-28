@@ -222,7 +222,10 @@ Inline-поля `fields` в `main_menu.yaml` **не поддерживаются
 Команда `seafLinkWithParent` (пункт «Связать с родителем») использует
 `target: selection_multi` и обрабатывает только выделение из 2+ стенсилов.
 Алгоритм parent-child берётся из `conf/stencils/config.yaml` (`parent.schema` / `parent.field`):
-в поле child записывается `OID` найденного parent из текущего выделения.
+- `parent.schema` задаётся как массив разрешённых schema родителя;
+- в поле child записывается `OID` найденного parent из текущего выделения только если найден ровно один кандидат;
+- если кандидатов нет — связь для child не ставится (missing parent);
+- если кандидатов больше одного (в том числе из разных schema из `parent.schema[]`) — фиксируется коллизия.
 
 Пример идеи для split-конфигурации:
 - в `main_menu.yaml` — полное описание команды с `menu.main.enabled: true`;

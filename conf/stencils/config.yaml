@@ -14,7 +14,8 @@ schemas:
     layer: "Зона доступности"
     edit_data: seaf
     parent:
-      schema: seaf.company.ta.services.dc_regions
+      schema:
+        - seaf.company.ta.services.dc_regions
       field: region
     data_lock:
       - OID
@@ -25,7 +26,8 @@ schemas:
     mirror: "Сегменты офиса"
     sync_title_with_label: true
     parent:
-      schema: seaf.company.ta.services.dc_regions
+      schema:
+        - seaf.company.ta.services.dc_regions
       field: region
     data_lock:
       - OID
@@ -38,7 +40,8 @@ schemas:
     mirror: "Сегменты ЦОД"
     sync_title_with_label: true
     parent:
-      schema: seaf.company.ta.services.dc_azs
+      schema:
+        - seaf.company.ta.services.dc_azs
       field: availabilityzone
     data_lock:
       - OID
@@ -48,6 +51,11 @@ schemas:
   seaf.company.ta.services.network_segments:
     layer: "Зоны безопасности"
     edit_data: seaf
+    parent:
+      schema:
+        - seaf.company.ta.services.dcs
+        - seaf.company.ta.services.dc_offices
+      field: location
     data_lock:
       - OID
       - schema
@@ -60,54 +68,90 @@ schemas:
   seaf.company.ta.components.networks:
     layer: "Сетевое оборудование"
     edit_data: seaf
+    parent:
+      schema:
+        - seaf.company.ta.services.network_segments
+      field: segment
     data_lock:
       - OID
       - schema
   seaf.company.ta.services.kbs:
     layer: "Сервисы КБ"
     edit_data: seaf
+    parent:
+      schema:
+        - seaf.company.ta.services.network_segments
+      field: segment
     data_lock:
       - OID
       - schema
   seaf.company.ta.services.clusters:
     layer: "Сервисы ТА кластер"
     edit_data: seaf
+    parent:
+      schema:
+        - seaf.company.ta.services.network_segments
+      field: segment
     data_lock:
       - OID
       - schema
   seaf.company.ta.services.compute_services:
     layer: "Сервисы ТА"
     edit_data: seaf
+    parent:
+      schema:
+        - seaf.company.ta.services.network_segments
+      field: segment
     data_lock:
       - OID
       - schema
   seaf.company.ta.services.monitorings:
     layer: "Мониторинг"
     edit_data: seaf
+    parent:
+      schema:
+        - seaf.company.ta.services.network_segments
+      field: segment
     data_lock:
       - OID
       - schema
   seaf.company.ta.services.backups:
     layer: "BackUp"
     edit_data: seaf
+    parent:
+      schema:
+        - seaf.company.ta.services.network_segments
+      field: segment
     data_lock:
       - OID
       - schema
   seaf.company.ta.services.cluster_virtualizations:
     layer: "VM"
     edit_data: seaf
+    parent:
+      schema:
+        - seaf.company.ta.services.network_segments
+      field: segment
     data_lock:
       - OID
       - schema
   seaf.company.ta.services.k8s:
     layer: "K8S"
     edit_data: seaf
+    parent:
+      schema:
+        - seaf.company.ta.services.network_segments
+      field: segment
     data_lock:
       - OID
       - schema
   seaf.company.ta.components.user_devices:
     layer: "User Devices"
     edit_data: seaf
+    parent:
+      schema:
+        - seaf.company.ta.services.network_segments
+      field: segment
     data_lock:
       - OID
       - schema

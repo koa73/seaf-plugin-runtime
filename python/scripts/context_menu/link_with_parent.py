@@ -15,7 +15,21 @@ def _config_path() -> Path:
     return Path(__file__).resolve().parents[3] / "conf" / "stencils" / "config.yaml"
 
 
-def _load_parent_rules() -> Dict[str, Dict[str, str]]:
+def _normalize_schema_list(raw_schema: Any) -> List[str]:
+    if isinstance(raw_schema, str):
+        normalized = raw_schema.strip()
+        return [normalized] if normalized else []
+    if not isinstance(raw_schema, list):
+        return []
+    out: List[str] = []
+    for item in raw_schema:
+        value = str(item or "").strip()
+        if value:
+            out.append(value)
+    return out
+
+
+def _load_parent_rules() -> Dict[str, Dict[str, Any]]:
     path = _config_path()
     if not path.exists():
         return {}
@@ -28,17 +42,17 @@ def _load_parent_rules() -> Dict[str, Dict[str, str]]:
         schemas = parsed.get("schemas") if isinstance(parsed, dict) else {}
         if not isinstance(schemas, dict):
             return {}
-        out: Dict[str, Dict[str, str]] = {}
+        out: Dict[str, Dict[str, Any]] = {}
         for schema, entry in schemas.items():
             if not isinstance(schema, str) or not isinstance(entry, dict):
                 continue
             parent = entry.get("parent")
             if not isinstance(parent, dict):
                 continue
-            parent_schema = str(parent.get("schema") or "").strip()
+            parent_schemas = _normalize_schema_list(parent.get("schema"))
             parent_field = str(parent.get("field") or "").strip()
-            if parent_schema and parent_field:
-                out[schema.strip()] = {"schema": parent_schema, "field": parent_field}
+            if parent_schemas and parent_field:
+                out[schema.strip()] = {"schemas": parent_schemas, "field": parent_field}
         return out
     except Exception:
         return {}
@@ -73,7 +87,7 @@ def _extract_selected_stencils(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 def _build_link_updates(
     selected: List[Dict[str, Any]],
-    parent_rules: Dict[str, Dict[str, str]],
+    parent_rules: Dict[str, Dict[str, Any]],
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
     updates: List[Dict[str, Any]] = []
     collisions: List[Dict[str, Any]] = []
@@ -88,14 +102,17 @@ def _build_link_updates(
             continue
 
         rule = parent_rules[child_schema]
-        parent_schema = rule["schema"]
+        parent_schemas = [str(x) for x in rule.get("schemas") or [] if str(x).strip()]
         parent_field = rule["field"]
+        if not parent_schemas:
+            skipped_no_rule.append({"objectId": child_id, "schema": child_schema})
+            continue
 
         candidates = [
             candidate
             for candidate in selected
             if candidate["objectId"] != child_id
-            and candidate["schema"] == parent_schema
+            and candidate["schema"] in parent_schemas
             and candidate["oid"]
         ]
 
@@ -114,7 +131,7 @@ def _build_link_updates(
                 {
                     "objectId": child_id,
                     "schema": child_schema,
-                    "expectedParentSchema": parent_schema,
+                    "expectedParentSchemas": parent_schemas,
                     "field": parent_field,
                 }
             )
@@ -124,9 +141,10 @@ def _build_link_updates(
             {
                 "objectId": child_id,
                 "schema": child_schema,
-                "expectedParentSchema": parent_schema,
+                "expectedParentSchemas": parent_schemas,
                 "field": parent_field,
                 "candidateParentObjectIds": [x["objectId"] for x in candidates],
+                "candidateParentSchemas": [x["schema"] for x in candidates],
                 "candidateParentOids": [x["oid"] for x in candidates],
             }
         )
