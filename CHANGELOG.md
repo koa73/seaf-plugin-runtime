@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.77
+
+- **Add page**: после `assignEmptyOidOnPage` добавлен автоматический шаг `autoLinkParentsOnPage`, который предзаполняет parent-поля для стенсилов новой страницы по `parent.schema[]/parent.field`.
+- **Parent-link reuse**: общее вычисление parent-кандидатов вынесено в `python/scripts/lib/diagram/parent_linking.py`; `context_menu/link_with_parent.py` переведен на shared helper.
+- **Validation/Test contracts**: `validateSeafAddPageUiResults` валидирует новый шаг автосвязи, а контрактные тесты `test-add-page-script.mjs` и `test-add-page-ui-contract.mjs` расширены под новый пайплайн.
+
 ## 0.5.76
 
 - **Link with parent**: `parent.schema` в `conf/stencils/config.yaml` теперь обрабатывается как массив разрешённых parent-схем; связь применяется только при ровно одном найденном кандидате в выделении, при 2+ кандидатах формируется коллизия.

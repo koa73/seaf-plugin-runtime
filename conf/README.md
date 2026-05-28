@@ -227,6 +227,12 @@ Inline-поля `fields` в `main_menu.yaml` **не поддерживаются
 - если кандидатов нет — связь для child не ставится (missing parent);
 - если кандидатов больше одного (в том числе из разных schema из `parent.schema[]`) — фиксируется коллизия.
 
+Для `seafAddPage` (`context_menu/add_page.py`) после `createPage + setCellLinkToPage`
+выполняется предзаполнение данных на новой странице:
+- `assignEmptyOidOnPage` — заполнение пустых `OID`;
+- `autoLinkParentsOnPage` — автопростановка parent-полей по тем же правилам `parent.schema[]/parent.field`
+  (без popup-поведения ручной команды `seafLinkWithParent`).
+
 Пример идеи для split-конфигурации:
 - в `main_menu.yaml` — полное описание команды с `menu.main.enabled: true`;
 - в `context_menu.yaml` — override `menu.context.*` по тому же `id`.

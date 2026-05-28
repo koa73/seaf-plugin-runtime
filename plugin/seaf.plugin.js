@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.76
+ * Runtime script version: 0.5.77
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -6374,6 +6374,208 @@ Draw.loadPlugin(function(ui)
 		return updates;
 	}
 
+	function normalizeParentSchemaList(raw)
+	{
+		var out = [];
+		if (typeof raw === 'string')
+		{
+			var asString = raw.trim();
+			if (asString.length > 0)
+			{
+				out.push(asString);
+			}
+			return out;
+		}
+		if (!Array.isArray(raw))
+		{
+			return out;
+		}
+		for (var i = 0; i < raw.length; i++)
+		{
+			var value = String(raw[i] || '').trim();
+			if (value.length > 0 && out.indexOf(value) < 0)
+			{
+				out.push(value);
+			}
+		}
+		return out;
+	}
+
+	function buildParentRulesFromStencilConfig()
+	{
+		var out = {};
+		var cfg = state && state.stencilsLayerConfig ? state.stencilsLayerConfig : null;
+		var schemas = (cfg && cfg.schemas && typeof cfg.schemas === 'object') ? cfg.schemas : {};
+		for (var schema in schemas)
+		{
+			if (!Object.prototype.hasOwnProperty.call(schemas, schema))
+			{
+				continue;
+			}
+			var entry = schemas[schema];
+			if (!entry || typeof entry !== 'object' || Array.isArray(entry))
+			{
+				continue;
+			}
+			var parent = entry.parent;
+			if (!parent || typeof parent !== 'object' || Array.isArray(parent))
+			{
+				continue;
+			}
+			var parentSchemas = normalizeParentSchemaList(parent.schema);
+			var parentField = (typeof parent.field === 'string') ? parent.field.trim() : '';
+			if (parentSchemas.length < 1 || parentField.length < 1)
+			{
+				continue;
+			}
+			out[String(schema || '').trim()] = {
+				schemas: parentSchemas,
+				field: parentField
+			};
+		}
+		return out;
+	}
+
+	function collectStencilItemsOnCurrentPage(graph)
+	{
+		if (!graph || !graph.model)
+		{
+			return [];
+		}
+		var model = graph.model;
+		var root = (typeof model.getRoot === 'function') ? model.getRoot() : model.root;
+		var out = [];
+		var seen = {};
+		var cells = [];
+		if (typeof model.filterDescendants === 'function')
+		{
+			cells = model.filterDescendants(function(cell)
+			{
+				return model.isVertex(cell) || model.isEdge(cell);
+			}, root) || [];
+		}
+		for (var i = 0; i < cells.length; i++)
+		{
+			var cell = cells[i];
+			if (!cell || !cell.id || Object.prototype.hasOwnProperty.call(seen, cell.id))
+			{
+				continue;
+			}
+			seen[cell.id] = true;
+			var data = extractEditableDataFromCell(cell, graph);
+			var schemaMeta = extractShapeSchema(cell, graph);
+			var schema = (schemaMeta && typeof schemaMeta.schema === 'string') ? schemaMeta.schema.trim() : '';
+			var oid = String(data && data.OID ? data.OID : '').trim();
+			out.push({
+				objectId: String(cell.id),
+				schema: schema,
+				oid: oid,
+				data: data
+			});
+		}
+		return out;
+	}
+
+	function buildParentLinkUpdatesForItems(items, parentRules)
+	{
+		var updates = [];
+		var collisions = [];
+		var missing = [];
+		var skippedNoRule = [];
+		if (!Array.isArray(items))
+		{
+			return {
+				updates: updates,
+				collisions: collisions,
+				missing: missing,
+				skippedNoRule: skippedNoRule
+			};
+		}
+		for (var i = 0; i < items.length; i++)
+		{
+			var child = items[i] || {};
+			var childId = String(child.objectId || '').trim();
+			var childSchema = String(child.schema || '').trim();
+			if (!childId)
+			{
+				continue;
+			}
+			var rule = (parentRules && typeof parentRules === 'object') ? parentRules[childSchema] : null;
+			if (!childSchema || !rule || typeof rule !== 'object')
+			{
+				skippedNoRule.push({objectId: childId, schema: childSchema});
+				continue;
+			}
+			var parentSchemas = Array.isArray(rule.schemas) ? rule.schemas.slice() : [];
+			var parentField = (typeof rule.field === 'string') ? rule.field.trim() : '';
+			if (parentSchemas.length < 1 || parentField.length < 1)
+			{
+				skippedNoRule.push({objectId: childId, schema: childSchema});
+				continue;
+			}
+			var candidates = [];
+			for (var c = 0; c < items.length; c++)
+			{
+				var candidate = items[c] || {};
+				var candidateId = String(candidate.objectId || '').trim();
+				if (!candidateId || candidateId === childId)
+				{
+					continue;
+				}
+				var candidateSchema = String(candidate.schema || '').trim();
+				var candidateOid = String(candidate.oid || '').trim();
+				if (parentSchemas.indexOf(candidateSchema) < 0 || candidateOid.length < 1)
+				{
+					continue;
+				}
+				candidates.push({
+					objectId: candidateId,
+					schema: candidateSchema,
+					oid: candidateOid
+				});
+			}
+			if (candidates.length === 1)
+			{
+				updates.push({
+					objectId: childId,
+					mode: 'merge',
+					data: (function()
+					{
+						var data = {};
+						data[parentField] = candidates[0].oid;
+						return data;
+					})()
+				});
+				continue;
+			}
+			if (candidates.length === 0)
+			{
+				missing.push({
+					objectId: childId,
+					schema: childSchema,
+					expectedParentSchemas: parentSchemas,
+					field: parentField
+				});
+				continue;
+			}
+			collisions.push({
+				objectId: childId,
+				schema: childSchema,
+				expectedParentSchemas: parentSchemas,
+				field: parentField,
+				candidateParentObjectIds: candidates.map(function(x){ return x.objectId; }),
+				candidateParentSchemas: candidates.map(function(x){ return x.schema; }),
+				candidateParentOids: candidates.map(function(x){ return x.oid; })
+			});
+		}
+		return {
+			updates: updates,
+			collisions: collisions,
+			missing: missing,
+			skippedNoRule: skippedNoRule
+		};
+	}
+
 	function performMoveLayerUnderLayer(graph, childLayerName, parentLayerName, makeVisible)
 	{
 		if (!graph || !graph.model)
@@ -6751,6 +6953,90 @@ Draw.loadPlugin(function(ui)
 					updated: updated,
 					skipped: skipped,
 					errors: (result && Array.isArray(result.errors)) ? result.errors : []
+				};
+			}
+			finally
+			{
+				if (switchedPage && originalPage != null && ui.currentPage !== originalPage && typeof ui.selectPage === 'function')
+				{
+					ui.selectPage(originalPage);
+				}
+			}
+		},
+		autoLinkParentsOnPage: function(args)
+		{
+			var graph = ui && ui.editor ? ui.editor.graph : null;
+			if (!graph || !args || typeof args !== 'object')
+			{
+				return {status: 'error', reason: 'invalid_args'};
+			}
+			var pageId = (typeof args.pageId === 'string') ? args.pageId.trim() : '';
+			if (!pageId)
+			{
+				return {status: 'error', reason: 'page_id_missing'};
+			}
+			var targetPage = findPageById(pageId);
+			if (targetPage == null)
+			{
+				return {status: 'error', reason: 'page_not_found', pageId: pageId};
+			}
+			var originalPage = ui.currentPage || null;
+			var switchedPage = false;
+			if (typeof ui.selectPage === 'function' && ui.currentPage !== targetPage)
+			{
+				ui.selectPage(targetPage);
+				switchedPage = true;
+			}
+			try
+			{
+				var items = collectStencilItemsOnCurrentPage(graph);
+				var rules = buildParentRulesFromStencilConfig();
+				var computed = buildParentLinkUpdatesForItems(items, rules);
+				var updates = Array.isArray(computed.updates) ? computed.updates : [];
+				if (updates.length < 1)
+				{
+					return {
+						status: 'noop',
+						pageId: pageId,
+						updated: 0,
+						collisionCount: computed.collisions.length,
+						missingParentCount: computed.missing.length,
+						skippedNoRuleCount: computed.skippedNoRule.length,
+						collisions: computed.collisions,
+						missingParents: computed.missing,
+						skippedNoRule: computed.skippedNoRule
+					};
+				}
+				var bulkArgs = {
+					pageId: pageId,
+					updates: updates
+				};
+				var applyResult = null;
+				if (args.suppressStencilEvents === true)
+				{
+					applyResult = runWithStencilEventsSuppressed(function()
+					{
+						return uiCommandHandlers.updateStencilDataBulk(bulkArgs);
+					});
+				}
+				else
+				{
+					applyResult = uiCommandHandlers.updateStencilDataBulk(bulkArgs);
+				}
+				var updated = (applyResult && Number.isFinite(applyResult.updated)) ? Number(applyResult.updated) : 0;
+				var skipped = (applyResult && Number.isFinite(applyResult.skipped)) ? Number(applyResult.skipped) : 0;
+				return {
+					status: updated > 0 ? 'updated' : 'noop',
+					pageId: pageId,
+					updated: updated,
+					skipped: skipped,
+					collisionCount: computed.collisions.length,
+					missingParentCount: computed.missing.length,
+					skippedNoRuleCount: computed.skippedNoRule.length,
+					collisions: computed.collisions,
+					missingParents: computed.missing,
+					skippedNoRule: computed.skippedNoRule,
+					errors: (applyResult && Array.isArray(applyResult.errors)) ? applyResult.errors : []
 				};
 			}
 			finally
@@ -7879,6 +8165,28 @@ Draw.loadPlugin(function(ui)
 					result.errors = [];
 				}
 				result.errors.push('assign_oid_failed');
+				return;
+			}
+		}
+
+		var hasParentAutolink = false;
+		for (var ja = 0; ja < result.commands.length; ja++)
+		{
+			hasParentAutolink = hasParentAutolink || (result.commands[ja] && result.commands[ja].name === 'autoLinkParentsOnPage');
+		}
+		if (hasParentAutolink)
+		{
+			var parentLinkValue = findLastUiCommandResult(rows, 'autoLinkParentsOnPage');
+			var parentLinkStatus = (parentLinkValue && typeof parentLinkValue.status === 'string') ? parentLinkValue.status : '';
+			if (parentLinkStatus !== 'updated' && parentLinkStatus !== 'noop')
+			{
+				result.status = 'error';
+				result.message = 'Не удалось выполнить автосвязь с родителем на созданной странице.';
+				if (!Array.isArray(result.errors))
+				{
+					result.errors = [];
+				}
+				result.errors.push('parent_autolink_failed');
 				return;
 			}
 		}

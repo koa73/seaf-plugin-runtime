@@ -146,6 +146,15 @@ def main() -> int:
             },
         }
     )
+    commands.append(
+        {
+            "name": "autoLinkParentsOnPage",
+            "args": {
+                "pageIdFrom": "createPage",
+                "suppressStencilEvents": True,
+            },
+        }
+    )
     return write_response(
         status="success",
         message=f"Страница '{title}' создана и ссылка установлена",

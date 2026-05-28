@@ -3,153 +3,20 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
+from lib.diagram.parent_linking import (
+    build_parent_link_updates,
+    extract_stencil_items_from_payload,
+    load_parent_rules,
+)
 from lib.events import build_update_stencil_data_bulk_command
 from lib.io import build_error_policy_payload, get_payload, read_request, write_response
 from lib.logging import build_script_logger
 
 
-def _config_path() -> Path:
-    return Path(__file__).resolve().parents[3] / "conf" / "stencils" / "config.yaml"
-
-
-def _normalize_schema_list(raw_schema: Any) -> List[str]:
-    if isinstance(raw_schema, str):
-        normalized = raw_schema.strip()
-        return [normalized] if normalized else []
-    if not isinstance(raw_schema, list):
-        return []
-    out: List[str] = []
-    for item in raw_schema:
-        value = str(item or "").strip()
-        if value:
-            out.append(value)
-    return out
-
-
-def _load_parent_rules() -> Dict[str, Dict[str, Any]]:
-    path = _config_path()
-    if not path.exists():
-        return {}
-
-    text = path.read_text(encoding="utf-8")
-    try:
-        import yaml  # type: ignore
-
-        parsed = yaml.safe_load(text) or {}
-        schemas = parsed.get("schemas") if isinstance(parsed, dict) else {}
-        if not isinstance(schemas, dict):
-            return {}
-        out: Dict[str, Dict[str, Any]] = {}
-        for schema, entry in schemas.items():
-            if not isinstance(schema, str) or not isinstance(entry, dict):
-                continue
-            parent = entry.get("parent")
-            if not isinstance(parent, dict):
-                continue
-            parent_schemas = _normalize_schema_list(parent.get("schema"))
-            parent_field = str(parent.get("field") or "").strip()
-            if parent_schemas and parent_field:
-                out[schema.strip()] = {"schemas": parent_schemas, "field": parent_field}
-        return out
-    except Exception:
-        return {}
-
-
 def _extract_selected_stencils(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
-    selection = payload.get("selection")
-    if not isinstance(selection, list):
-        return []
-    out = []
-    seen_ids: set[str] = set()
-    for item in selection:
-        if not isinstance(item, dict):
-            continue
-        data = item.get("data") if isinstance(item.get("data"), dict) else {}
-        object_id = str(item.get("objectId") or item.get("id") or "").strip()
-        schema = str(data.get("schema") or "").strip()
-        oid = str(data.get("OID") or "").strip()
-        if not object_id or object_id in seen_ids:
-            continue
-        seen_ids.add(object_id)
-        out.append(
-            {
-                "objectId": object_id,
-                "schema": schema,
-                "oid": oid,
-                "data": data,
-            }
-        )
-    return out
-
-
-def _build_link_updates(
-    selected: List[Dict[str, Any]],
-    parent_rules: Dict[str, Dict[str, Any]],
-) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
-    updates: List[Dict[str, Any]] = []
-    collisions: List[Dict[str, Any]] = []
-    missing: List[Dict[str, Any]] = []
-    skipped_no_rule: List[Dict[str, Any]] = []
-
-    for child in selected:
-        child_schema = child["schema"]
-        child_id = child["objectId"]
-        if not child_schema or child_schema not in parent_rules:
-            skipped_no_rule.append({"objectId": child_id, "schema": child_schema})
-            continue
-
-        rule = parent_rules[child_schema]
-        parent_schemas = [str(x) for x in rule.get("schemas") or [] if str(x).strip()]
-        parent_field = rule["field"]
-        if not parent_schemas:
-            skipped_no_rule.append({"objectId": child_id, "schema": child_schema})
-            continue
-
-        candidates = [
-            candidate
-            for candidate in selected
-            if candidate["objectId"] != child_id
-            and candidate["schema"] in parent_schemas
-            and candidate["oid"]
-        ]
-
-        if len(candidates) == 1:
-            updates.append(
-                {
-                    "objectId": child_id,
-                    "mode": "merge",
-                    "data": {parent_field: candidates[0]["oid"]},
-                }
-            )
-            continue
-
-        if len(candidates) == 0:
-            missing.append(
-                {
-                    "objectId": child_id,
-                    "schema": child_schema,
-                    "expectedParentSchemas": parent_schemas,
-                    "field": parent_field,
-                }
-            )
-            continue
-
-        collisions.append(
-            {
-                "objectId": child_id,
-                "schema": child_schema,
-                "expectedParentSchemas": parent_schemas,
-                "field": parent_field,
-                "candidateParentObjectIds": [x["objectId"] for x in candidates],
-                "candidateParentSchemas": [x["schema"] for x in candidates],
-                "candidateParentOids": [x["oid"] for x in candidates],
-            }
-        )
-
-    return updates, collisions, missing, skipped_no_rule
+    return extract_stencil_items_from_payload(payload, key="selection")
 
 
 def _collision_text(row: Dict[str, Any]) -> str:
@@ -165,9 +32,9 @@ def main() -> int:
         payload = get_payload(request)
         logger = build_script_logger(payload)
         selected = _extract_selected_stencils(payload)
-        parent_rules = _load_parent_rules()
+        parent_rules = load_parent_rules()
 
-        updates, collisions, missing, skipped_no_rule = _build_link_updates(selected, parent_rules)
+        updates, collisions, missing, skipped_no_rule = build_parent_link_updates(selected, parent_rules)
         current_page = payload.get("currentPage") if isinstance(payload.get("currentPage"), dict) else {}
         page_id = current_page.get("id")
 

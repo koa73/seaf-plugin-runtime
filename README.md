@@ -243,7 +243,9 @@
 - Для mirror используется Python lookup `title -> schema` по библиотеке `conf/stencils/Р41.xml`; если schema или layer не резолвятся, `add_page.py` возвращает `status=error` и не отправляет `moveObjectsToLayer` с пустым `layerName`.
 - Если `mirror` не найден в библиотеке `SEAF_Р41` или вставка/синхронизация/назначение слоя завершились неуспешно, сценарий переводится в `status=error`.
 - Пользовательское сообщение для ошибки вставки mirror: `Не возможно добавить элемент <mirror> на страницу`; расширенная диагностика (`mirrorTitle`, `sourceObjectId`, `sourceSchema`, `pageId`, `reason/error`) пишется в `seaf-plugin.log`.
-- После шагов create/link/mirror (и при отсутствии mirror — после create/link) сценарий `add_page` добавляет финальную UI-команду `assignEmptyOidOnPage`: на созданной странице обходятся все объекты, у которых в данных есть атрибут `OID` и значение пустое; им назначаются уникальные OID по тому же алгоритму, что в `events/all_add.py` (`companyPrefix` + `schemaCode` + sequence). Результат `updated|noop` валидируется в `validateSeafAddPageUiResults`.
+- После шагов create/link/mirror (и при отсутствии mirror — после create/link) сценарий `add_page` добавляет `assignEmptyOidOnPage`: на созданной странице обходятся все объекты, у которых в данных есть атрибут `OID` и значение пустое; им назначаются уникальные OID по тому же алгоритму, что в `events/all_add.py` (`companyPrefix` + `schemaCode` + sequence).
+- После OID-backfill запускается `autoLinkParentsOnPage`: для всех объектов новой страницы вычисляются parent-связи по `parent.schema[]` / `parent.field` из `conf/stencils/config.yaml` и применяются через `updateStencilDataBulk` как предзаполнение данных (без popup-политики ручной команды).
+- Общий расчет parent-связей вынесен в `python/scripts/lib/diagram/parent_linking.py` и переиспользуется ручной командой `context_menu/link_with_parent.py`; add-page автосвязь следует той же strict-логике (ровно один кандидат на child).
 - Скрипт не отправляет отдельные `showMessage` для `success/error`; пользовательские сообщения отображаются единообразно через общий runtime-обработчик статуса команды.
 
 ## Interactive terminal command
