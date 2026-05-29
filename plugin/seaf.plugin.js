@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.85
+ * Runtime script version: 0.5.86
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -1673,8 +1673,8 @@ Draw.loadPlugin(function(ui)
 			// Compare normalized forms to avoid false "item missing" and duplicate insertion.
 			return text
 				.replace(/\u2026/g, '...')
-				replace(/\s*\.\.\.\s*$/, '')
-				trim();
+				.replace(/\s*\.\.\.\s*$/, '')
+				.trim();
 		},
 		getItemStateByLabel: function(menuObj, labelText)
 		{
@@ -10234,6 +10234,7 @@ Draw.loadPlugin(function(ui)
 			var inserted = false;
 			var commands = state.config.commands || [];
 			var contextCommands = [];
+			var matchedEditDataCommandIds = [];
 
 			for (var c = 0; c < commands.length; c++)
 			{
@@ -10249,6 +10250,10 @@ Draw.loadPlugin(function(ui)
 			{
 				if (contextMatches(contextCommands[i], graph, cell))
 				{
+					if (contextCommands[i] && contextCommands[i].clientAction === 'seafEditData')
+					{
+						matchedEditDataCommandIds.push(String(contextCommands[i].id || ''));
+					}
 					if (!inserted)
 					{
 						this.addMenuItems(menu, ['-'], null, evt);
@@ -10258,6 +10263,11 @@ Draw.loadPlugin(function(ui)
 					this.addMenuItems(menu, [contextCommands[i].id], null, evt);
 				}
 			}
+			writeLog('debug', 'context menu seaf edit-data command matches', {
+				cellId: (cell && cell.id) ? String(cell.id) : null,
+				mode: intent && intent.mode ? intent.mode : 'standard',
+				matchedCommandIds: matchedEditDataCommandIds
+			});
 		};
 		state.contextMenuRegistered = true;
 	}
@@ -10396,6 +10406,7 @@ Draw.loadPlugin(function(ui)
 				runtimeVersion: state.runtimeVersion || 'unknown',
 				features: state.features
 			});
+			await runInitStep('python_env_bootstrap', ensurePythonEnvironmentAuto, false);
 			await runInitStep('stencil_libraries_load', loadSeafStencilLibraries, false);
 			await runInitStep('load_stencils_layer_config', loadStencilsLayerConfig, false);
 			await runInitStep('stencil_index_rebuild', function()

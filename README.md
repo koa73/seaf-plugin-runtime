@@ -83,6 +83,9 @@
 12. Для SEAF библиотек действует политика `respect_saved`: если draw.io уже сохранил пользовательский выбор библиотек, он приоритетнее `enabledByDefault`; `enabledByDefault` используется только как стартовый дефолт при первом выборе.
 13. Названия кастомных SEAF секций/библиотек передаются как локализуемые объекты (`{main: ...}`), чтобы корректно отображаться через `EditorUi.getResource` без `UNDEFINED`.
 14. **`applyRuntimeFromExtractRoot`** (draw.io desktop, `seafPluginService.js`) выкладывает из архива: `seaf.plugin.js`, дерево `seaf_plugin/`, **`seaf-bulk-edit-data-module.js`**. Если в архиве нет bulk-модуля, а новый `seaf.plugin.js` его требует — update завершается ошибкой (без «полуобновления»). `env.yaml` merge: канонический путь `seaf_plugin/conf/env.yaml` (legacy `conf/conf/env.yaml` поддерживается при чтении).
+15. При runtime update сервис сначала пытается мигрировать `seaf_plugin/.venv` из backup в новый runtime; это сохраняет рабочий интерпретатор между обновлениями.
+16. После применения runtime запускается `bootstrapPythonRuntimeOnInstallOrUpdate`: создание managed `.venv` (с fallback `virtualenv`), установка `python/requirements.txt`, preflight-import и возврат статуса в `payload.pythonBootstrap`.
+17. Если `pythonExecutable` из `env.yaml` больше не существует, `resolvePythonExecutable` автоматически пытается fallback (`python3`, `python`) и может перезаписать `env.yaml` рабочим путем.
 15. Tarball собирается через `cp conf/.` → merge в `seaf_plugin/conf/` (без вложенного `conf/conf/`). См. `release/runtime/build-runtime.sh`.
 
 ## Menu order contract

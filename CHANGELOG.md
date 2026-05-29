@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.86
+
+- **OID recovery after runtime update**: `applyRuntimeFromExtractRoot` теперь мигрирует `seaf_plugin/.venv` из backup в новый runtime до удаления backup, чтобы не терять рабочий Python между обновлениями.
+- **Update bootstrap payload**: `runNativeSshRuntimeUpdate` теперь запускает `bootstrapPythonRuntimeOnInstallOrUpdate` после apply и возвращает структурированный результат в `payload.pythonBootstrap`.
+- **Python bootstrap API/IPC**: добавлены main-process API `bootstrapPythonRuntime` / IPC action `bootstrapSeafPythonRuntime` для ручного повторного bootstrap без повторной установки runtime.
+- **Stale executable recovery**: `resolvePythonExecutable` при битом `env.pythonExecutable` автоматически пробует fallback-интерпретаторы (`python3`/`python`) и логирует recovery.
+- **Renderer init guard**: при инициализации plugin добавлен не-критичный шаг `ensurePythonEnvironmentAuto`, чтобы early обнаруживать отсутствующий интерпретатор.
+- **Context menu diagnostics**: исправлена нормализация label (`replace(...).trim()`), добавлены явные debug-логи matched `clientAction: seafEditData` команд.
+
 ## 0.5.85
 
 - **Network sync regression fix**: `connect/disconnect` event items теперь резолвят terminal-ячейки к ближайшему schema-bearing стенсилу (`resolveEditDataTarget`), чтобы `seafStencilNetworkConnectionSync` не терялся при привязке к внутренним `mxCell`/портам grouped stencil.
