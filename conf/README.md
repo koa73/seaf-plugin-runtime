@@ -81,6 +81,7 @@
 | `pythonExecutable` | `string` | Путь к Python-бинарнику или каталогу `.venv` |
 
 `pythonExecutable` теперь заполняется автоматически после успешного runtime update bootstrap (managed `.venv`), но поле в `Edit Config` остаётся ручным override.
+Bootstrap использует стратегию `venv -> virtualenv`: при недоступном `python -m venv` runtime пытается установить `virtualenv` через существующий `pip` и создать `.venv` через `python -m virtualenv`.
 
 ---
 

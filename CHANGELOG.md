@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.82
+
+- **Autonomous Python bootstrap**: в update-flow добавлен fallback `venv -> virtualenv` (установка `virtualenv` через существующий `pip`), чтобы подготовка `.venv` не зависела от наличия системного `python3-venv`/`ensurepip`.
+- **Structured bootstrap errors**: ошибки автоподготовки нормализованы в единый контракт (`code`, `stage`, `category`, `error`, `hint`, `stderrTail`) и возвращаются в payload обновления.
+- **Update recovery dialog**: при bootstrap fail после update renderer показывает диалог с действиями `Повторить`, `Диагностика`, `Edit Config`.
+
 ## 0.5.81
 
 - **Python bootstrap lifecycle**: автоподготовка Python перенесена с command/init preflight на фазу runtime install/update (`seafUpdatePlugin`) с managed `.venv` в `seaf_plugin/.venv`.

@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.81
+ * Runtime script version: 0.5.82
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -362,23 +362,76 @@ Draw.loadPlugin(function(ui)
 		return line1 + '\nИзменения вступят в силу после перезапуска приложения draw.io';
 	}
 
+	function normalizePythonBootstrapPayload(payload)
+	{
+		var src = (payload && typeof payload === 'object') ? payload : {};
+		return {
+			ok: src.ok === true,
+			code: (typeof src.code === 'string' && src.code.trim().length > 0) ? src.code.trim() : 'python_bootstrap_failed',
+			stage: (typeof src.stage === 'string' && src.stage.trim().length > 0) ? src.stage.trim() : 'unknown',
+			category: (typeof src.category === 'string' && src.category.trim().length > 0) ? src.category.trim() : 'unknown',
+			error: (typeof src.error === 'string' && src.error.trim().length > 0) ? src.error.trim() : 'unknown error',
+			hint: (typeof src.hint === 'string' && src.hint.trim().length > 0) ? src.hint.trim() : '',
+			stderrTail: (typeof src.stderrTail === 'string' && src.stderrTail.trim().length > 0) ? src.stderrTail.trim() : ''
+		};
+	}
+
+	function parsePythonBootstrapErrorFromMessage(rawMessage)
+	{
+		if (typeof rawMessage !== 'string' || rawMessage.trim().length === 0)
+		{
+			return normalizePythonBootstrapPayload(null);
+		}
+		try
+		{
+			return normalizePythonBootstrapPayload(JSON.parse(rawMessage));
+		}
+		catch (e)
+		{
+			return normalizePythonBootstrapPayload({
+				error: rawMessage
+			});
+		}
+	}
+
+	function buildPythonBootstrapDiagnosticText(bootstrap)
+	{
+		var b = normalizePythonBootstrapPayload(bootstrap);
+		var lines = [
+			'Автонастройка Python не выполнена.',
+			'code: ' + b.code,
+			'stage: ' + b.stage,
+			'category: ' + b.category,
+			'error: ' + b.error
+		];
+		if (b.hint)
+		{
+			lines.push('hint: ' + b.hint);
+		}
+		if (b.stderrTail)
+		{
+			lines.push('');
+			lines.push('stderr:');
+			lines.push(b.stderrTail);
+		}
+		return lines.join('\n');
+	}
+
 	function getUpdateUiOutcome(result)
 	{
 		var payload = (result && typeof result.payload === 'object' && result.payload != null) ? result.payload : {};
 		var pythonBootstrap = (payload && typeof payload.pythonBootstrap === 'object' && payload.pythonBootstrap != null) ?
-			payload.pythonBootstrap : null;
+			normalizePythonBootstrapPayload(payload.pythonBootstrap) : null;
 		var status = (typeof payload.status === 'string' && payload.status.trim().length > 0) ?
 			payload.status.trim() : (typeof result.status === 'string' ? result.status.trim() : '');
 		if (status === 'updated')
 		{
-			if (pythonBootstrap && pythonBootstrap.ok === false)
+			if (pythonBootstrap && pythonBootstrap.ok !== true)
 			{
-				var setupError = (typeof pythonBootstrap.error === 'string' && pythonBootstrap.error.trim().length > 0) ?
-					pythonBootstrap.error.trim() : 'unknown error';
 				return {
-					level: 'error',
-					message: 'Плагин обновлен, но автонастройка Python не выполнена: ' + setupError +
-						'\nОткройте Edit Config и задайте корректный Python executable вручную.'
+					level: 'bootstrap_failed',
+					message: 'Плагин обновлен, но автонастройка Python не выполнена.',
+					pythonBootstrap: pythonBootstrap
 				};
 			}
 			return {
@@ -402,6 +455,90 @@ Draw.loadPlugin(function(ui)
 			level: 'info',
 			message: buildRestartRequiredMessage(result)
 		};
+	}
+
+	function openPythonBootstrapFailureDialog(outcome)
+	{
+		return new Promise(function(resolve)
+		{
+			var bootstrap = normalizePythonBootstrapPayload(outcome && outcome.pythonBootstrap);
+			var container = document.createElement('div');
+			container.style.minWidth = '520px';
+			container.style.maxWidth = '760px';
+			container.style.padding = '8px';
+			container.style.boxSizing = 'border-box';
+
+			var title = document.createElement('div');
+			title.style.fontWeight = 'bold';
+			title.style.marginBottom = '8px';
+			title.textContent = 'Автонастройка Python не выполнена';
+			container.appendChild(title);
+
+			var text = document.createElement('div');
+			text.style.marginBottom = '10px';
+			text.style.whiteSpace = 'pre-wrap';
+			text.textContent = 'Плагин обновлен, но Python окружение не подготовлено автоматически.';
+			container.appendChild(text);
+
+			var footer = document.createElement('div');
+			footer.style.textAlign = 'right';
+			footer.style.marginTop = '10px';
+			footer.style.whiteSpace = 'nowrap';
+
+			var editConfigBtn = mxUtils.button('Edit Config', async function()
+			{
+				ui.hideDialog();
+				var cfgCommand = state.commandsById['seafEditConfig'] || null;
+				if (cfgCommand != null)
+				{
+					await openEditConfigDialog(cfgCommand);
+				}
+				resolve('edit_config');
+			});
+			editConfigBtn.className = 'geBtn';
+
+			var diagnosticsBtn = mxUtils.button('Диагностика', function()
+			{
+				showError(buildPythonBootstrapDiagnosticText(bootstrap));
+			});
+			diagnosticsBtn.className = 'geBtn';
+
+			var retryBtn = mxUtils.button('Повторить', async function()
+			{
+				try
+				{
+					var retry = await requestAsync({
+						action: 'bootstrapSeafPythonRuntime',
+						configPath: state.configPath,
+						source: 'update_retry'
+					});
+					ui.hideDialog();
+					var py = normalizePythonBootstrapPayload(retry);
+					if (py.ok === true)
+					{
+						showInfo('Автонастройка Python завершена успешно.');
+					}
+					else
+					{
+						showError(buildPythonBootstrapDiagnosticText(py));
+					}
+					resolve('retry');
+				}
+				catch (e)
+				{
+					var parsed = parsePythonBootstrapErrorFromMessage(e && e.message ? e.message : String(e));
+					showError(buildPythonBootstrapDiagnosticText(parsed));
+				}
+			});
+			retryBtn.className = 'geBtn gePrimaryBtn';
+
+			footer.appendChild(retryBtn);
+			footer.appendChild(diagnosticsBtn);
+			footer.appendChild(editConfigBtn);
+			container.appendChild(footer);
+
+			ui.showDialog(container, 560, 210, true, true);
+		});
 	}
 
 	function formatCommandError(commandId, message)
@@ -8747,7 +8884,11 @@ Draw.loadPlugin(function(ui)
 					if (command && command.id === 'seafSystemUpdatePlugin')
 					{
 						var updateOutcome = getUpdateUiOutcome(completedResult);
-						if (updateOutcome.level === 'error')
+						if (updateOutcome.level === 'bootstrap_failed')
+						{
+							await openPythonBootstrapFailureDialog(updateOutcome);
+						}
+						else if (updateOutcome.level === 'error')
 						{
 							showError(updateOutcome.message);
 						}
@@ -9298,7 +9439,11 @@ Draw.loadPlugin(function(ui)
 			else
 			{
 				var updateOutcome = getUpdateUiOutcome(result);
-				if (updateOutcome.level === 'error')
+				if (updateOutcome.level === 'bootstrap_failed')
+				{
+					await openPythonBootstrapFailureDialog(updateOutcome);
+				}
+				else if (updateOutcome.level === 'error')
 				{
 					showError(updateOutcome.message);
 				}

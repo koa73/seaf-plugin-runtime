@@ -154,8 +154,9 @@
 - Зависимость описывается декларативно в `configEditor.fields` через `syncFrom` и `disableWhen`, без жесткой привязки к конкретным env-ключам в renderer-коде.
 - При `Browse` для `inputSeafFile` поле `outputSeafFile` обновляется автоматически только при включенном `useSameOutputFile`.
 - Автонастройка Python выполняется в фазе системного runtime update (`SEAF -> Обновить плагин`): runtime поднимает managed `.venv` в `seaf_plugin/.venv`, ставит `python/requirements.txt`, проверяет `requiredModules` и сохраняет рабочий `pythonExecutable` в `env.yaml`.
+- Алгоритм bootstrap автономный: сначала `python -m venv`, при сбое автоматически используется fallback через `python -m pip install --user virtualenv` и создание `.venv` через `python -m virtualenv` (без зависимости от установленного `python3-venv`).
 - В обычном запуске команд установка зависимостей больше не выполняется; если интерпретатор отсутствует/некорректен, показывается ошибка с подсказкой запустить update или задать путь вручную в `Edit Config`.
-- Если runtime обновился, но bootstrap Python не удался, UI показывает отдельную ошибку автонастройки и оставляет ручной путь через `Edit Config`.
+- Если runtime обновился, но bootstrap Python не удался, UI показывает отдельный recovery-диалог: `Повторить`, `Диагностика`, `Edit Config`.
 - Для окружений без sudo используется тот же путь: установить Python для пользователя и указать бинарник или каталог venv в `Edit Config -> Python executable`.
 - При runtime update `env.yaml` обновляется инкрементально: локальные значения пользователя сохраняются, новые ключи из схемы/дефолта добавляются, пользовательские ключи не удаляются.
 - Уровень логирования пользователя задается через `env.pluginLogLevel` (`none|info|debug`), а блок `logging.*` в `plugin.yaml` используется как технический fallback.
