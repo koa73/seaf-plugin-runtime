@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.88
+
+- **Bootstrap retry recovery fix**: для `bootstrapPythonRuntime` дефолтные опции переключены в recovery-режим (`allowDependencyInstall=true`, `allowFallback=true`, `persistFallback=true`), чтобы retry после update восстанавливал Python даже при битом `env.pythonExecutable`.
+- **Update-test readiness**: сценарий из recovery-диалога (`Повторить`) теперь использует тот же практический путь восстановления, что и системный update bootstrap.
+
 ## 0.5.87
 
 - **Context menu dedupe fix**: устранён дубль пункта `Редактировать данные (SEAF)…` при overlap policy (`seafEditDataHard` + `seafEditDataSoft`) — при построении context menu второй совпавший `clientAction: seafEditData` больше не добавляется.
