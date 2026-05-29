@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.86
+ * Runtime script version: 0.5.87
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -10250,9 +10250,19 @@ Draw.loadPlugin(function(ui)
 			{
 				if (contextMatches(contextCommands[i], graph, cell))
 				{
+					var isSeafEditDataCommand = !!(contextCommands[i] && contextCommands[i].clientAction === 'seafEditData');
 					if (contextCommands[i] && contextCommands[i].clientAction === 'seafEditData')
 					{
 						matchedEditDataCommandIds.push(String(contextCommands[i].id || ''));
+					}
+					if (isSeafEditDataCommand)
+					{
+						var seafLabelText = mxResources.get('seafEditData');
+						var seafAlreadyPresent = ContextMenuPresenter.getItemStateByLabel(menu, seafLabelText).present === true;
+						if (seafAlreadyPresent)
+						{
+							continue;
+						}
 					}
 					if (!inserted)
 					{

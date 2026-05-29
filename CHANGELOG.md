@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.87
+
+- **Context menu dedupe fix**: устранён дубль пункта `Редактировать данные (SEAF)…` при overlap policy (`seafEditDataHard` + `seafEditDataSoft`) — при построении context menu второй совпавший `clientAction: seafEditData` больше не добавляется.
+- **Contract update**: обновлён `test-edit-data-context-policy-contract.mjs` для фиксации guard от дублирования пункта.
+
 ## 0.5.86
 
 - **OID recovery after runtime update**: `applyRuntimeFromExtractRoot` теперь мигрирует `seaf_plugin/.venv` из backup в новый runtime до удаления backup, чтобы не терять рабочий Python между обновлениями.

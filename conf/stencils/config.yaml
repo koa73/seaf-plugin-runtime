@@ -56,6 +56,10 @@ schemas:
       - schema
   seaf.company.ta.services.networks:
     layer: "Услуги связи"
+    parent:
+      schema:
+        - seaf.company.ta.services.network_segments
+      field: segment
     data_lock:
       - OID
       - schema
