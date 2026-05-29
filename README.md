@@ -117,9 +117,15 @@
 - Значения попадают в `payload.env`, `payload.scriptEnv` и `SEAF_ENV_*` (interactive terminal).
 - `persist: scriptDefaults` — отдельный файл значений (`defaultsFile`); IPC `getSeafScriptEnvDefaults` / `saveSeafScriptEnvDefaults`.
 
+### Опциональный `descriptionFile`
+
+- Если в команде задан `descriptionFile: main_menu/descriptions/<name>.md`, перед запуском показывается информационный preflight-диалог.
+- Диалог содержит markdown-описание инструмента и кнопки `Продолжить` / `Завершить`; отмена останавливает запуск команды без ошибки.
+
 ### Tools → Net_Conf_Parser
 
 - Пункт меню: `seafToolsNetConfParser`, `clientAction: interactiveTerminal`, `execution.mode: interactive_terminal`.
+- Для `seafToolsNetConfParser` включен preflight по `descriptionFile: main_menu/descriptions/seafToolsNetConfParser.md`.
 - Перед запуском — `scriptEnvEditor: scripts/net_conf_parser.script_env.yaml` (каталоги data и output); `patterns/` фиксирован: `python/vendor/netconf_parser/patterns/` в установленном runtime.
 - Launcher: `python/scripts/main_menu/net_conf_parser.py` → `python/vendor/netconf_parser/main_entry.py` (без SEAF-конвертации).
 - Обновление upstream: [`scripts/vendor/sync-netconf-parser.sh`](scripts/vendor/sync-netconf-parser.sh) → `python/vendor/netconf_parser/`.

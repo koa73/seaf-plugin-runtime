@@ -113,6 +113,19 @@ scriptEnvEditor:
 
 Inline-поля `fields` в `main_menu.yaml` **не поддерживаются** — только ссылка на файл.
 
+### Опциональный `descriptionFile` (информационное preflight-окно)
+
+Для любой команды main menu можно включить информационное окно перед запуском:
+
+```yaml
+descriptionFile: main_menu/descriptions/<command-id>.md
+```
+
+- Путь задается **относительно `conf/`** (того же корня, где `main_menu.yaml`).
+- Если `descriptionFile` задан, runtime показывает диалог с кнопками `Продолжить` / `Завершить`.
+- `Продолжить` запускает команду по обычному pipeline, `Завершить` отменяет запуск без ошибки.
+- Если файл недоступен, показывается fallback-текст; команда по `Продолжить` все равно может быть выполнена.
+
 Файл `conf/scripts/*.script_env.yaml` (в поставке — `scripts/*.script_env.yaml` относительно `conf/`) описывает UI (как `configEditor.fields`):
 
 | Поле | Назначение |
@@ -178,6 +191,7 @@ Inline-поля `fields` в `main_menu.yaml` **не поддерживаются
   - id: seafToolsNetConfParser
     title: Net_Conf_Parser
     clientAction: interactiveTerminal
+    descriptionFile: main_menu/descriptions/seafToolsNetConfParser.md
     script: main_menu/net_conf_parser.py
     execution:
       mode: interactive_terminal

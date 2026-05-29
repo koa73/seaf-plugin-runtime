@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.79
+
+- **Tools preflight description**: для пунктов main menu с параметром `descriptionFile` добавлен блокирующий информационный диалог с кнопками `Продолжить` / `Завершить` перед запуском команды.
+- **NetConf rollout**: для `seafToolsNetConfParser` добавлен `descriptionFile` и отдельный markdown-файл `conf/main_menu/descriptions/seafToolsNetConfParser.md` (краткое описание инструмента и необходимых настроек).
+- **Contracts**: добавлен тест `test-tools-description-contract.mjs` на наличие `descriptionFile`, description markdown и подключение preflight helper в renderer.
+
 ## 0.5.78
 
 - **Layer routing (grouped stencils)**: для event-сценариев `all_add` и `reparent` команды `moveObjectsToLayer` переключены на `targetMode: groupRoot`, чтобы переносить на слой корень группы (`style=group`) и не разрывать составные P41-стенсилы.

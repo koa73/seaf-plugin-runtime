@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.78
+ * Runtime script version: 0.5.79
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -4272,6 +4272,162 @@ Draw.loadPlugin(function(ui)
 		}
 
 		return '';
+	}
+
+	function resolveCommandDescriptionFile(command)
+	{
+		if (!command || command.descriptionFile == null)
+		{
+			return '';
+		}
+		if (typeof command.descriptionFile === 'string')
+		{
+			return command.descriptionFile.trim();
+		}
+		if (typeof command.descriptionFile === 'object' && typeof command.descriptionFile.path === 'string')
+		{
+			return command.descriptionFile.path.trim();
+		}
+		return '';
+	}
+
+	async function loadCommandDescriptionMarkdown(command)
+	{
+		var relPath = resolveCommandDescriptionFile(command);
+		if (!relPath)
+		{
+			return '';
+		}
+		try
+		{
+			var raw = await requestAsync({
+				action: 'readSeafPluginFile',
+				configPath: state.configPath,
+				relativePath: relPath,
+				encoding: 'utf8'
+			});
+			return normalizeIpcTextPayload(raw);
+		}
+		catch (e)
+		{
+			await writeLog('warn', 'Command description markdown load failed', {
+				commandId: command && command.id ? command.id : '',
+				relativePath: relPath,
+				error: e && e.message ? e.message : String(e)
+			});
+			return '';
+		}
+	}
+
+	function renderSimpleMarkdownToElement(markdownText)
+	{
+		var host = document.createElement('div');
+		host.style.maxHeight = '320px';
+		host.style.overflowY = 'auto';
+		host.style.whiteSpace = 'normal';
+		host.style.wordBreak = 'break-word';
+		var raw = String(markdownText || '').replace(/\r\n?/g, '\n').trim();
+		if (!raw)
+		{
+			var fallback = document.createElement('div');
+			fallback.textContent = 'Описание инструмента не найдено.';
+			host.appendChild(fallback);
+			return host;
+		}
+		var lines = raw.split('\n');
+		for (var i = 0; i < lines.length; i++)
+		{
+			var line = String(lines[i] || '');
+			var trimmed = line.trim();
+			if (!trimmed)
+			{
+				continue;
+			}
+			if (/^#{1,6}\s+/.test(trimmed))
+			{
+				var heading = document.createElement('div');
+				heading.style.fontWeight = 'bold';
+				heading.style.margin = '6px 0 4px 0';
+				heading.textContent = trimmed.replace(/^#{1,6}\s+/, '');
+				host.appendChild(heading);
+				continue;
+			}
+			if (/^[-*]\s+/.test(trimmed))
+			{
+				var bullet = document.createElement('div');
+				bullet.style.margin = '2px 0';
+				bullet.textContent = '\u2022 ' + trimmed.replace(/^[-*]\s+/, '');
+				host.appendChild(bullet);
+				continue;
+			}
+			var paragraph = document.createElement('div');
+			paragraph.style.margin = '4px 0';
+			paragraph.textContent = trimmed;
+			host.appendChild(paragraph);
+		}
+		if (host.childNodes.length === 0)
+		{
+			var emptyFallback = document.createElement('div');
+			emptyFallback.textContent = 'Описание инструмента не найдено.';
+			host.appendChild(emptyFallback);
+		}
+		return host;
+	}
+
+	function openCommandDescriptionDialog(command, markdownText)
+	{
+		return new Promise(function(resolve)
+		{
+			var container = document.createElement('div');
+			container.style.minWidth = '520px';
+			container.style.maxWidth = '760px';
+			container.style.padding = '8px';
+			container.style.boxSizing = 'border-box';
+
+			var title = document.createElement('div');
+			title.style.fontWeight = 'bold';
+			title.style.marginBottom = '8px';
+			title.textContent = String((command && command.title) || (command && command.id) || 'Инструмент');
+			container.appendChild(title);
+
+			container.appendChild(renderSimpleMarkdownToElement(markdownText));
+
+			var footer = document.createElement('div');
+			footer.style.textAlign = 'right';
+			footer.style.marginTop = '10px';
+			footer.style.whiteSpace = 'nowrap';
+
+			var stopBtn = mxUtils.button('Завершить', function()
+			{
+				ui.hideDialog();
+				resolve(false);
+			});
+			stopBtn.className = 'geBtn';
+
+			var continueBtn = mxUtils.button('Продолжить', function()
+			{
+				ui.hideDialog();
+				resolve(true);
+			});
+			continueBtn.className = 'geBtn gePrimaryBtn';
+
+			footer.appendChild(continueBtn);
+			footer.appendChild(stopBtn);
+			container.appendChild(footer);
+
+			ui.showDialog(container, 560, 420, true, true);
+		});
+	}
+
+	async function runCommandDescriptionPreflight(command)
+	{
+		var relPath = resolveCommandDescriptionFile(command);
+		if (!relPath)
+		{
+			return true;
+		}
+		var markdownText = await loadCommandDescriptionMarkdown(command);
+		return await openCommandDescriptionDialog(command, markdownText);
 	}
 
 	function applyScriptEnvToPayload(payload, scriptEnvOverrides)
@@ -8926,6 +9082,16 @@ Draw.loadPlugin(function(ui)
 
 	async function executeCommand(command, source, sourceCell)
 	{
+		var preflightAllowed = await runCommandDescriptionPreflight(command);
+		if (preflightAllowed !== true)
+		{
+			await writeLog('info', 'Command execution cancelled by description preflight', {
+				commandId: command && command.id ? command.id : '',
+				source: source
+			});
+			return;
+		}
+
 		if (command && command.clientAction === 'editConfig')
 		{
 			await openEditConfigDialog(command);

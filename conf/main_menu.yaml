@@ -105,6 +105,7 @@ commands:
   - id: seafToolsNetConfParser
     title: Net_Conf_Parser
     clientAction: interactiveTerminal
+    descriptionFile: main_menu/descriptions/seafToolsNetConfParser.md
     script: main_menu/net_conf_parser.py
     execution:
       mode: interactive_terminal

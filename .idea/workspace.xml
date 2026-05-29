@@ -4,7 +4,19 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d1fe5f91-f987-493b-912e-17488c850970" name="Changes" comment="#0.5.77" />
+    <list default="true" id="d1fe5f91-f987-493b-912e-17488c850970" name="Changes" comment="#0.5.78">
+      <change afterPath="$PROJECT_DIR$/conf/main_menu/descriptions/seafToolsNetConfParser.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/CHANGELOG.md" beforeDir="false" afterPath="$PROJECT_DIR$/CHANGELOG.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/conf/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/conf/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/conf/main_menu.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/conf/main_menu.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/conf/plugin.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/conf/plugin.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/plugin/seaf.plugin.js" beforeDir="false" afterPath="$PROJECT_DIR$/plugin/seaf.plugin.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/release/out/checksums.txt" beforeDir="false" afterPath="$PROJECT_DIR$/release/out/checksums.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/release/out/seaf-plugin-runtime.tar.gz" beforeDir="false" afterPath="$PROJECT_DIR$/release/out/seaf-plugin-runtime.tar.gz" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/runtime/version.json" beforeDir="false" afterPath="$PROJECT_DIR$/runtime/version.json" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -65,14 +77,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1776327425613</updated>
-    </task>
-    <task id="LOCAL-00100" summary="#0.5.23">
-      <option name="closed" value="true" />
-      <created>1778682286154</created>
-      <option name="number" value="00100" />
-      <option name="presentableId" value="LOCAL-00100" />
-      <option name="project" value="LOCAL" />
-      <updated>1778682286154</updated>
     </task>
     <task id="LOCAL-00101" summary="#0.5.25">
       <option name="closed" value="true" />
@@ -458,7 +462,15 @@
       <option name="project" value="LOCAL" />
       <updated>1779973362450</updated>
     </task>
-    <option name="localTasksCounter" value="149" />
+    <task id="LOCAL-00149" summary="#0.5.78">
+      <option name="closed" value="true" />
+      <created>1779980741531</created>
+      <option name="number" value="00149" />
+      <option name="presentableId" value="LOCAL-00149" />
+      <option name="project" value="LOCAL" />
+      <updated>1779980741532</updated>
+    </task>
+    <option name="localTasksCounter" value="150" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -485,7 +497,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="#0.5.44" />
     <MESSAGE value="#0.5.45" />
     <MESSAGE value="#0.5.46" />
     <MESSAGE value="#0.5.47" />
@@ -510,7 +521,8 @@
     <MESSAGE value="#0.5.75" />
     <MESSAGE value="#0.5.76" />
     <MESSAGE value="#0.5.77" />
-    <option name="LAST_COMMIT_MESSAGE" value="#0.5.77" />
+    <MESSAGE value="#0.5.78" />
+    <option name="LAST_COMMIT_MESSAGE" value="#0.5.78" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
