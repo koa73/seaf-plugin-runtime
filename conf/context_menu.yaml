@@ -1,5 +1,31 @@
 version: 1
 commands:
+  - id: seafEditDataHard
+    title: Редактировать данные (SEAF)…
+    clientAction: seafEditData
+    menu:
+      main:
+        enabled: false
+      context:
+        enabled: true
+        scope: stencil
+        target: selection_single
+        editDataMode: hard
+        schemaPattern:
+          - seaf.company.ta.*
+  - id: seafEditDataSoft
+    title: Редактировать данные (SEAF)…
+    clientAction: seafEditData
+    menu:
+      main:
+        enabled: false
+      context:
+        enabled: true
+        scope: stencil
+        target: selection_single
+        editDataMode: soft
+        schemaPattern:
+          - seaf.company.ta.services.dc_regions
   - id: seafAddPage
     title: Создать страницу
     script: context_menu/add_page.py

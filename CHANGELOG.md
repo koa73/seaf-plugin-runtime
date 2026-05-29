@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.84
+
+- **SEAF Edit Data policy migration**: переключение режима `Редактировать данные (SEAF)` перенесено из `conf/stencils/config.yaml` в `conf/context_menu.yaml` через context-menu policy `editDataMode: hard|soft` (по умолчанию `hard`).
+- **Atomic context menu behavior**: показ/скрытие native `Edit Data` больше не зависит от `policySource=config-hit`; для `hard` скрывается native-пункт и остаётся только SEAF, для `soft` доступны оба пункта.
+- **IPC hardening**: восстановлен main-process роут `getSeafStencilConfig` в `electron.js`; загрузка stencil-config в renderer использует typed action без legacy `readSeafPluginFile` fallback.
+- **Data config cleanup**: ключ `edit_data` удалён из `conf/stencils/config.yaml` (режимы теперь полностью управляются `context_menu.yaml`).
+- **Contracts/tests**: добавлен `test-edit-data-context-policy-contract.mjs`, обновлены `test-edit-data-ipc-contract.mjs` и `test-edit-data-menu-integration.mjs`.
+
 ## 0.5.83
 
 - **Network connection events**: event pipeline расширен операциями `connect`/`disconnect` для edge lifecycle (`mxTerminalChange` и add/remove ребра), в payload добавлены поля `edgeId`, `source/target*`, `network*`, `receiver*` для handler-скриптов.

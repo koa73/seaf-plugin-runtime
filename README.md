@@ -30,7 +30,7 @@
 - `conf/events.yaml` - конфигурация auto-event processor (правила по `add`/`remove`/`reparent`/`modify`/`connect`/`disconnect` и скрытые event handlers).
 - `conf/stencils/libraries.json` - JSON-конфиг секций/библиотек фигур для окна `More Shapes`.
 - `conf/stencils/*.xml` - файлы библиотек фигур в формате `mxlibrary`.
-- `conf/stencils/config.yaml` - schema-based конфиг: layer-routing для auto add handlers, режим `edit_data` (`seaf|standard|both`), список `data_lock` защищённых атрибутов, опциональный `data_hidden` (атрибуты не показываются в SEAF Edit Data, но сохраняются при Apply), опциональный **`sync_title_with_label`** (по умолчанию включена синхронизация `title`↔`label` для всех `seaf.company.ta.*`, явное `false` отключает для схемы), правила parent-link (`parent.schema[]` + `parent.field`, strict policy: ровно один parent-кандидат), и зарезервированный ключ `fields` для Phase 2 rich-виджетов.
+- `conf/stencils/config.yaml` - schema-based конфиг: layer-routing для auto add handlers, `data_lock`/`data_hidden` для SEAF Edit Data, опциональный **`sync_title_with_label`** (по умолчанию включена синхронизация `title`↔`label` для всех `seaf.company.ta.*`, явное `false` отключает для схемы), правила parent-link (`parent.schema[]` + `parent.field`, strict policy: ровно один parent-кандидат), и зарезервированный ключ `fields` для Phase 2 rich-виджетов.
 - `conf/README.md` - документация формата `plugin.yaml`.
 - `python/scripts/examples/*.py` - локальные демо-скрипты (не подключаются из поставочного `main_menu.yaml` / `events.yaml`).
 - `python/scripts/events/*.py` - production event handlers (оркестраторы event-логики).
@@ -106,8 +106,8 @@
 - Поток: выбор `schema` по `layer` → сбор объектов на всех страницах → диалог Tabulator → Save → скрытая команда `seafToolsEditDataApply` / [`python/scripts/main_menu/edit_data_apply.py`](python/scripts/main_menu/edit_data_apply.py).
 - **Tabulator** (~450 KB) — часть **сборки draw.io** (`drawio-standalone/.../js/vendor/tabulator/`), не runtime tarball.
 - **Bulk-модуль** — `plugin/seaf-bulk-edit-data-module.js`, в tarball в **корне**; после update должен быть в `plugins/seaf-bulk-edit-data-module.js`.
-- Для `edit_data: standard` bulk недоступен (только per-cell SEAF dialog).
-- При блокировке bulk по policy (`edit_data: standard`) plugin пишет `warn` в `seaf-plugin.log` (`Bulk Edit Data denied by schema policy`) с `schema/layer/editMode`.
+- Если schema не входит в policy `seafEditData` (из `conf/context_menu.yaml`), bulk недоступен (standard mode).
+- При блокировке bulk по policy plugin пишет `warn` в `seaf-plugin.log` (`Bulk Edit Data denied by schema policy`) с `schema/layer/editMode`.
 
 ### Опциональный `scriptEnvEditor`
 
@@ -211,22 +211,22 @@
 - Для P41-стенсилов штатный диалог draw.io «Edit Data» заменяется собственным `SeafEditDataDialog`, реализованным в `plugin/seaf.plugin.js`.
 - Каноническая точка маршрутизации — переопределение `EditorUi.prototype.showDataDialog` (`installEditDataDialogRouter`). Это покрывает все пути одинаково: правое меню → штатный action `editData`, кнопка «Edit Data» в Format panel и горячая клавиша Ctrl+M.
 - Контекстное меню получает отдельный явный пункт «Редактировать данные (SEAF)…» (action `seafEditData`):
-  - `mode=seaf` — штатный `editData` скрыт через `Menus.hiddenMenuItems` (только на время `createPopupMenu`), показывается только SEAF-пункт;
-  - `mode=both` — оба пункта доступны и enabled (ровно один штатный `Edit Data` + один `Редактировать данные (SEAF)…`);
-  - `mode=standard` — штатный `Edit Data` остается enabled, `Редактировать данные (SEAF)…` показывается disabled.
+  - `mode=hard` — штатный `editData` скрыт через `Menus.hiddenMenuItems` (только на время `createPopupMenu`), показывается только SEAF-пункт;
+  - `mode=soft` — оба пункта доступны и enabled (ровно один штатный `Edit Data` + один `Редактировать данные (SEAF)…`);
+  - если `editDataMode` не указан в правиле `context_menu.yaml`, применяется `hard`.
   - В любом режиме plugin не добавляет стандартный `Edit Data` вручную: единственный источник standard-пункта — базовый draw.io popup.
 - Для grouped stencil-элементов mode для RMB/`seafEditData` теперь вычисляется не только по кликнутой дочерней ячейке, но и по ближайшему родителю со `schema`; это устраняет ситуацию, когда пункт SEAF не показывался из-за клика в служебный внутренний `mxCell`.
 - Реинжиниринг v2: Edit Data логика декомпозирована на слои `EditDataModeEngine` (policy/intent), `ContextMenuPresenter` (отрисовка RMB), `EditDataDialogRouter` (маршрутизация entry-points) и `EditDataSessionCoordinator` (явный lifecycle snapshot-сессии).
 - Завершение snapshot-сессии привязано к `ui.hideDialog` (отложенный `reset` через `setTimeout(0)` в `installEditDataSessionHideHook`), а не к каждому `mxEvent.CHANGE` модели — иначе промежуточные изменения или штатный порядок Apply обнуляли бы сессию до `setValue` и `modify` не формировался бы (в т.ч. для `data_mirror` по OID).
 - В `SeafEditDataDialog` Apply снимок «до» для `modify` берётся по **целевой ячейке** из модели (`captureEditDataBeforeForCellIds`), а не по текущему selection: после `hideDialog` выделение часто пустое, из‑за чего прежний `captureEditDataBeforeSnapshots` не находил `before`-состояние; построение `clone` из полей формы выполняется до закрытия диалога.
-- Конфигурация — `conf/stencils/config.yaml`: `schemas.<schema>.edit_data` (`seaf|standard|both`), `schemas.<schema>.data_lock` (список защищённых атрибутов), опционально `schemas.<schema>.data_hidden` (атрибуты скрыты из формы, в XML не трогаются при Apply).
-- Fallback policy: если `conf/stencils/config.yaml` не загрузился (битый файл, отсутствует, ошибка IPC) или схема не описана в config, для любой schema, начинающейся на `seaf.`, plugin всё равно использует `mode=seaf` и `data_lock=[OID, schema]`. Не-`seaf.` схемы по-прежнему получают штатный диалог. Для `data_hidden` prefix-fallback **нет**: без записи в config список скрытых пустой.
+- Конфигурация режима RMB — `conf/context_menu.yaml` (команды `clientAction: seafEditData` + `menu.context.schemaPattern` + `menu.context.editDataMode: hard|soft`), конфигурация полей формы — `conf/stencils/config.yaml` (`data_lock`, `data_hidden`).
+- Fallback policy: если schema не попадает под rule `seafEditData`, plugin использует `standard` режим; `data_lock=[OID, schema]` и `data_hidden` читаются из `stencils/config.yaml`.
 - Защита `data_lock` (по умолчанию `[OID, schema]` для каждой schema, перечисленной в config или попавшей под seaf-prefix fallback) — поле дизейблится, кнопка «X» удаления отсутствует, добавление атрибута с защищённым именем блокируется alert'ом. `data_hidden` задаётся только явно в YAML для нужных schema (пример: `link` скрыт для `dcs` и `dc_offices`).
 - Apply SEAF-диалога вызывает `graph.getModel().setValue(cell, clonedXml)`, поэтому существующий event processor (`collectStencilEventsFromModelChange`) ловит `modify`-события без изменений.
 - Диагностика: при загрузке `stencils/config.yaml`, установке router'а и формировании RMB (`resolvedMode`, `resolvedCell`, `statePresent`, `isEditable`) пишутся `info`/`debug`-сообщения в `seaf-plugin.log` (при `pluginLogLevel=info|debug`; при `pluginLogLevel=none` эти записи не выводятся).
-- Технически `stencils/config.yaml` читается через typed IPC action `getSeafStencilConfig` (main-process `seafPluginService`); legacy `readSeafPluginFile` остается как backup path под feature flag на миграционный период.
+- Технически `stencils/config.yaml` читается через typed IPC action `getSeafStencilConfig` (main-process `seafPluginService`).
 - Feature flags для поэтапного rollout/rollback (через `env.yaml`): `featureIntentEngineV2`, `featureMenuPresenterV2`, `featureIpcStencilConfigV2`, `featureSessionCoordinatorV2`.
-- Матрица `standard|both|seaf` применяется только для `policySource=config-hit` (schema присутствует в `conf/stencils/config.yaml`); для остальных объектов plugin не вмешивается в standard item.
+- Матрица `hard|soft|standard` применяется на базе правил `context_menu.yaml` и не зависит от событийного pipeline.
 - Phase 2 (зарезервировано): `schemas.<schema>.fields.<attr>.widget` (`text|textarea|combo|radio|checkbox`) — rich-виджеты внутри того же диалога без изменений в маршрутизации/menu hooks.
 
 ## Context menu: Create Page

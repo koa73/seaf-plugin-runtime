@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.83
+ * Runtime script version: 0.5.84
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -1181,31 +1181,16 @@ Draw.loadPlugin(function(ui)
 		}
 		try
 		{
-			var rawText = null;
 			var normalizedText = '';
 			var parsed = null;
-			if (state.features.ipcStencilConfigV2 === true)
+			var typed = await requestAsync({
+				action: 'getSeafStencilConfig',
+				configPath: state.configPath
+			});
+			if (typed != null && typeof typed === 'object' && typed.stencils != null &&
+				typeof typed.stencils === 'object' && !Array.isArray(typed.stencils))
 			{
-				var typed = await requestAsync({
-					action: 'getSeafStencilConfig',
-					configPath: state.configPath
-				});
-				if (typed != null && typeof typed === 'object' && typed.stencils != null &&
-					typeof typed.stencils === 'object' && !Array.isArray(typed.stencils))
-				{
-					parsed = typed.stencils;
-				}
-			}
-			if (parsed == null)
-			{
-				rawText = await requestAsync({
-					action: 'readSeafPluginFile',
-					configPath: state.configPath,
-					relativePath: 'stencils/config.yaml',
-					encoding: 'utf8'
-				});
-				normalizedText = normalizeIpcTextPayload(rawText);
-				parsed = parseStencilsConfigYaml(normalizedText);
+				parsed = typed.stencils;
 			}
 			if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed))
 			{
@@ -1231,23 +1216,14 @@ Draw.loadPlugin(function(ui)
 				path: path,
 				schemas: schemaKeys.length,
 				sample: sample,
-				source: (state.features.ipcStencilConfigV2 === true ? 'getSeafStencilConfig' : 'readSeafPluginFile')
+				source: 'getSeafStencilConfig'
 			});
 			if (schemaKeys.length === 0)
 			{
-				var rawType = (rawText == null) ? 'null' :
-					(Array.isArray(rawText) ? 'array' : typeof rawText);
-				var rawKeys = [];
-				if (rawText != null && typeof rawText === 'object')
-				{
-					try { rawKeys = Object.keys(rawText).slice(0, 8); } catch (eKeys) { rawKeys = []; }
-				}
 				await writeLog('warn', 'Stencils layer config parsed empty', {
-					rawType: rawType,
-					rawKeys: rawKeys,
 					normalizedLength: normalizedText.length,
 					normalizedHead: normalizedText.substring(0, 80),
-					typedApiEnabled: state.features.ipcStencilConfigV2 === true
+					typedApiEnabled: true
 				});
 			}
 		}
@@ -1321,23 +1297,120 @@ Draw.loadPlugin(function(ui)
 		return key.indexOf('seaf.') === 0;
 	}
 
-	function getEditDataModeForSchema(schema)
+	function getEditDataContextConfigCommands()
 	{
-		var entry = getSchemaConfigEntry(schema);
-		if (entry == null)
+		var out = [];
+		var commands = (state && state.config && Array.isArray(state.config.commands)) ? state.config.commands : [];
+		for (var i = 0; i < commands.length; i++)
 		{
-			return isSeafPrefixedSchema(schema) ? 'seaf' : 'standard';
-		}
-		var raw = entry.edit_data;
-		if (typeof raw === 'string')
-		{
-			var v = raw.trim().toLowerCase();
-			if (v === 'standard' || v === 'seaf' || v === 'both')
+			var cmd = commands[i];
+			if (!cmd || typeof cmd !== 'object')
 			{
-				return v;
+				continue;
+			}
+			if (cmd.clientAction !== 'seafEditData')
+			{
+				continue;
+			}
+			var ctx = (cmd.menu && cmd.menu.context && typeof cmd.menu.context === 'object') ? cmd.menu.context : null;
+			if (!ctx || ctx.enabled !== true)
+			{
+				continue;
+			}
+			out.push(cmd);
+		}
+		return out;
+	}
+
+	function normalizeEditDataContextMode(raw)
+	{
+		var value = (typeof raw === 'string') ? raw.trim().toLowerCase() : '';
+		if (value === 'soft')
+		{
+			return 'soft';
+		}
+		return 'hard';
+	}
+
+	function resolveEditDataContextModeForSchema(schema)
+	{
+		var normalizedSchema = (typeof schema === 'string') ? schema.trim() : '';
+		if (normalizedSchema.length === 0)
+		{
+			return {mode: 'standard', source: 'schema_missing'};
+		}
+		var matches = [];
+		var commands = getEditDataContextConfigCommands();
+		for (var i = 0; i < commands.length; i++)
+		{
+			var cmd = commands[i];
+			var ctx = cmd && cmd.menu && cmd.menu.context ? cmd.menu.context : {};
+			var mode = normalizeEditDataContextMode(ctx.editDataMode);
+			var schemaPattern = ctx.schemaPattern;
+			var patterns = [];
+			if (schemaPattern == null)
+			{
+				patterns = ['all'];
+			}
+			else
+			{
+				var rawPatterns = Array.isArray(schemaPattern) ? schemaPattern : [schemaPattern];
+				for (var p = 0; p < rawPatterns.length; p++)
+				{
+					var normalizedPattern = (typeof rawPatterns[p] === 'string') ? rawPatterns[p].trim() : '';
+					if (normalizedPattern.length > 0)
+					{
+						patterns.push(normalizedPattern);
+					}
+				}
+			}
+			for (var pi = 0; pi < patterns.length; pi++)
+			{
+				var match = matchSchemaPattern(normalizedSchema, patterns[pi]);
+				if (match && match.matched === true)
+				{
+					matches.push({
+						score: match.score || 0,
+						mode: mode,
+						pattern: patterns[pi],
+						commandId: cmd.id || ''
+					});
+				}
 			}
 		}
-		return 'seaf';
+		if (matches.length === 0)
+		{
+			return {mode: 'standard', source: 'context_no_match'};
+		}
+		matches.sort(function(a, b)
+		{
+			if (a.score !== b.score)
+			{
+				return b.score - a.score;
+			}
+			if (a.mode !== b.mode)
+			{
+				// hard wins over soft for deterministic safety.
+				return a.mode === 'hard' ? -1 : 1;
+			}
+			return 0;
+		});
+		return {
+			mode: matches[0].mode,
+			source: 'context_menu',
+			commandId: matches[0].commandId,
+			pattern: matches[0].pattern
+		};
+	}
+
+	function getEditDataModeForSchema(schema)
+	{
+		var resolved = resolveEditDataContextModeForSchema(schema);
+		if (!resolved || resolved.mode === 'standard')
+		{
+			return 'standard';
+		}
+		return resolved.mode === 'soft' ? 'both' : 'seaf';
 	}
 
 	function getDataLockForSchema(schema)
@@ -1530,19 +1603,23 @@ Draw.loadPlugin(function(ui)
 	function resolveSchemaPolicy(schema)
 	{
 		var key = (typeof schema === 'string') ? schema.trim() : '';
-		var entry = getSchemaConfigEntry(key);
 		var mode = 'standard';
 		var policySource = 'hard-default';
-
-		if (entry != null)
+		var contextPolicy = resolveEditDataContextModeForSchema(key);
+		if (contextPolicy && contextPolicy.mode === 'soft')
 		{
-			mode = getEditDataModeForSchema(key);
-			policySource = 'config-hit';
+			mode = 'both';
+			policySource = 'context-menu-soft';
 		}
-		else if (isSeafPrefixedSchema(key))
+		else if (contextPolicy && contextPolicy.mode === 'hard')
 		{
 			mode = 'seaf';
-			policySource = 'prefix-fallback';
+			policySource = 'context-menu-hard';
+		}
+		else
+		{
+			mode = 'standard';
+			policySource = 'context-menu-none';
 		}
 
 		return {
@@ -9522,6 +9599,30 @@ Draw.loadPlugin(function(ui)
 			return;
 		}
 
+		if (command && command.clientAction === 'seafEditData')
+		{
+			try
+			{
+				var graphSeaf = ui && ui.editor ? ui.editor.graph : null;
+				var sourceCellResolved = sourceCell || (graphSeaf ? (state.contextMenuLastCell || graphSeaf.getSelectionCell() || null) : null);
+				var seafIntent = buildEditDataIntent(sourceCellResolved, graphSeaf, 'seaf_menu_client_action');
+				if (seafIntent && seafIntent.targetCell)
+				{
+					showSeafEditDataDialog(seafIntent.targetCell);
+				}
+			}
+			catch (seafErr)
+			{
+				await writeLog('error', 'SEAF Edit Data client action failed', {
+					commandId: command.id,
+					source: source,
+					error: seafErr && seafErr.message ? seafErr.message : String(seafErr)
+				});
+				showError(formatCommandError(command.id, seafErr && seafErr.message ? seafErr.message : String(seafErr)));
+			}
+			return;
+		}
+
 		var scriptEnvOverrides = null;
 		if (command && command.clientAction === 'stencilSchemaPicker')
 		{
@@ -9778,8 +9879,21 @@ Draw.loadPlugin(function(ui)
 			{
 				return false;
 			}
-			var schemaMeta = extractShapeSchema(first, graph);
-			var schema = schemaMeta && typeof schemaMeta.schema === 'string' ? schemaMeta.schema.trim() : '';
+			var schema = '';
+			try
+			{
+				var resolvedTarget = resolveEditDataTarget(first, graph);
+				schema = (resolvedTarget && typeof resolvedTarget.schema === 'string') ? resolvedTarget.schema.trim() : '';
+			}
+			catch (schemaResolveErr)
+			{
+				schema = '';
+			}
+			if (!schema)
+			{
+				var schemaMeta = extractShapeSchema(first, graph);
+				schema = schemaMeta && typeof schemaMeta.schema === 'string' ? schemaMeta.schema.trim() : '';
+			}
 			if (!schema)
 			{
 				return false;
@@ -9980,18 +10094,21 @@ Draw.loadPlugin(function(ui)
 			state.contextMenuLastCell = cell || null;
 			var intent = buildEditDataIntent(cell, graph, 'context_menu');
 			var applySchemaPolicy = false;
+			var shouldHideNativeEditData = false;
 			try
 			{
 				if (intent == null)
 				{
 					intent = {targetCell: cell, mode: 'standard', schema: '', policySource: 'hard-default'};
 				}
-				applySchemaPolicy = (intent.targetCell != null && intent.policySource === 'config-hit');
+				applySchemaPolicy = (intent.targetCell != null);
+				shouldHideNativeEditData = (intent.targetCell != null && intent.mode === 'seaf');
 			}
 			catch (eMode)
 			{
 				intent = {targetCell: cell, mode: 'standard', schema: '', policySource: 'hard-default'};
 				applySchemaPolicy = false;
+				shouldHideNativeEditData = false;
 			}
 
 			// In seaf-mode hide the standard "Edit Data" before the base call assembles the menu.
@@ -10000,7 +10117,7 @@ Draw.loadPlugin(function(ui)
 			var hiddenOverridden = false;
 			try
 			{
-				if (applySchemaPolicy && intent.mode === 'seaf')
+				if (shouldHideNativeEditData)
 				{
 					var merged = {};
 					if (prevHiddenItems != null && typeof prevHiddenItems === 'object')
@@ -10071,30 +10188,6 @@ Draw.loadPlugin(function(ui)
 				isEditable: isEditable
 			});
 
-			// Make context menu deterministic per mode:
-			// - seaf: only seaf entry
-			// - both: standard + seaf
-			// - standard: only standard
-			try
-			{
-				if (applySchemaPolicy)
-				{
-					ContextMenuPresenter.render(menu, intent, evt);
-				}
-			}
-			catch (eInsert)
-			{
-				writeLog('error', 'editData menu item insertion failed', {
-					error: eInsert && eInsert.message ? eInsert.message : String(eInsert)
-				});
-			}
-			if (applySchemaPolicy && (intent.mode === 'seaf' || intent.mode === 'both' || intent.mode === 'standard'))
-			{
-				writeLog('debug', 'seafEditData menu item inserted', {
-					mode: intent.mode,
-					cellId: intent.targetCellId || null
-				});
-			}
 			var standardStateAfter = ContextMenuPresenter.getItemStateByLabel(menu, standardLabel);
 			var seafStateAfter = ContextMenuPresenter.getItemStateByLabel(menu, seafLabel);
 			writeLog('debug', 'context menu edit_data policy result', {
@@ -10170,7 +10263,7 @@ Draw.loadPlugin(function(ui)
 				try
 				{
 					var graph = ui && ui.editor ? ui.editor.graph : null;
-				var sourceCell = graph ? (graph.getSelectionCell() || state.contextMenuLastCell ||
+				var sourceCell = graph ? (state.contextMenuLastCell || graph.getSelectionCell() ||
 					(graph.getModel ? graph.getModel().getRoot() : null)) : null;
 					var intent = buildEditDataIntent(sourceCell, graph, 'seaf_action');
 					var cell = intent && intent.targetCell ? intent.targetCell : sourceCell;

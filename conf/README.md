@@ -11,7 +11,7 @@
 | `main_menu.yaml` | Описание команд/пунктов главного меню |
 | `context_menu.yaml` | Описание правил контекстного меню |
 | `events.yaml` | Правила event processor и скрытые event handlers (`add/remove/reparent/modify/connect/disconnect`) |
-| `stencils/config.yaml` | Метаданные стенсилов: `layer`, `edit_data`, `data_lock`, опционально `data_hidden` (и резерв `fields`) |
+| `stencils/config.yaml` | Метаданные стенсилов: `layer`, `data_lock`, опционально `data_hidden` (и резерв `fields`) |
 
 ---
 
@@ -555,43 +555,45 @@ rules:
 - `layer` может быть строкой или списком строк (для конфликтов/ручного разруливания).
 - Если `layer` отсутствует или пустой, слой не создается и объект не переносится.
 
-### Stencil metadata: edit_data + data_lock + data_hidden
+### Edit Data policy (`context_menu.yaml`) + stencil metadata (`data_lock`, `data_hidden`)
 
-В том же файле `conf/stencils/config.yaml` для каждой schema можно описать поведение
-диалога «Редактировать данные» (Edit Data). Используется plugin'ом для P41-стенсилов;
-парсер на стороне renderer (минимальный inline YAML, поддерживает скаляры/объекты/списки).
+Режим контекстного меню SEAF Edit Data теперь задается в `conf/context_menu.yaml` через
+обычные правила `menu.context` и ключ `editDataMode: hard|soft` (default: `hard`).
+Для `hard` в RMB скрывается native `Edit Data` и остается только `Редактировать данные (SEAF)…`.
+Для `soft` доступны оба пункта.
+
+`conf/stencils/config.yaml` продолжает хранить только метаданные полей (`data_lock`, `data_hidden`)
+и не используется для выбора режима (`hard/soft`) показа пункта меню.
 
 Поля:
 
 | Параметр | Тип | Назначение | Default |
 |---|---|---|---|
-| `schemas.<schema>.edit_data` | `string` | Режим Edit Data: `seaf` \| `standard` \| `both` | `seaf`, если schema присутствует в config или её ключ начинается на `seaf.`; иначе `standard` |
 | `schemas.<schema>.data_lock` | `array<string>` | Имена атрибутов, защищённых от edit/remove/add-with-same-name | `[OID, schema]` для всех seaf-схем (включая prefix-fallback) |
 | `schemas.<schema>.data_hidden` | `array<string>` | Имена атрибутов, **не показываемых** в SEAF Edit Data; значения сохраняются в XML при Apply | `[]` (только если ключ задан в config для этой schema) |
 
-Семантика `edit_data`:
+Семантика `editDataMode` в `context_menu.yaml`:
 
-- `seaf` — штатный пункт «Edit Data» в context menu скрыт, в контекстное меню добавляется отдельный пункт «Редактировать данные (SEAF)…» (action `seafEditData`); Right-click, Ctrl+M и Format panel открывают SEAF-диалог `SeafEditDataDialog` с поддержкой `data_lock` и опционального `data_hidden`.
-- `standard` — в context menu остается один штатный `Edit Data` (enabled), SEAF-пункт отображается disabled.
-- `both` — в context menu ровно два пункта: штатный `Edit Data` (enabled) и `Редактировать данные (SEAF)…` (enabled).
+- `hard` — штатный пункт `Edit Data` скрыт, доступен только `Редактировать данные (SEAF)…`.
+- `soft` — доступны оба пункта (`Edit Data` и `Редактировать данные (SEAF)…`).
+- если ключ `editDataMode` отсутствует, используется `hard`.
 - Для grouped stencil-элементов при RMB mode/target определяются по ближайшему родителю со `schema`, если клик пришелся в дочерний служебный `mxCell` без schema.
 - Lookup schema в `config.yaml` устойчив к шуму формата (`;`, `,`, `#` в конце, дополнительные префиксы перед `seaf.`), чтобы избежать ложного fallback в `mode=seaf`.
 
 Точка маршрутизации диалога: plugin переопределяет `EditorUi.prototype.showDataDialog` (`installEditDataDialogRouter`), что покрывает Right-click → штатный `editData`, Format panel и Ctrl+M единообразно. Action `seafEditData` гарантирует видимый кастомный пункт RMB даже если штатный по какой-то причине не скрылся.
 
-Fallback policy (когда `conf/stencils/config.yaml` не загрузился или схема не описана):
+Fallback policy:
 
-- Любая схема, начинающаяся на `seaf.` (например `seaf.company.ta.services.dc_regions`), всё равно резолвится в `mode=seaf` и `data_lock=[OID, schema]`. Это защищает SEAF-объекты даже при сбоях загрузки конфига.
-- Не-`seaf.` схемы по-прежнему получают `mode=standard` и `data_lock=[]`.
+- если schema не попала ни под одно правило `seafEditData` в `context_menu.yaml`, используется `mode=standard`;
+- `data_lock/data_hidden` продолжают читаться из `stencils/config.yaml`.
 
 Диагностика RMB:
 
 - Для расследования кейсов `standard/both` включайте `pluginLogLevel: info|debug` в `conf/env.yaml`.
 - При `pluginLogLevel: none` debug/info записи о резолве режима/ячейки в лог не попадают.
-- `stencils/config.yaml` читается через typed action `getSeafStencilConfig` (main-process `seafPluginService`) с преднормализованным payload; legacy `readSeafPluginFile` используется только как migration fallback.
+- `stencils/config.yaml` читается через typed action `getSeafStencilConfig` (main-process `seafPluginService`).
 - Rollout v2 архитектуры управляется feature flags в `env.yaml`: `featureIntentEngineV2`, `featureMenuPresenterV2`, `featureIpcStencilConfigV2`, `featureSessionCoordinatorV2`.
-- Контракт RMB без дублей: plugin не добавляет штатный `Edit Data` вручную. В `both` и `standard` остается один базовый standard-пункт draw.io; в `both` SEAF-пункт enabled, в `standard` SEAF-пункт disabled, в `seaf` standard скрывается policy-слоем и остается только SEAF enabled.
-- Матрица `standard|both|seaf` применяется только для `policySource=config-hit` (schema найдена в `stencils/config.yaml`), чтобы не вмешиваться в объекты вне stencil-policy.
+- Контракт RMB без дублей: plugin не добавляет штатный `Edit Data` вручную. Для `soft` остаются оба пункта, для `hard` скрывается native standard-пункт.
 
 Семантика `data_lock`:
 
@@ -619,7 +621,6 @@ Fallback policy (когда `conf/stencils/config.yaml` не загрузилс�
 schemas:
   seaf.company.ta.services.dc_regions:
     layer: "Регион"
-    edit_data: seaf
     data_lock: [OID, schema]
     fields:
       stand:
@@ -641,7 +642,6 @@ schemas:
 Он используется renderer-плагином для:
 
 - маршрутизации объектов по слоям (`layer`);
-- поведения диалога Edit Data (`edit_data`);
 - блокировки редактирования/удаления критичных атрибутов (`data_lock`);
 - опционального скрытия атрибутов в форме (`data_hidden`).
 
@@ -651,7 +651,6 @@ schemas:
 schemas:
   <schema-name>:
     layer: "<layer-name>"        # string | array<string>
-    edit_data: seaf              # seaf | standard | both
     data_lock: [OID, schema]     # array<string>
     data_hidden: []              # optional array<string>, omit or [] = show all non-lock UI fields
     sync_title_with_label: true # optional; false отключает связку title/label в modify-handlers
@@ -663,7 +662,6 @@ schemas:
 | Поле | Тип | Назначение | Значение по умолчанию |
 |---|---|---|---|
 | `schemas.<schema>.layer` | `string` \| `array<string>` | Целевой слой для `ensureLayer/moveObjectsToLayer` | отсутствует (слой не назначается) |
-| `schemas.<schema>.edit_data` | `string` | Режим Edit Data: `seaf` \| `standard` \| `both` | `seaf` для `seaf.*`, иначе `standard` |
 | `schemas.<schema>.data_lock` | `array<string>` | Имена атрибутов, запрещённых для редактирования/удаления в SEAF-диалоге | `[OID, schema]` для `seaf.*`, иначе `[]` |
 | `schemas.<schema>.data_hidden` | `array<string>` | Имена атрибутов, не показываемых в SEAF Edit Data (сохраняются при Apply) | `[]` |
 | `schemas.<schema>.sync_title_with_label` | `boolean` | Синхронизация `title`↔`label` в Python modify-handlers (`data_mirror`, `label_title`) | `true` для `seaf.company.ta.*` при отсутствии ключа; явное `false` отключает |
@@ -675,7 +673,6 @@ schemas:
 schemas:
   seaf.company.ta.services.dc_regions:
     layer: "Регион"
-    edit_data: seaf
     data_lock:
       - OID
       - schema
