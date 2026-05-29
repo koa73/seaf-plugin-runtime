@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.79
+ * Runtime script version: 0.5.80
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -4322,8 +4322,7 @@ Draw.loadPlugin(function(ui)
 	function renderSimpleMarkdownToElement(markdownText)
 	{
 		var host = document.createElement('div');
-		host.style.maxHeight = '320px';
-		host.style.overflowY = 'auto';
+		host.style.overflowY = 'hidden';
 		host.style.whiteSpace = 'normal';
 		host.style.wordBreak = 'break-word';
 		var raw = String(markdownText || '').replace(/\r\n?/g, '\n').trim();
@@ -4378,6 +4377,9 @@ Draw.loadPlugin(function(ui)
 	{
 		return new Promise(function(resolve)
 		{
+			var dialogWidth = 560;
+			var dialogMaxHeight = 420;
+			var dialogMinHeight = 170;
 			var container = document.createElement('div');
 			container.style.minWidth = '520px';
 			container.style.maxWidth = '760px';
@@ -4390,7 +4392,8 @@ Draw.loadPlugin(function(ui)
 			title.textContent = String((command && command.title) || (command && command.id) || 'Инструмент');
 			container.appendChild(title);
 
-			container.appendChild(renderSimpleMarkdownToElement(markdownText));
+			var body = renderSimpleMarkdownToElement(markdownText);
+			container.appendChild(body);
 
 			var footer = document.createElement('div');
 			footer.style.textAlign = 'right';
@@ -4415,7 +4418,37 @@ Draw.loadPlugin(function(ui)
 			footer.appendChild(stopBtn);
 			container.appendChild(footer);
 
-			ui.showDialog(container, 560, 420, true, true);
+			var measuredHeight = dialogMaxHeight;
+			var measureHost = document.createElement('div');
+			measureHost.style.position = 'absolute';
+			measureHost.style.left = '-10000px';
+			measureHost.style.top = '-10000px';
+			measureHost.style.visibility = 'hidden';
+			measureHost.style.width = dialogWidth + 'px';
+			document.body.appendChild(measureHost);
+			measureHost.appendChild(container);
+
+			var bodyNaturalHeight = body.scrollHeight;
+			var chromeHeight = Math.max(0, container.scrollHeight - bodyNaturalHeight);
+			var availableBodyHeight = Math.max(80, dialogMaxHeight - chromeHeight);
+
+			if (bodyNaturalHeight > availableBodyHeight)
+			{
+				body.style.maxHeight = availableBodyHeight + 'px';
+				body.style.overflowY = 'auto';
+				measuredHeight = dialogMaxHeight;
+			}
+			else
+			{
+				body.style.maxHeight = 'none';
+				body.style.overflowY = 'hidden';
+				measuredHeight = Math.max(dialogMinHeight, chromeHeight + bodyNaturalHeight);
+			}
+
+			measureHost.removeChild(container);
+			document.body.removeChild(measureHost);
+
+			ui.showDialog(container, dialogWidth, measuredHeight, true, true);
 		});
 	}
 
