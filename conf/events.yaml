@@ -37,6 +37,8 @@ rules:
       add: seafStencilAllAdd
       reparent: seafStencilReparent
       modify: seafStencilLabelTitleSync
+      connect: seafStencilNetworkConnectionSync
+      disconnect: seafStencilNetworkConnectionSync
 commands:
   - id: seafStencilAllAdd
     title: SEAF Stencil All Add
@@ -85,6 +87,19 @@ commands:
       context:
         enabled: false
     script: events/label_title.py
+    execution:
+      mode: sync
+      timeoutSec: 30
+    input:
+      includeDiagramXml: false
+  - id: seafStencilNetworkConnectionSync
+    title: SEAF Network Connection Sync
+    menu:
+      main:
+        enabled: false
+      context:
+        enabled: false
+    script: events/network_connection_sync.py
     execution:
       mode: sync
       timeoutSec: 30

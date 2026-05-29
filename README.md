@@ -27,7 +27,7 @@
 - `conf/main_menu.yaml` - описание main menu команд.
 - `conf/context_menu.yaml` - описание context menu правил (overrides по id).
 - `conf/env.yaml` - редактируемые переменные runtime (пути и режимы для Python-части).
-- `conf/events.yaml` - конфигурация auto-event processor (правила по `add`/`reparent`/`modify` и скрытые event handlers).
+- `conf/events.yaml` - конфигурация auto-event processor (правила по `add`/`remove`/`reparent`/`modify`/`connect`/`disconnect` и скрытые event handlers).
 - `conf/stencils/libraries.json` - JSON-конфиг секций/библиотек фигур для окна `More Shapes`.
 - `conf/stencils/*.xml` - файлы библиотек фигур в формате `mxlibrary`.
 - `conf/stencils/config.yaml` - schema-based конфиг: layer-routing для auto add handlers, режим `edit_data` (`seaf|standard|both`), список `data_lock` защищённых атрибутов, опциональный `data_hidden` (атрибуты не показываются в SEAF Edit Data, но сохраняются при Apply), опциональный **`sync_title_with_label`** (по умолчанию включена синхронизация `title`↔`label` для всех `seaf.company.ta.*`, явное `false` отключает для схемы), правила parent-link (`parent.schema[]` + `parent.field`, strict policy: ровно один parent-кандидат), и зарезервированный ключ `fields` для Phase 2 rich-виджетов.
@@ -165,7 +165,7 @@
 - Кнопки `Cancel/Apply` и `Browse...` унифицированы с системным стилем draw.io (`geBtn`, `gePrimaryBtn`), как в стандартных диалогах (например, `Файл -> Печать`).
 - Скролл ограничен только областью полей формы, поэтому футер с action-кнопками всегда остается доступным.
 - В критических async-ветках включен fail-safe cleanup: polling ошибки обрабатываются явно, а interactive-terminal overlay завершается watchdog-ом при отсутствии terminal-closed события.
-- Auto-event processor подписывается на изменения модели и формирует batch-события для стенсилов из `events.yaml` (типы `add` / `reparent` / `remove` / `modify` по модели; в Python уходят только операции, для которых в matched rule задан `handlers.<operation>`).
+- Auto-event processor подписывается на изменения модели и формирует batch-события для стенсилов из `events.yaml` (типы `add` / `reparent` / `remove` / `modify` по модели и `connect` / `disconnect` по edge lifecycle/`mxTerminalChange`; в Python уходят только операции, для которых в matched rule задан `handlers.<operation>`).
 - `modify` обрабатывается только в сценарии `Edit Data -> Apply` и только при реальном изменении данных.
 - Snapshot-сессия `EditDataSessionCoordinator` остаётся активной на время полного цикла Apply (включая промежуточные `CHANGE` и порядок `hideDialog` → `setValue` в штатном draw.io); завершение сессии выполняется отложенно при `ui.hideDialog` (`installEditDataSessionHideHook`), чтобы `modify` стабильно попадал в event pipeline и в `data_mirror`.
 - Маршрутизация событий идет по `rules` из `events.yaml` в рамках `listId` и `schema`-паттернов: приоритет `exact > wildcard > all`.
@@ -176,6 +176,7 @@
 - `rule.execution` задает режим вызова handler: `sync` (ожидание ответа) или `async` (fire-and-forget с отдельным trace в логе).
 - Event payload для Python handlers обогащен полями `objectId`, `geometry(x,y,width,height)` и `data` (атрибуты объекта по модели `Edit Data`).
 - Для modify дополнительно передаются `valueBefore/valueAfter` и `dataBefore/dataAfter`.
+- Для connect/disconnect дополнительно передаются `edgeId`, `sourceObjectId`, `targetObjectId`, `sourceSchema`, `targetSchema`, `sourceData`, `targetData`, `networkObjectId`, `networkOid`, `receiverObjectId`, `receiverData`.
 - Решение «есть ли реальный modify» в `collectStencilEventsFromModelChange` принимается по изменению карты редактируемых атрибутов (`dataBefore` vs `dataAfter`, стабильная сортировка ключей) и при необходимости по прежнему снимку `sanitizeForIpc(value)`; в лог пишется `Stencil modify candidate evaluated` (`emitModify`, `diffKeys`). Перед вызовом Python пишется `Stencil event handler started` (`commandId`, `ruleId`, `txId`).
 - В payload команд контекстного меню (`selection[]`) передаются те же ключевые поля: `objectId`, `geometry`, `data`.
 - Контекстное меню поддерживает 2 scope-режима: `canvas` (клик по полю) и `stencil` (клик по стенсилу).

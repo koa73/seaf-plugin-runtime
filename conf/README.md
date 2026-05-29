@@ -10,7 +10,7 @@
 | `env.yaml` | Пользовательские настройки (редактируются через `SEAF -> Edit Config`) |
 | `main_menu.yaml` | Описание команд/пунктов главного меню |
 | `context_menu.yaml` | Описание правил контекстного меню |
-| `events.yaml` | Правила event processor и скрытые event handlers (`add/remove/modify`) |
+| `events.yaml` | Правила event processor и скрытые event handlers (`add/remove/reparent/modify/connect/disconnect`) |
 | `stencils/config.yaml` | Метаданные стенсилов: `layer`, `edit_data`, `data_lock`, опционально `data_hidden` (и резерв `fields`) |
 
 ---
@@ -282,6 +282,8 @@ Compose-loader объединяет их в финальный `commands[]`.
 | `rules[].handlers.reparent` | `string` | command id для `reparent` (смена родителя / слоя, без `all_add`) |
 | `rules[].handlers.remove` | `string` | command id для `remove` |
 | `rules[].handlers.modify` | `string` | command id для `modify` |
+| `rules[].handlers.connect` | `string` | command id для `connect` (создание/переподключение связи) |
+| `rules[].handlers.disconnect` | `string` | command id для `disconnect` (удаление/разрыв связи) |
 
 ### Семантика `rules[].schema`
 
@@ -318,6 +320,7 @@ Compose-loader объединяет их в финальный `commands[]`.
 | `seafStencilReparent` | `events/reparent.py` |
 | `seafStencilDataMirrorModify` | `events/data_mirror.py` |
 | `seafStencilLabelTitleSync` | `events/label_title.py` |
+| `seafStencilNetworkConnectionSync` | `events/network_connection_sync.py` |
 
 Правила `exact_dcs_data_mirror` и `exact_dc_offices_data_mirror`: `add` → `seafStencilAllAdd`, `modify` → `seafStencilDataMirrorModify` для схем:
 - `seaf.company.ta.services.dcs`
@@ -466,6 +469,7 @@ rules:
 - Event processor передает enriched `payload.event.items[]`:
   - `id`, `objectId`, `schema`, `geometry`, `data`, `value`;
   - для modify также: `valueBefore`, `valueAfter`, `dataBefore`, `dataAfter`.
+  - для connect/disconnect также: `edgeId`, `sourceObjectId`, `targetObjectId`, `sourceSchema`, `targetSchema`, `sourceData`, `targetData`, `networkObjectId`, `networkOid`, `receiverObjectId`, `receiverData`.
   - эмиссия `modify` в renderer сравнивает `dataBefore` и `dataAfter` (нормализованная карта атрибутов из `Edit Data`), чтобы не терять изменения из‑за сериализации XML-узла через `sanitizeForIpc`; при успешном матче в логе появляются `Stencil modify candidate evaluated` и далее `Stencil event handler started` перед `runSeafPluginCommand`.
 - В `payload.event.index` передаётся снимок stencil-index:
   - `bySchema`, `byOid` (как раньше);

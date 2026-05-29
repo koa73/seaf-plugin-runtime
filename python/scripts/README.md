@@ -13,6 +13,7 @@
 - `events/reparent.py` — логирует полный `event` (`reparentScriptFired`) и возвращает **`Response.commands`** с принудительным layer-routing (`moveObjectsToLayer`, **`targetMode: "schemaCell"`**). Условия попадания INFO в файл — `pluginLogLevel` / `scriptLogLevel` (см. `CHANGELOG` 0.5.27–0.5.28).
 - `events/data_mirror.py` — production orchestrator для `modify`-синхронизации `schema+OID` (схемы `dcs`/`dc_offices`) через атомарную runtime-команду; перед санитизацией patch выравнивает `title`/`label` через `lib/events/title_label_sync.py`.
 - `events/label_title.py` — wildcard `modify` для остальных `seaf.company.ta.*`: при необходимости дописывает парное поле через `updateStencilDataBulk` с `suppressStencilEvents: true`.
+- `events/network_connection_sync.py` — handler для `connect/disconnect`: синхронизирует список `network_connection` у получателя связи с сетью (`schema=seaf.company.ta.services.networks`) через `updateStencilDataBulk` без дублей.
 - `context_menu/add_page.py` — production handler для команды «Создать страницу»: валидирует `selection.data.title`, проверяет дубли имен страниц и возвращает `commands[]` для create page + установки link на исходный стенсил.
 - `context_menu/link_with_parent.py` — production handler для команды «Связать с родителем»: для multi-selection ищет parent по `conf/stencils/config.yaml` (`parent.schema` / `parent.field`) и массово пишет ссылки `child.<field> = parent.OID` через `updateStencilDataBulk`; коллизии parent (2+) всегда дают popup, `missing parent` — popup только если не установлено ни одной связи.
 - `main_menu/export.py` — **P41 → Export** (async + `SEAF_PROGRESS`): строит `{schema: {OID: {attrs}}}` из `payload.schemaObjects`, генерирует SEAF YAML через vendored `yaml_schema_generator` (обёртка `seaf.company.ta.*` + OID); каталог — файл на schema (`services.network_segments.yaml`); при пустом пути — ошибка + popup.
@@ -349,7 +350,7 @@ Auto-event processor передает event batch в Python handlers через 
 
 | Поле | Формат | Назначение |
 |---|---:|---|
-| `eventType` | `add \| remove \| modify \| reparent` | Тип события |
+| `eventType` | `add \| remove \| modify \| reparent \| connect \| disconnect` | Тип события |
 | `ruleId` | `string` | matched rule из `event.yaml` |
 | `listId` | `string` | matched stencil list |
 | `txId` | `string` | идентификатор транзакции модели |
@@ -360,6 +361,7 @@ Auto-event processor передает event batch в Python handlers через 
 `items[]` обычно содержит:
 - `id`, `operation`, `label`, `schema`, `style`, `styleText`, `geometry`, `value`.
 - для `operation=reparent` дополнительно: `previousParentId`, `newParentId`, `previousLayerName`, `currentLayerName`, **`targetParentLayerName`** (ближайший страничный слой над новым родителем — только для логов/диагностики; handler `reparent` не меняет слои).
+- для `operation=connect|disconnect` дополнительно: `edgeId`, `sourceObjectId`, `targetObjectId`, `sourceSchema`, `targetSchema`, `sourceData`, `targetData`, `networkObjectId`, `networkOid`, `receiverObjectId`, `receiverData`.
 
 Примечание для grouped stencils:
 - если root group-ячейка добавления не содержит `schema`, runtime извлекает `add`-items из дочерних ячеек с валидным `schema`, чтобы `all_add` корректно формировал `moveObjectsToLayer`.

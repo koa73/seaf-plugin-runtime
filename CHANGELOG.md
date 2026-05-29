@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.83
+
+- **Network connection events**: event pipeline расширен операциями `connect`/`disconnect` для edge lifecycle (`mxTerminalChange` и add/remove ребра), в payload добавлены поля `edgeId`, `source/target*`, `network*`, `receiver*` для handler-скриптов.
+- **New event handler**: добавлен `python/scripts/events/network_connection_sync.py` и маршруты `handlers.connect/disconnect` в `conf/events.yaml`; handler синхронизирует список `network_connection` через `updateStencilDataBulk` (`suppressStencilEvents: true`) с remove/add без дублей.
+- **Desktop event config normalization**: `normalizeEventConfig` в main-process теперь принимает `handlers.connect` и `handlers.disconnect`.
+- **Contracts/tests**: добавлены `test-network-connection-event-contract.mjs` и `test-network-connection-sync-script.mjs`.
+
 ## 0.5.82
 
 - **Autonomous Python bootstrap**: в update-flow добавлен fallback `venv -> virtualenv` (установка `virtualenv` через существующий `pip`), чтобы подготовка `.venv` не зависела от наличия системного `python3-venv`/`ensurepip`.

@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.82
+ * Runtime script version: 0.5.83
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -2837,6 +2837,193 @@ Draw.loadPlugin(function(ui)
 		};
 	}
 
+	function isNetworksSchema(schema)
+	{
+		return String(schema || '').trim() === 'seaf.company.ta.services.networks';
+	}
+
+	function hasNetworkConnectionField(data)
+	{
+		return !!(data && typeof data === 'object' && Object.prototype.hasOwnProperty.call(data, 'network_connection'));
+	}
+
+	function isP41Schema(schema)
+	{
+		return String(schema || '').trim().indexOf('seaf.company.ta.') === 0;
+	}
+
+	function buildSingleNetworkConnectionEventItem(edgeCell, operation, sourceCell, targetCell, sourceMeta, targetMeta, sourceData, targetData, networkCell, networkMeta, networkData, receiverCell, receiverMeta, receiverData)
+	{
+		var networkOid = getOidFromData(networkData);
+		return {
+			id: (edgeCell.id || '') + ':' + (receiverCell.id || '') + ':' + operation + ':' + (networkCell.id || ''),
+			objectId: receiverCell.id || null,
+			operation: operation,
+			edgeId: edgeCell.id || null,
+			schema: receiverMeta && receiverMeta.schema ? receiverMeta.schema : '',
+			schemaSource: receiverMeta && receiverMeta.schemaSource ? receiverMeta.schemaSource : '',
+			receiverObjectId: receiverCell.id || null,
+			receiverSchema: receiverMeta && receiverMeta.schema ? receiverMeta.schema : '',
+			receiverData: receiverData || {},
+			networkObjectId: networkCell.id || null,
+			networkSchema: networkMeta && networkMeta.schema ? networkMeta.schema : '',
+			networkData: networkData || {},
+			networkOid: networkOid || '',
+			sourceObjectId: sourceCell.id || null,
+			sourceSchema: sourceMeta && sourceMeta.schema ? sourceMeta.schema : '',
+			sourceData: sourceData || {},
+			targetObjectId: targetCell.id || null,
+			targetSchema: targetMeta && targetMeta.schema ? targetMeta.schema : '',
+			targetData: targetData || {}
+		};
+	}
+
+	function buildNetworkConnectionEventItems(graph, edgeCell, operation, sourceCell, targetCell)
+	{
+		if (!graph || !edgeCell || !sourceCell || !targetCell || !sourceCell.id || !targetCell.id)
+		{
+			return [];
+		}
+		var sourceMeta = extractShapeSchema(sourceCell, graph);
+		var targetMeta = extractShapeSchema(targetCell, graph);
+		var sourceSchema = sourceMeta && typeof sourceMeta.schema === 'string' ? sourceMeta.schema.trim() : '';
+		var targetSchema = targetMeta && typeof targetMeta.schema === 'string' ? targetMeta.schema.trim() : '';
+		var sourceData = extractEditableDataFromCell(sourceCell, graph);
+		var targetData = extractEditableDataFromCell(targetCell, graph);
+		var sourceIsNetwork = isNetworksSchema(sourceSchema);
+		var targetIsNetwork = isNetworksSchema(targetSchema);
+		if ((sourceIsNetwork && targetIsNetwork) || (!sourceIsNetwork && !targetIsNetwork))
+		{
+			return [];
+		}
+		var networkCell = sourceIsNetwork ? sourceCell : targetCell;
+		var networkMeta = sourceIsNetwork ? sourceMeta : targetMeta;
+		var networkData = sourceIsNetwork ? sourceData : targetData;
+		var peerCell = sourceIsNetwork ? targetCell : sourceCell;
+		var peerMeta = sourceIsNetwork ? targetMeta : sourceMeta;
+		var peerData = sourceIsNetwork ? targetData : sourceData;
+		if (!isP41Schema(peerMeta && peerMeta.schema ? peerMeta.schema : ''))
+		{
+			return [];
+		}
+		var out = [];
+		if (hasNetworkConnectionField(peerData))
+		{
+			out.push(buildSingleNetworkConnectionEventItem(
+				edgeCell,
+				operation,
+				sourceCell,
+				targetCell,
+				sourceMeta,
+				targetMeta,
+				sourceData,
+				targetData,
+				networkCell,
+				networkMeta,
+				networkData,
+				peerCell,
+				peerMeta,
+				peerData
+			));
+		}
+		if (hasNetworkConnectionField(networkData))
+		{
+			out.push(buildSingleNetworkConnectionEventItem(
+				edgeCell,
+				operation,
+				sourceCell,
+				targetCell,
+				sourceMeta,
+				targetMeta,
+				sourceData,
+				targetData,
+				networkCell,
+				networkMeta,
+				networkData,
+				networkCell,
+				networkMeta,
+				networkData
+			));
+		}
+		return out;
+	}
+
+	function appendConnectionItems(out, items)
+	{
+		if (!Array.isArray(items) || !Array.isArray(out))
+		{
+			return;
+		}
+		for (var i = 0; i < items.length; i++)
+		{
+			if (items[i])
+			{
+				out.push(items[i]);
+			}
+		}
+	}
+
+	function collectConnectionEventsFromEdgeLifecycle(change, graph, operation)
+	{
+		var out = [];
+		if (!change || !change.child || !graph || !graph.model || !change.child.id)
+		{
+			return out;
+		}
+		var edgeCell = change.child;
+		var model = graph.model;
+		if (typeof model.isEdge === 'function' && !model.isEdge(edgeCell))
+		{
+			return out;
+		}
+		var sourceCell = (typeof model.getTerminal === 'function') ? model.getTerminal(edgeCell, true) : edgeCell.source;
+		var targetCell = (typeof model.getTerminal === 'function') ? model.getTerminal(edgeCell, false) : edgeCell.target;
+		appendConnectionItems(out, buildNetworkConnectionEventItems(graph, edgeCell, operation, sourceCell, targetCell));
+		return out;
+	}
+
+	function collectConnectionEventsFromTerminalChange(change, graph)
+	{
+		var out = [];
+		if (!change || !graph || !graph.model || !change.cell || !change.cell.id)
+		{
+			return out;
+		}
+		var edgeCell = change.cell;
+		var model = graph.model;
+		if (typeof model.isEdge === 'function' && !model.isEdge(edgeCell))
+		{
+			return out;
+		}
+		var isSourceTerminal = change.source === true;
+		var previousTerminal = change.previous || null;
+		var nextTerminal = change.terminal || null;
+		var currentSource = (typeof model.getTerminal === 'function') ? model.getTerminal(edgeCell, true) : edgeCell.source;
+		var currentTarget = (typeof model.getTerminal === 'function') ? model.getTerminal(edgeCell, false) : edgeCell.target;
+		var prevId = previousTerminal && previousTerminal.id ? String(previousTerminal.id) : '';
+		var nextId = nextTerminal && nextTerminal.id ? String(nextTerminal.id) : '';
+		if (prevId && nextId && prevId === nextId)
+		{
+			return out;
+		}
+
+		if (previousTerminal != null)
+		{
+			var oldSource = isSourceTerminal ? previousTerminal : currentSource;
+			var oldTarget = isSourceTerminal ? currentTarget : previousTerminal;
+			appendConnectionItems(out, buildNetworkConnectionEventItems(graph, edgeCell, 'disconnect', oldSource, oldTarget));
+		}
+
+		if (nextTerminal != null)
+		{
+			var newSource = isSourceTerminal ? nextTerminal : currentSource;
+			var newTarget = isSourceTerminal ? currentTarget : nextTerminal;
+			appendConnectionItems(out, buildNetworkConnectionEventItems(graph, edgeCell, 'connect', newSource, newTarget));
+		}
+
+		return out;
+	}
+
 	function collectAddSnapshotTargets(cell, graph)
 	{
 		var out = [];
@@ -3382,6 +3569,24 @@ Draw.loadPlugin(function(ui)
 				}
 				if (operation != null)
 				{
+					if (operation === 'add' || operation === 'remove')
+					{
+						var edgeConnectionItems = collectConnectionEventsFromEdgeLifecycle(change, graph, operation === 'add' ? 'connect' : 'disconnect');
+						for (var eci = 0; eci < edgeConnectionItems.length; eci++)
+						{
+							var edgeConnectionItem = edgeConnectionItems[eci];
+							if (!edgeConnectionItem || !edgeConnectionItem.id)
+							{
+								continue;
+							}
+							var edgeKey = edgeConnectionItem.id;
+							if (!Object.prototype.hasOwnProperty.call(seen, edgeKey))
+							{
+								seen[edgeKey] = true;
+								result.push(edgeConnectionItem);
+							}
+						}
+					}
 					var targets = (operation === 'remove') ? [change.child] : collectAddSnapshotTargets(change.child, graph);
 					for (var t = 0; t < targets.length; t++)
 					{
@@ -3411,6 +3616,27 @@ Draw.loadPlugin(function(ui)
 								result.push(snapshot);
 							}
 						}
+					}
+				}
+			}
+
+			if (change.cell && !change.child &&
+				Object.prototype.hasOwnProperty.call(change, 'terminal') &&
+				Object.prototype.hasOwnProperty.call(change, 'previous'))
+			{
+				var connectionItems = collectConnectionEventsFromTerminalChange(change, graph);
+				for (var ci = 0; ci < connectionItems.length; ci++)
+				{
+					var connectionItem = connectionItems[ci];
+					if (!connectionItem || !connectionItem.id)
+					{
+						continue;
+					}
+					var cKey = connectionItem.id;
+					if (!Object.prototype.hasOwnProperty.call(seen, cKey))
+					{
+						seen[cKey] = true;
+						result.push(connectionItem);
 					}
 				}
 			}
