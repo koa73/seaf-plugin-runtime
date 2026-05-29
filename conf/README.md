@@ -470,6 +470,7 @@ rules:
   - `id`, `objectId`, `schema`, `geometry`, `data`, `value`;
   - для modify также: `valueBefore`, `valueAfter`, `dataBefore`, `dataAfter`.
   - для connect/disconnect также: `edgeId`, `sourceObjectId`, `targetObjectId`, `sourceSchema`, `targetSchema`, `sourceData`, `targetData`, `networkObjectId`, `networkOid`, `receiverObjectId`, `receiverData`.
+  - для connect/disconnect schema/source/target резолвятся до ближайшей schema-bearing ячейки, чтобы маршрутизация не зависела от того, куда именно привязан edge (group-root vs внутренний mxCell/порт).
   - эмиссия `modify` в renderer сравнивает `dataBefore` и `dataAfter` (нормализованная карта атрибутов из `Edit Data`), чтобы не терять изменения из‑за сериализации XML-узла через `sanitizeForIpc`; при успешном матче в логе появляются `Stencil modify candidate evaluated` и далее `Stencil event handler started` перед `runSeafPluginCommand`.
 - В `payload.event.index` передаётся снимок stencil-index:
   - `bySchema`, `byOid` (как раньше);

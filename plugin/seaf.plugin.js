@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.84
+ * Runtime script version: 0.5.85
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -2929,6 +2929,27 @@ Draw.loadPlugin(function(ui)
 		return String(schema || '').trim().indexOf('seaf.company.ta.') === 0;
 	}
 
+	function resolveNetworkEventTerminalCell(cell, graph)
+	{
+		if (!cell)
+		{
+			return null;
+		}
+		try
+		{
+			var resolved = resolveEditDataTarget(cell, graph);
+			if (resolved && resolved.cell)
+			{
+				return resolved.cell;
+			}
+		}
+		catch (e)
+		{
+			// ignore and keep original cell
+		}
+		return cell;
+	}
+
 	function buildSingleNetworkConnectionEventItem(edgeCell, operation, sourceCell, targetCell, sourceMeta, targetMeta, sourceData, targetData, networkCell, networkMeta, networkData, receiverCell, receiverMeta, receiverData)
 	{
 		var networkOid = getOidFromData(networkData);
@@ -2957,6 +2978,8 @@ Draw.loadPlugin(function(ui)
 
 	function buildNetworkConnectionEventItems(graph, edgeCell, operation, sourceCell, targetCell)
 	{
+		sourceCell = resolveNetworkEventTerminalCell(sourceCell, graph);
+		targetCell = resolveNetworkEventTerminalCell(targetCell, graph);
 		if (!graph || !edgeCell || !sourceCell || !targetCell || !sourceCell.id || !targetCell.id)
 		{
 			return [];

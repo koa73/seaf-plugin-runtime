@@ -166,6 +166,7 @@
 - Скролл ограничен только областью полей формы, поэтому футер с action-кнопками всегда остается доступным.
 - В критических async-ветках включен fail-safe cleanup: polling ошибки обрабатываются явно, а interactive-terminal overlay завершается watchdog-ом при отсутствии terminal-closed события.
 - Auto-event processor подписывается на изменения модели и формирует batch-события для стенсилов из `events.yaml` (типы `add` / `reparent` / `remove` / `modify` по модели и `connect` / `disconnect` по edge lifecycle/`mxTerminalChange`; в Python уходят только операции, для которых в matched rule задан `handlers.<operation>`).
+- Для `connect`/`disconnect` terminal-ячейки ребра нормализуются к ближайшему schema-bearing стенсилу (group-root/schema parent), поэтому network sync не ломается при подключении к внутренним `mxCell`/портам grouped stencil.
 - `modify` обрабатывается только в сценарии `Edit Data -> Apply` и только при реальном изменении данных.
 - Snapshot-сессия `EditDataSessionCoordinator` остаётся активной на время полного цикла Apply (включая промежуточные `CHANGE` и порядок `hideDialog` → `setValue` в штатном draw.io); завершение сессии выполняется отложенно при `ui.hideDialog` (`installEditDataSessionHideHook`), чтобы `modify` стабильно попадал в event pipeline и в `data_mirror`.
 - Маршрутизация событий идет по `rules` из `events.yaml` в рамках `listId` и `schema`-паттернов: приоритет `exact > wildcard > all`.

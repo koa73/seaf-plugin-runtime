@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.85
+
+- **Network sync regression fix**: `connect/disconnect` event items теперь резолвят terminal-ячейки к ближайшему schema-bearing стенсилу (`resolveEditDataTarget`), чтобы `seafStencilNetworkConnectionSync` не терялся при привязке к внутренним `mxCell`/портам grouped stencil.
+- **Atomicity guard**: добавлен контракт `test-network-sync-atomicity-contract.mjs`, фиксирующий независимость event-маршрутизации (`matchEventRoute` + `handlers.connect/disconnect`) от policy команд `seafEditData` в `context_menu.yaml`.
+- **Edit Data context policy**: в `context_menu.yaml` сохранены оба режима `editDataMode` (`hard` default и `soft` для точечных схем) без влияния на dispatch `seafStencilNetworkConnectionSync`.
+
 ## 0.5.84
 
 - **SEAF Edit Data policy migration**: переключение режима `Редактировать данные (SEAF)` перенесено из `conf/stencils/config.yaml` в `conf/context_menu.yaml` через context-menu policy `editDataMode: hard|soft` (по умолчанию `hard`).
