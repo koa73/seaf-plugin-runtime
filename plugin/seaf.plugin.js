@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.88
+ * Runtime script version: 0.5.89
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -7307,6 +7307,43 @@ Draw.loadPlugin(function(ui)
 		};
 	}
 
+	function buildLayerRoutingGroupsForItems(items)
+	{
+		var groups = {};
+		var skipped = 0;
+		if (!Array.isArray(items))
+		{
+			return {groups: groups, skipped: skipped};
+		}
+		for (var i = 0; i < items.length; i++)
+		{
+			var row = items[i] || {};
+			var objectId = String(row.objectId || '').trim();
+			var schema = String(row.schema || '').trim();
+			if (!objectId || !schema)
+			{
+				skipped += 1;
+				continue;
+			}
+			var entry = getSchemaConfigEntry(schema);
+			var layerName = (entry && typeof entry.layer === 'string') ? entry.layer.trim() : '';
+			if (!layerName)
+			{
+				skipped += 1;
+				continue;
+			}
+			if (!Object.prototype.hasOwnProperty.call(groups, layerName))
+			{
+				groups[layerName] = [];
+			}
+			if (groups[layerName].indexOf(objectId) < 0)
+			{
+				groups[layerName].push(objectId);
+			}
+		}
+		return {groups: groups, skipped: skipped};
+	}
+
 	function performMoveLayerUnderLayer(graph, childLayerName, parentLayerName, makeVisible)
 	{
 		if (!graph || !graph.model)
@@ -7768,6 +7805,101 @@ Draw.loadPlugin(function(ui)
 					missingParents: computed.missing,
 					skippedNoRule: computed.skippedNoRule,
 					errors: (applyResult && Array.isArray(applyResult.errors)) ? applyResult.errors : []
+				};
+			}
+			finally
+			{
+				if (switchedPage && originalPage != null && ui.currentPage !== originalPage && typeof ui.selectPage === 'function')
+				{
+					ui.selectPage(originalPage);
+				}
+			}
+		},
+		routePageStencilsToLayers: function(args)
+		{
+			var graph = ui && ui.editor ? ui.editor.graph : null;
+			if (!graph || !args || typeof args !== 'object')
+			{
+				return {status: 'error', reason: 'invalid_args'};
+			}
+			var pageId = (typeof args.pageId === 'string') ? args.pageId.trim() : '';
+			if (!pageId)
+			{
+				return {status: 'error', reason: 'page_id_missing'};
+			}
+			var targetPage = findPageById(pageId);
+			if (targetPage == null)
+			{
+				return {status: 'error', reason: 'page_not_found', pageId: pageId};
+			}
+			var originalPage = ui.currentPage || null;
+			var switchedPage = false;
+			if (typeof ui.selectPage === 'function' && ui.currentPage !== targetPage)
+			{
+				ui.selectPage(targetPage);
+				switchedPage = true;
+			}
+			try
+			{
+				var items = collectStencilItemsOnCurrentPage(graph);
+				var routing = buildLayerRoutingGroupsForItems(items);
+				var groups = routing.groups || {};
+				var layerNames = Object.keys(groups);
+				if (layerNames.length < 1)
+				{
+					return {
+						status: 'noop',
+						pageId: pageId,
+						scanned: items.length,
+						groups: 0,
+						createdLayers: [],
+						moved: 0,
+						skipped: routing.skipped,
+						errors: []
+					};
+				}
+				var createdLayers = [];
+				var movedTotal = 0;
+				var skippedTotal = routing.skipped;
+				var errors = [];
+				for (var i = 0; i < layerNames.length; i++)
+				{
+					var layerName = layerNames[i];
+					var objectIds = groups[layerName];
+					if (!Array.isArray(objectIds) || objectIds.length < 1)
+					{
+						continue;
+					}
+					var moveArgs = {
+						pageId: pageId,
+						objectIds: objectIds,
+						layerName: layerName,
+						makeVisible: args.makeVisible !== false,
+						targetMode: 'schemaCell',
+						suppressStencilEvents: args.suppressStencilEvents === true
+					};
+					var moveResult = uiCommandHandlers.moveObjectsToLayer(moveArgs) || {};
+					if (moveResult.status === 'created' && createdLayers.indexOf(layerName) < 0)
+					{
+						createdLayers.push(layerName);
+					}
+					var moved = Number.isFinite(moveResult.moved) ? Number(moveResult.moved) : 0;
+					movedTotal += moved;
+					skippedTotal += Math.max(0, objectIds.length - moved);
+					if (moveResult.status === 'error')
+					{
+						errors.push('move_failed:' + layerName);
+					}
+				}
+				return {
+					status: errors.length > 0 ? 'error' : (movedTotal > 0 ? 'updated' : 'noop'),
+					pageId: pageId,
+					scanned: items.length,
+					groups: layerNames.length,
+					createdLayers: createdLayers,
+					moved: movedTotal,
+					skipped: skippedTotal,
+					errors: errors
 				};
 			}
 			finally
@@ -8918,6 +9050,27 @@ Draw.loadPlugin(function(ui)
 					result.errors = [];
 				}
 				result.errors.push('parent_autolink_failed');
+				return;
+			}
+		}
+		var hasPageLayerRouting = false;
+		for (var jl = 0; jl < result.commands.length; jl++)
+		{
+			hasPageLayerRouting = hasPageLayerRouting || (result.commands[jl] && result.commands[jl].name === 'routePageStencilsToLayers');
+		}
+		if (hasPageLayerRouting)
+		{
+			var layerRouteValue = findLastUiCommandResult(rows, 'routePageStencilsToLayers');
+			var layerRouteStatus = (layerRouteValue && typeof layerRouteValue.status === 'string') ? layerRouteValue.status : '';
+			if (layerRouteStatus !== 'updated' && layerRouteStatus !== 'noop')
+			{
+				result.status = 'error';
+				result.message = 'Не удалось выполнить маршрутизацию стенсилов по слоям на созданной странице.';
+				if (!Array.isArray(result.errors))
+				{
+					result.errors = [];
+				}
+				result.errors.push('page_layer_routing_failed');
 				return;
 			}
 		}

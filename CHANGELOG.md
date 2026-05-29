@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.89
+
+- **Add-page full-page layer routing**: в pipeline `context_menu/add_page.py` после `assignEmptyOidOnPage` и `autoLinkParentsOnPage` добавлен обязательный шаг `routePageStencilsToLayers`, который выполняется для всех сценариев (mirror и non-mirror).
+- **Renderer routing handler**: добавлен `uiCommandHandlers.routePageStencilsToLayers` — переключение на созданную страницу, сбор всех schema-bearing объектов, группировка по target layer из `stencils/config.yaml`, `ensureLayer + moveObjectsToLayer` по группам, агрегированный результат (`status`, `createdLayers`, `moved`, `skipped`, `errors`).
+- **Add-page validation gate**: `validateSeafAddPageUiResults` теперь валидирует шаг `routePageStencilsToLayers`; при статусе, отличном от `updated|noop`, сценарий переводится в `error` с кодом `page_layer_routing_failed`.
+- **Contracts/tests**: обновлены `test-add-page-script.mjs` и `test-add-page-ui-contract.mjs` под новый routing-step; подтверждена совместимость через `test-all-add-layer-routing.mjs` и `test-reparent-layer-routing.mjs`.
+
 ## 0.5.88
 
 - **Bootstrap retry recovery fix**: для `bootstrapPythonRuntime` дефолтные опции переключены в recovery-режим (`allowDependencyInstall=true`, `allowFallback=true`, `persistFallback=true`), чтобы retry после update восстанавливал Python даже при битом `env.pythonExecutable`.

@@ -155,6 +155,16 @@ def main() -> int:
             },
         }
     )
+    commands.append(
+        {
+            "name": "routePageStencilsToLayers",
+            "args": {
+                "pageIdFrom": "createPage",
+                "suppressStencilEvents": True,
+                "makeVisible": True,
+            },
+        }
+    )
     return write_response(
         status="success",
         message=f"Страница '{title}' создана и ссылка установлена",
