@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.80
+ * Runtime script version: 0.5.81
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -365,10 +365,22 @@ Draw.loadPlugin(function(ui)
 	function getUpdateUiOutcome(result)
 	{
 		var payload = (result && typeof result.payload === 'object' && result.payload != null) ? result.payload : {};
+		var pythonBootstrap = (payload && typeof payload.pythonBootstrap === 'object' && payload.pythonBootstrap != null) ?
+			payload.pythonBootstrap : null;
 		var status = (typeof payload.status === 'string' && payload.status.trim().length > 0) ?
 			payload.status.trim() : (typeof result.status === 'string' ? result.status.trim() : '');
 		if (status === 'updated')
 		{
+			if (pythonBootstrap && pythonBootstrap.ok === false)
+			{
+				var setupError = (typeof pythonBootstrap.error === 'string' && pythonBootstrap.error.trim().length > 0) ?
+					pythonBootstrap.error.trim() : 'unknown error';
+				return {
+					level: 'error',
+					message: 'Плагин обновлен, но автонастройка Python не выполнена: ' + setupError +
+						'\nОткройте Edit Config и задайте корректный Python executable вручную.'
+				};
+			}
 			return {
 				level: 'info',
 				message: buildRestartRequiredMessage(result)
@@ -9897,7 +9909,6 @@ Draw.loadPlugin(function(ui)
 				runtimeVersion: state.runtimeVersion || 'unknown',
 				features: state.features
 			});
-			await runInitStep('python_env_auto', ensurePythonEnvironmentAuto, true);
 			await runInitStep('stencil_libraries_load', loadSeafStencilLibraries, false);
 			await runInitStep('load_stencils_layer_config', loadStencilsLayerConfig, false);
 			await runInitStep('stencil_index_rebuild', function()

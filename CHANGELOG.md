@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.81
+
+- **Python bootstrap lifecycle**: автоподготовка Python перенесена с command/init preflight на фазу runtime install/update (`seafUpdatePlugin`) с managed `.venv` в `seaf_plugin/.venv`.
+- **Managed environment**: после успешного bootstrap (`venv` + `pip install -r requirements` + import-check `requiredModules`) путь к интерпретатору автоматически сохраняется в `env.yaml` (`pythonExecutable`), ручной override через `Edit Config` сохранен.
+- **Update UX**: если runtime обновлен, но bootstrap Python не выполнен, UI показывает явную ошибку автонстройки и подсказку про `Edit Config`.
+- **Contracts**: добавлен тест `test-python-bootstrap-update-contract.mjs` для update/bootstrap и UI контрактов.
+
 ## 0.5.80
 
 - **Preflight dialog UX**: для информационного окна команд с `descriptionFile` добавлен автоподбор высоты по фактическому объему текста.

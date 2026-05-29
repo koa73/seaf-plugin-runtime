@@ -80,6 +80,8 @@
 | `scriptLogLevel` | `string` | Включает INFO-логирование сообщений Python скриптов (`none/info`) |
 | `pythonExecutable` | `string` | Путь к Python-бинарнику или каталогу `.venv` |
 
+`pythonExecutable` теперь заполняется автоматически после успешного runtime update bootstrap (managed `.venv`), но поле в `Edit Config` остаётся ручным override.
+
 ---
 
 ## 3) `main_menu.yaml`
