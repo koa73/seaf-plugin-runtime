@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.98
+ * Runtime script version: 0.5.99
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -460,6 +460,16 @@ Draw.loadPlugin(function(ui)
 			return {
 				level: 'info',
 				message: latestMessage
+			};
+		}
+		if (status === 'updated_degraded')
+		{
+			var degradedMessage = (typeof payload.degradedMessage === 'string' && payload.degradedMessage.trim().length > 0) ?
+				payload.degradedMessage.trim() :
+				'Плагин обновлен, но среда Python не прошла post-check. Проверьте Диагностику или Edit Config.';
+			return {
+				level: 'error',
+				message: degradedMessage
 			};
 		}
 
@@ -1345,6 +1355,19 @@ Draw.loadPlugin(function(ui)
 		return 'hard';
 	}
 
+	function mapResolvedContextModeToEditDataMode(mode)
+	{
+		if (mode === 'soft')
+		{
+			return 'both';
+		}
+		if (mode === 'hard')
+		{
+			return 'seaf';
+		}
+		return 'standard';
+	}
+
 	function resolveEditDataContextModeForSchema(schema)
 	{
 		var normalizedSchema = (typeof schema === 'string') ? schema.trim() : '';
@@ -1419,11 +1442,7 @@ Draw.loadPlugin(function(ui)
 	function getEditDataModeForSchema(schema)
 	{
 		var resolved = resolveEditDataContextModeForSchema(schema);
-		if (!resolved || resolved.mode === 'standard')
-		{
-			return 'standard';
-		}
-		return resolved.mode === 'soft' ? 'both' : 'seaf';
+		return mapResolvedContextModeToEditDataMode(resolved && resolved.mode ? resolved.mode : 'standard');
 	}
 
 	function getDataLockForSchema(schema)
@@ -1616,24 +1635,11 @@ Draw.loadPlugin(function(ui)
 	function resolveSchemaPolicy(schema)
 	{
 		var key = (typeof schema === 'string') ? schema.trim() : '';
-		var mode = 'standard';
-		var policySource = 'hard-default';
 		var contextPolicy = resolveEditDataContextModeForSchema(key);
-		if (contextPolicy && contextPolicy.mode === 'soft')
-		{
-			mode = 'both';
-			policySource = 'context-menu-soft';
-		}
-		else if (contextPolicy && contextPolicy.mode === 'hard')
-		{
-			mode = 'seaf';
-			policySource = 'context-menu-hard';
-		}
-		else
-		{
-			mode = 'standard';
-			policySource = 'context-menu-none';
-		}
+		var contextMode = (contextPolicy && typeof contextPolicy.mode === 'string') ? contextPolicy.mode : 'standard';
+		var mode = mapResolvedContextModeToEditDataMode(contextMode);
+		var policySource = contextMode === 'soft' ? 'context-menu-soft' :
+			(contextMode === 'hard' ? 'context-menu-hard' : 'context-menu-none');
 
 		return {
 			schema: key,
@@ -1642,6 +1648,54 @@ Draw.loadPlugin(function(ui)
 			hiddenList: getDataHiddenForSchema(key),
 			policySource: policySource
 		};
+	}
+
+	function shouldPreflightPythonRuntime(command)
+	{
+		if (!command || typeof command !== 'object')
+		{
+			return false;
+		}
+		var clientAction = (typeof command.clientAction === 'string') ? command.clientAction.trim() : '';
+		if (clientAction === 'editConfig' || clientAction === 'seafEditData' || clientAction === 'createLogicalLink')
+		{
+			return false;
+		}
+		if (clientAction === 'interactiveTerminal' || clientAction === 'bulkEditData')
+		{
+			return true;
+		}
+		var scriptPath = (typeof command.script === 'string') ? command.script.trim() : '';
+		return scriptPath.length > 0;
+	}
+
+	async function ensurePythonRuntimeReady(commandId, source)
+	{
+		var cmdId = (typeof commandId === 'string' && commandId.trim().length > 0) ? commandId.trim() : 'unknown';
+		try
+		{
+			var result = await requestAsync({
+				action: 'ensureSeafPythonEnv',
+				configPath: state.configPath,
+				source: source || ('command_preflight:' + cmdId)
+			});
+			return {
+				ready: true,
+				status: 'ready',
+				reason: 'ok',
+				details: result || null
+			};
+		}
+		catch (e)
+		{
+			var message = e && e.message ? String(e.message) : String(e);
+			return {
+				ready: false,
+				status: 'degraded',
+				reason: 'python_env_unavailable',
+				message: message
+			};
+		}
 	}
 
 	function buildEditDataIntent(sourceCell, graph, sourceKind)
@@ -5716,6 +5770,19 @@ Draw.loadPlugin(function(ui)
 		await loadPluginRootScriptOnce('seaf-bulk-edit-data-module.js', 'bulkEditDataModuleLoaded');
 	}
 
+	function getBulkEditCapability()
+	{
+		if (typeof window.Tabulator !== 'function')
+		{
+			return {
+				ok: false,
+				reason: 'tabulator_missing',
+				message: 'Desktop build несовместим: отсутствует Tabulator в draw.io host. Обновите desktop-приложение.'
+			};
+		}
+		return {ok: true, reason: 'ok'};
+	}
+
 	function getBulkEditDataDeps()
 	{
 		return {
@@ -5826,6 +5893,17 @@ Draw.loadPlugin(function(ui)
 		if (matched.length === 0)
 		{
 			showInfo('На диаграмме нет объектов для "' + layerLabel + '"');
+			return;
+		}
+		var capability = getBulkEditCapability();
+		if (!capability.ok)
+		{
+			await writeLog('warn', 'Bulk Edit Data host capability missing', {
+				commandId: command.id,
+				schema: schema,
+				reason: capability.reason
+			});
+			showError(formatCommandError(command.id, capability.message));
 			return;
 		}
 		var dialogResult = null;
@@ -10433,6 +10511,23 @@ Draw.loadPlugin(function(ui)
 				source: source
 			});
 			return;
+		}
+		if (shouldPreflightPythonRuntime(command))
+		{
+			var pythonReady = await ensurePythonRuntimeReady(command && command.id ? command.id : 'unknown', source);
+			if (!pythonReady.ready)
+			{
+				await writeLog('warn', 'Command preflight blocked: Python runtime is not ready', {
+					commandId: command && command.id ? command.id : '',
+					source: source,
+					reason: pythonReady.reason,
+					status: pythonReady.status,
+					message: pythonReady.message || ''
+				});
+				showError(formatCommandError(command && command.id ? command.id : 'unknown',
+					pythonReady.message || 'Python runtime is not ready'));
+				return;
+			}
 		}
 
 		if (command && command.clientAction === 'editConfig')

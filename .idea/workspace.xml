@@ -4,7 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d1fe5f91-f987-493b-912e-17488c850970" name="Changes" comment="#0.5.97" />
+    <list default="true" id="d1fe5f91-f987-493b-912e-17488c850970" name="Changes" comment="#0.5.98">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -66,14 +68,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1776327425613</updated>
-    </task>
-    <task id="LOCAL-00120" summary="#0.5.44">
-      <option name="closed" value="true" />
-      <created>1778862217376</created>
-      <option name="number" value="00120" />
-      <option name="presentableId" value="LOCAL-00120" />
-      <option name="project" value="LOCAL" />
-      <updated>1778862217376</updated>
     </task>
     <task id="LOCAL-00121" summary="#0.5.45">
       <option name="closed" value="true" />
@@ -459,7 +453,15 @@
       <option name="project" value="LOCAL" />
       <updated>1780484005427</updated>
     </task>
-    <option name="localTasksCounter" value="169" />
+    <task id="LOCAL-00169" summary="#0.5.98">
+      <option name="closed" value="true" />
+      <created>1780484616105</created>
+      <option name="number" value="00169" />
+      <option name="presentableId" value="LOCAL-00169" />
+      <option name="project" value="LOCAL" />
+      <updated>1780484616105</updated>
+    </task>
+    <option name="localTasksCounter" value="170" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -486,7 +488,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="#0.5.71" />
     <MESSAGE value="#0.5.72" />
     <MESSAGE value="#0.5.73" />
     <MESSAGE value="#0.5.74" />
@@ -511,7 +512,8 @@
     <MESSAGE value="#0.5.95" />
     <MESSAGE value="#0.5.96" />
     <MESSAGE value="#0.5.97" />
-    <option name="LAST_COMMIT_MESSAGE" value="#0.5.97" />
+    <MESSAGE value="#0.5.98" />
+    <option name="LAST_COMMIT_MESSAGE" value="#0.5.98" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

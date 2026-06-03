@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.99
+
+- **Python command preflight hardening**: в renderer добавлен единый gate `ensurePythonRuntimeReady` для Python-зависимых команд (script/interactive/bulk), чтобы команды не падали поздно в обработчиках и сразу возвращали предсказуемый reasoned-error.
+- **Bulk Edit Data capability degrade**: для отсутствующего host `Tabulator` добавлен явный capability-check и безопасный degrade (structured warn + user-facing несовместимость desktop), без crash-цепочки в runtime.
+- **Update post-check invariant**: после `updateRuntime` добавлен принудительный Python post-check (`runtime_update_postcheck`); при fail возвращается детерминированный `payload.status=updated_degraded` и `runtimeHealth`, вместо silent-success.
+- **Edit Data policy stabilization**: mapping context-mode -> effective mode централизован в одном helper-е, что убирает дрейф логики hard/soft/standard между кодовыми путями.
+- **Contracts**: обновлены `test-edit-data-bulk-contract.mjs`, `test-edit-data-context-policy-contract.mjs`, `test-netconf-parser-menu-contract.mjs`, `test-python-bootstrap-update-contract.mjs` под новые инварианты.
+
 ## 0.5.98
 
 - **Logical link dialog bottom spacing fix**: подтверждённый `paddingBottom=25px` в footer оставлен без изменений, но исправлен расчет высоты окна (`openCreateLogicalLinkDialog`), чтобы нижний отступ перестал обрезаться диалоговой рамкой.

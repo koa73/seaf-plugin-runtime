@@ -268,6 +268,9 @@
 - Добавлена context-команда `Создать логическую связь` (`seafCreateLogicalLink`, `clientAction: createLogicalLink`) для multi-select сценария: пункт меню показывается только при выборе ровно 2 стенсилов из разрешённого schema allowlist.
 - Команда открывает вспомогательное окно параметров (`Источник`, `Приемник`, `Тип связи`, `Геометрия линии`, `Цвет`, `Тип линии`, `Тип стрелки`, `label`, `Описание`), где endpoint-пункты отображаются как `OID (title)`; `label` и `Описание` опциональны, `source != target` обязателен, а кнопочный блок отображается с нижним отступом `25px` без обрезки.
 - Связь создается через стандартный draw.io API `graph.insertEdge`, итоговый стиль формируется строго из текущих значений окна (стартовые дефолты или изменённые пользователем параметры), а в данные edge записываются `schema=seaf.company.ta.services.logical_links` и export-поля `OID`, `title`, `source`, `target`, `direction`; `description` добавляется опционально при заполненном поле `Описание`.
+- Для Python-зависимых команд добавлен единый preflight готовности runtime; при неготовом окружении команда блокируется с reasoned-ошибкой до старта script/interactive handler.
+- Для `Tools -> Edit Data (bulk)` добавлен capability-gate host (`Tabulator`): при несовместимой desktop-сборке runtime не падает, а возвращает безопасный degrade с диагностикой.
+- После `Обновить плагин` выполняется обязательный Python post-check; при провале update возвращает `status=updated_degraded` и structured `runtimeHealth`.
 - После создания связь переносится на слой `Логические связи`; при отсутствии слой создается автоматически через существующие layer helper-ы runtime.
 
 ## Interactive terminal command
