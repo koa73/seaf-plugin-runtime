@@ -112,6 +112,7 @@
 - Поток: выбор `schema` по `layer` → сбор объектов на всех страницах → диалог Tabulator → Save → скрытая команда `seafToolsEditDataApply` / [`python/scripts/main_menu/edit_data_apply.py`](python/scripts/main_menu/edit_data_apply.py).
 - **Tabulator** (~450 KB) — часть **сборки draw.io** (`drawio-standalone/.../js/vendor/tabulator/`), не runtime tarball.
 - **Bulk-модуль** — `plugin/seaf-bulk-edit-data-module.js`, в tarball в **корне**; после update должен быть в `plugins/seaf-bulk-edit-data-module.js`.
+- В bulk-таблице чекбокс `Показать скрытые (data_hidden)` переключает видимость hidden-колонок, а кнопка `Колонки...` управляет видимостью обычных редактируемых колонок.
 - Desktop allowlist (`drawio-desktop/src/main/electron.js`, `isSeafRuntimePath`) обязан явно разрешать root-файл `seaf-bulk-edit-data-module.js`; иначе `getPluginFile` вернёт `null` и bulk-диалог не откроется.
 - Если schema не входит в policy `seafEditData` (из `conf/context_menu.yaml`), bulk недоступен (standard mode).
 - При блокировке bulk по policy plugin пишет `warn` в `seaf-plugin.log` (`Bulk Edit Data denied by schema policy`) с `schema/layer/editMode`.

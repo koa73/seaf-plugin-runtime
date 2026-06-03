@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.3
+
+- **Bulk Edit Data visibility fix**: в `seaf-bulk-edit-data-module.js` скрытые поля (`data_hidden`) больше не вырезаются на этапе `collectFieldNames`, поэтому чекбокс `Показать скрытые` реально переключает видимость hidden-колонок.
+- **Columns picker fix**: исправлен обработчик чекбоксов в диалоге `Колонки...` (без closure-over-`var cb`), поэтому переключение влияет на выбранную колонку, а не на последнюю в списке.
+- **Contract hardening**: `test-edit-data-bulk-contract.mjs` дополнен проверками инвариантов hidden/columns для предотвращения повторной регрессии.
+
 ## 0.6.2
 
 - **NetConf launch recovery**: восстановлены desktop IPC actions для preflight/script-env (`readSeafPluginFile`, `getSeafScriptEnvSchema`, `getSeafScriptEnvDefaults`, `saveSeafScriptEnvDefaults`), чтобы `Net_Conf_Parser` не обрывался до старта terminal session.

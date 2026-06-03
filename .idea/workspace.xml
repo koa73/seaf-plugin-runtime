@@ -4,18 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d1fe5f91-f987-493b-912e-17488c850970" name="Changes" comment="#0.5.99">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/CHANGELOG.md" beforeDir="false" afterPath="$PROJECT_DIR$/CHANGELOG.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/conf/plugin.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/conf/plugin.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/plugin/seaf.plugin.js" beforeDir="false" afterPath="$PROJECT_DIR$/plugin/seaf.plugin.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/release/out/checksums.txt" beforeDir="false" afterPath="$PROJECT_DIR$/release/out/checksums.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/release/out/seaf-plugin-runtime.tar.gz" beforeDir="false" afterPath="$PROJECT_DIR$/release/out/seaf-plugin-runtime.tar.gz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/release/runtime/build-runtime.sh" beforeDir="false" afterPath="$PROJECT_DIR$/release/runtime/build-runtime.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/release/runtime/check-version-consistency.sh" beforeDir="false" afterPath="$PROJECT_DIR$/release/runtime/check-version-consistency.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/runtime/version.json" beforeDir="false" afterPath="$PROJECT_DIR$/runtime/version.json" afterDir="false" />
-    </list>
+    <list default="true" id="d1fe5f91-f987-493b-912e-17488c850970" name="Changes" comment="#0.6.02" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -77,22 +66,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1776327425613</updated>
-    </task>
-    <task id="LOCAL-00122" summary="#0.5.46">
-      <option name="closed" value="true" />
-      <created>1779268236443</created>
-      <option name="number" value="00122" />
-      <option name="presentableId" value="LOCAL-00122" />
-      <option name="project" value="LOCAL" />
-      <updated>1779268236443</updated>
-    </task>
-    <task id="LOCAL-00123" summary="#0.5.47">
-      <option name="closed" value="true" />
-      <created>1779270965682</created>
-      <option name="number" value="00123" />
-      <option name="presentableId" value="LOCAL-00123" />
-      <option name="project" value="LOCAL" />
-      <updated>1779270965682</updated>
     </task>
     <task id="LOCAL-00124" summary="#0.5.49">
       <option name="closed" value="true" />
@@ -470,7 +443,23 @@
       <option name="project" value="LOCAL" />
       <updated>1780486882700</updated>
     </task>
-    <option name="localTasksCounter" value="171" />
+    <task id="LOCAL-00171" summary="#0.6.01">
+      <option name="closed" value="true" />
+      <created>1780489526724</created>
+      <option name="number" value="00171" />
+      <option name="presentableId" value="LOCAL-00171" />
+      <option name="project" value="LOCAL" />
+      <updated>1780489526724</updated>
+    </task>
+    <task id="LOCAL-00172" summary="#0.6.02">
+      <option name="closed" value="true" />
+      <created>1780490720675</created>
+      <option name="number" value="00172" />
+      <option name="presentableId" value="LOCAL-00172" />
+      <option name="project" value="LOCAL" />
+      <updated>1780490720677</updated>
+    </task>
+    <option name="localTasksCounter" value="173" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -497,8 +486,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="#0.5.73" />
-    <MESSAGE value="#0.5.74" />
     <MESSAGE value="#0.5.75" />
     <MESSAGE value="#0.5.76" />
     <MESSAGE value="#0.5.77" />
@@ -522,7 +509,9 @@
     <MESSAGE value="#0.5.97" />
     <MESSAGE value="#0.5.98" />
     <MESSAGE value="#0.5.99" />
-    <option name="LAST_COMMIT_MESSAGE" value="#0.5.99" />
+    <MESSAGE value="#0.6.01" />
+    <MESSAGE value="#0.6.02" />
+    <option name="LAST_COMMIT_MESSAGE" value="#0.6.02" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

@@ -19,10 +19,9 @@
 		}
 	}
 
-	function collectFieldNames(rows, hiddenSet)
+	function collectFieldNames(rows)
 	{
 		var names = {};
-		var hidden = hiddenSet || {};
 		for (var i = 0; i < rows.length; i++)
 		{
 			var data = (rows[i] && rows[i].data) ? rows[i].data : {};
@@ -33,7 +32,7 @@
 					continue;
 				}
 				var name = String(key).trim();
-				if (!name || hidden[name] === true)
+				if (!name)
 				{
 					continue;
 				}
@@ -190,7 +189,7 @@
 			lockSet.OID = true;
 			lockSet.schema = true;
 
-			var fieldNames = collectFieldNames(schemaObjects, hiddenSet);
+			var fieldNames = collectFieldNames(schemaObjects);
 			var optionalVisible = {};
 			for (li = 0; li < fieldNames.length; li++)
 			{
@@ -287,10 +286,11 @@
 					cb.type = 'checkbox';
 					cb.checked = optionalVisible[fname] !== false;
 					cb.setAttribute('data-field', fname);
-					cb.onchange = function()
+					cb.onchange = function(evt)
 					{
-						var f = cb.getAttribute('data-field');
-						optionalVisible[f] = cb.checked === true;
+						var checkbox = (evt && evt.target) ? evt.target : this;
+						var f = checkbox.getAttribute('data-field');
+						optionalVisible[f] = checkbox.checked === true;
 					};
 					row.appendChild(cb);
 					row.appendChild(document.createTextNode(' ' + fname));
