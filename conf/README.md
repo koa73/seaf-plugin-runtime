@@ -244,6 +244,12 @@ descriptionFile: main_menu/descriptions/<command-id>.md
 - если кандидатов нет — связь для child не ставится (missing parent);
 - если кандидатов больше одного (в том числе из разных schema из `parent.schema[]`) — фиксируется коллизия.
 
+Команда `seafCreateLogicalLink` (пункт «Создать логическую связь») также использует
+`target: selection_multi`, но дополнительно имеет strict eligibility в runtime:
+- пункт виден только при `selection.length === 2`;
+- schema обоих выбранных объектов должны входить в allowlist (`seaf.company.ta.components.networks`, `seaf.company.ta.services.kbs`, `...`, `seaf.company.ta.components.user_devices`);
+- запуск открывает вспомогательное окно параметров связи и создает edge через standard draw.io API (`graph.insertEdge`).
+
 Для `seafAddPage` (`context_menu/add_page.py`) после `createPage + setCellLinkToPage`
 выполняется предзаполнение данных на новой странице:
 - `assignEmptyOidOnPage` — заполнение пустых `OID`;

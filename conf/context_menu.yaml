@@ -62,3 +62,13 @@ commands:
         enabled: true
         scope: stencil
         target: selection_multi
+  - id: seafCreateLogicalLink
+    title: Создать логическую связь
+    clientAction: createLogicalLink
+    menu:
+      main:
+        enabled: false
+      context:
+        enabled: true
+        scope: stencil
+        target: selection_multi

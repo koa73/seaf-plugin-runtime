@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.90
+ * Runtime script version: 0.5.91
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -59,6 +59,17 @@ Draw.loadPlugin(function(ui)
 			lastRebuildAt: null
 		},
 		linkedPageRenameConfirmCache: null
+	};
+	var LOGICAL_LINK_ALLOWED_SCHEMAS = {
+		'seaf.company.ta.components.networks': true,
+		'seaf.company.ta.services.kbs': true,
+		'seaf.company.ta.services.clusters': true,
+		'seaf.company.ta.services.compute_services': true,
+		'seaf.company.ta.services.monitorings': true,
+		'seaf.company.ta.services.backups': true,
+		'seaf.company.ta.services.cluster_virtualizations': true,
+		'seaf.company.ta.services.k8s': true,
+		'seaf.company.ta.components.user_devices': true
 	};
 
 	function requestAsync(msg)
@@ -2475,6 +2486,80 @@ Draw.loadPlugin(function(ui)
 		}
 
 		return {cell: resolvedCell, schema: resolvedSchema};
+	}
+
+	function isLogicalLinkSchemaAllowed(schema)
+	{
+		var normalized = String(schema || '').trim();
+		return normalized.length > 0 && Object.prototype.hasOwnProperty.call(LOGICAL_LINK_ALLOWED_SCHEMAS, normalized);
+	}
+
+	function collectLogicalLinkSelection(graph)
+	{
+		if (!graph || !graph.model)
+		{
+			return [];
+		}
+		var selection = graph.getSelectionCells() || [];
+		var out = [];
+		var seen = {};
+		for (var i = 0; i < selection.length; i++)
+		{
+			var cell = selection[i];
+			if (!cell)
+			{
+				continue;
+			}
+			var resolved = resolveEditDataTarget(cell, graph);
+			var targetCell = resolved && resolved.cell ? resolved.cell : cell;
+			if (!targetCell || !targetCell.id || Object.prototype.hasOwnProperty.call(seen, targetCell.id))
+			{
+				continue;
+			}
+			seen[targetCell.id] = true;
+			var schema = resolved && typeof resolved.schema === 'string' ? resolved.schema.trim() : '';
+			if (!schema)
+			{
+				var schemaMeta = extractShapeSchema(targetCell, graph);
+				schema = (schemaMeta && typeof schemaMeta.schema === 'string') ? schemaMeta.schema.trim() : '';
+			}
+			var data = extractEditableDataFromCell(targetCell, graph);
+			var oid = (data && data.OID != null) ? String(data.OID).trim() : '';
+			out.push({
+				cell: targetCell,
+				objectId: String(targetCell.id || '').trim(),
+				schema: schema,
+				oid: oid,
+				label: graph.convertValueToString(targetCell) || ''
+			});
+		}
+		return out;
+	}
+
+	function isLogicalLinkContextEligible(graph)
+	{
+		if (!graph || !graph.model)
+		{
+			return false;
+		}
+		var selection = graph.getSelectionCells() || [];
+		if (selection.length !== 2)
+		{
+			return false;
+		}
+		var items = collectLogicalLinkSelection(graph);
+		if (items.length !== 2)
+		{
+			return false;
+		}
+		for (var i = 0; i < items.length; i++)
+		{
+			if (!isLogicalLinkSchemaAllowed(items[i].schema))
+			{
+				return false;
+			}
+		}
+		return true;
 	}
 
 	function parseSchemaCode(schemaValue)
@@ -9745,6 +9830,372 @@ Draw.loadPlugin(function(ui)
 		}
 	}
 
+	function normalizeLogicalLinkType(raw)
+	{
+		var value = String(raw || '').trim().toLowerCase();
+		return value === 'bi' ? 'bi' : 'uni';
+	}
+
+	function normalizeLogicalLinkLineType(raw)
+	{
+		var value = String(raw || '').trim().toLowerCase();
+		return value === 'dashed' ? 'dashed' : 'solid';
+	}
+
+	function normalizeLogicalLinkArrowType(raw)
+	{
+		var value = String(raw || '').trim().toLowerCase();
+		var allowed = {classic: true, block: true, open: true, none: true};
+		return Object.prototype.hasOwnProperty.call(allowed, value) ? value : 'classic';
+	}
+
+	function toLogicalLinkStyleString(styleMap)
+	{
+		var parts = [];
+		for (var key in styleMap)
+		{
+			if (!Object.prototype.hasOwnProperty.call(styleMap, key))
+			{
+				continue;
+			}
+			var value = styleMap[key];
+			if (value == null)
+			{
+				continue;
+			}
+			parts.push(String(key) + '=' + String(value));
+		}
+		return parts.join(';') + ';';
+	}
+
+	function resolveDefaultLogicalLinkStyle(graph)
+	{
+		var styleMap = {};
+		try
+		{
+			if (graph && typeof graph.createCurrentEdgeStyle === 'function')
+			{
+				styleMap = graph.createCurrentEdgeStyle() || {};
+			}
+		}
+		catch (e)
+		{
+			styleMap = {};
+		}
+		var strokeColor = styleMap.strokeColor != null ? String(styleMap.strokeColor) : '#000000';
+		var lineType = String(styleMap.dashed || '0') === '1' ? 'dashed' : 'solid';
+		var arrowType = styleMap.endArrow != null ? normalizeLogicalLinkArrowType(styleMap.endArrow) : 'classic';
+		return {
+			strokeColor: strokeColor,
+			lineType: lineType,
+			arrowType: arrowType
+		};
+	}
+
+	function buildLogicalLinkStyleFromDialog(defaultStyle, settings)
+	{
+		var style = Object.assign({}, defaultStyle || {});
+		var color = String(settings.strokeColor || style.strokeColor || '#000000').trim();
+		var lineType = normalizeLogicalLinkLineType(settings.lineType || style.lineType || 'solid');
+		var arrowType = normalizeLogicalLinkArrowType(settings.arrowType || style.arrowType || 'classic');
+		var linkType = normalizeLogicalLinkType(settings.linkType || 'uni');
+		var styleMap = {
+			html: 1,
+			strokeColor: color || '#000000',
+			dashed: lineType === 'dashed' ? 1 : 0,
+			endArrow: arrowType
+		};
+		if (lineType === 'dashed')
+		{
+			styleMap.dashPattern = '8 8';
+		}
+		styleMap.startArrow = linkType === 'bi' && arrowType !== 'none' ? arrowType : 'none';
+		return toLogicalLinkStyleString(styleMap);
+	}
+
+	function createLogicalLinkEdge(graph, sourceCell, targetCell, styleText)
+	{
+		var parent = null;
+		try
+		{
+			parent = graph.getDefaultParent ? graph.getDefaultParent() : null;
+		}
+		catch (e)
+		{
+			parent = null;
+		}
+		if (parent == null)
+		{
+			parent = sourceCell && sourceCell.parent ? sourceCell.parent : null;
+		}
+		graph.getModel().beginUpdate();
+		try
+		{
+			var edge = graph.insertEdge(parent, null, '', sourceCell, targetCell, styleText);
+			graph.setSelectionCell(edge);
+			return edge;
+		}
+		finally
+		{
+			graph.getModel().endUpdate();
+		}
+	}
+
+	async function openCreateLogicalLinkDialog(command)
+	{
+		var graph = ui && ui.editor ? ui.editor.graph : null;
+		if (!graph || !graph.model)
+		{
+			showError(formatCommandError(command.id, 'Graph is not available'));
+			return;
+		}
+		var items = collectLogicalLinkSelection(graph);
+		if (items.length !== 2)
+		{
+			await writeLog('debug', 'Logical link dialog skipped: invalid selection size', {
+				commandId: command.id,
+				selection: (graph.getSelectionCells() || []).length
+			});
+			showError(formatCommandError(command.id, 'Выберите ровно два стенсила'));
+			return;
+		}
+		for (var i = 0; i < items.length; i++)
+		{
+			if (!isLogicalLinkSchemaAllowed(items[i].schema))
+			{
+				await writeLog('debug', 'Logical link dialog skipped: schema not allowed', {
+					commandId: command.id,
+					objectId: items[i].objectId,
+					schema: items[i].schema
+				});
+				showError(formatCommandError(command.id, 'Выбранные стенсилы не поддерживают логическую связь'));
+				return;
+			}
+		}
+		var defaults = resolveDefaultLogicalLinkStyle(graph);
+		var container = document.createElement('div');
+		container.style.minWidth = '520px';
+		container.style.maxWidth = '640px';
+		container.style.padding = '8px';
+		container.style.overflow = 'hidden';
+		container.style.display = 'flex';
+		container.style.flexDirection = 'column';
+		container.style.gap = '8px';
+
+		function addField(labelText, control)
+		{
+			var row = document.createElement('div');
+			row.style.display = 'grid';
+			row.style.gridTemplateColumns = '180px 1fr';
+			row.style.alignItems = 'center';
+			row.style.columnGap = '8px';
+			var label = document.createElement('div');
+			label.textContent = labelText;
+			label.style.fontWeight = '600';
+			row.appendChild(label);
+			row.appendChild(control);
+			container.appendChild(row);
+		}
+
+		function createSelect(options, includeEmpty)
+		{
+			var select = document.createElement('select');
+			select.className = 'geInput';
+			select.style.width = '100%';
+			if (includeEmpty === true)
+			{
+				var empty = document.createElement('option');
+				empty.value = '';
+				empty.textContent = '';
+				select.appendChild(empty);
+			}
+			for (var oi = 0; oi < options.length; oi++)
+			{
+				var option = document.createElement('option');
+				option.value = options[oi].value;
+				option.textContent = options[oi].label;
+				select.appendChild(option);
+			}
+			return select;
+		}
+
+		var endpointOptions = [];
+		for (var j = 0; j < items.length; j++)
+		{
+			var oidText = items[j].oid && items[j].oid.length > 0 ? items[j].oid : '[OID пустой]';
+			var schemaText = items[j].schema || 'schema_missing';
+			endpointOptions.push({
+				value: items[j].objectId,
+				label: oidText + ' (' + schemaText + ')'
+			});
+		}
+		var sourceSelect = createSelect(endpointOptions, true);
+		var targetSelect = createSelect(endpointOptions, true);
+		var linkTypeSelect = createSelect([
+			{value: 'uni', label: 'Однонаправленная'},
+			{value: 'bi', label: 'Двунаправленная'}
+		], false);
+		var colorInput = document.createElement('input');
+		colorInput.type = 'color';
+		colorInput.className = 'geInput';
+		colorInput.value = defaults.strokeColor || '#000000';
+		var lineTypeSelect = createSelect([
+			{value: 'solid', label: 'Сплошная'},
+			{value: 'dashed', label: 'Пунктир'}
+		], false);
+		lineTypeSelect.value = defaults.lineType;
+		var arrowTypeSelect = createSelect([
+			{value: 'classic', label: 'Classic'},
+			{value: 'block', label: 'Block'},
+			{value: 'open', label: 'Open'},
+			{value: 'none', label: 'Без стрелки'}
+		], false);
+		arrowTypeSelect.value = defaults.arrowType;
+
+		addField('Источник', sourceSelect);
+		addField('Приемник', targetSelect);
+		addField('Тип связи', linkTypeSelect);
+
+		var styleGrid = document.createElement('div');
+		styleGrid.style.display = 'grid';
+		styleGrid.style.gridTemplateColumns = '1fr 1fr';
+		styleGrid.style.gap = '8px';
+		var colorWrap = document.createElement('div');
+		colorWrap.style.display = 'grid';
+		colorWrap.style.gridTemplateColumns = '80px 1fr';
+		colorWrap.style.columnGap = '8px';
+		var colorLabel = document.createElement('div');
+		colorLabel.textContent = 'Цвет';
+		colorLabel.style.fontWeight = '600';
+		colorWrap.appendChild(colorLabel);
+		colorWrap.appendChild(colorInput);
+		var lineWrap = document.createElement('div');
+		lineWrap.style.display = 'grid';
+		lineWrap.style.gridTemplateColumns = '80px 1fr';
+		lineWrap.style.columnGap = '8px';
+		var lineLabel = document.createElement('div');
+		lineLabel.textContent = 'Линия';
+		lineLabel.style.fontWeight = '600';
+		lineWrap.appendChild(lineLabel);
+		lineWrap.appendChild(lineTypeSelect);
+		var arrowWrap = document.createElement('div');
+		arrowWrap.style.display = 'grid';
+		arrowWrap.style.gridTemplateColumns = '80px 1fr';
+		arrowWrap.style.columnGap = '8px';
+		var arrowLabel = document.createElement('div');
+		arrowLabel.textContent = 'Стрелка';
+		arrowLabel.style.fontWeight = '600';
+		arrowWrap.appendChild(arrowLabel);
+		arrowWrap.appendChild(arrowTypeSelect);
+		styleGrid.appendChild(colorWrap);
+		styleGrid.appendChild(lineWrap);
+		styleGrid.appendChild(arrowWrap);
+		var styleRow = document.createElement('div');
+		styleRow.style.display = 'grid';
+		styleRow.style.gridTemplateColumns = '180px 1fr';
+		styleRow.style.columnGap = '8px';
+		var styleLabel = document.createElement('div');
+		styleLabel.textContent = 'Параметры стиля';
+		styleLabel.style.fontWeight = '600';
+		styleRow.appendChild(styleLabel);
+		styleRow.appendChild(styleGrid);
+		container.appendChild(styleRow);
+
+		var footer = document.createElement('div');
+		footer.style.display = 'flex';
+		footer.style.justifyContent = 'flex-end';
+		footer.style.gap = '8px';
+		footer.style.paddingTop = '6px';
+		var cancelBtn = mxUtils.button('Отмена', function()
+		{
+			ui.hideDialog();
+			writeLog('debug', 'Logical link dialog cancelled', {commandId: command.id});
+		});
+		cancelBtn.className = 'geBtn';
+		var createBtn = mxUtils.button('Создать', async function()
+		{
+			var sourceId = String(sourceSelect.value || '').trim();
+			var targetId = String(targetSelect.value || '').trim();
+			if (!sourceId || !targetId || sourceId === targetId)
+			{
+				await writeLog('debug', 'Logical link validation failed', {
+					commandId: command.id,
+					sourceId: sourceId,
+					targetId: targetId
+				});
+				showError(formatCommandError(command.id, 'Источник и приемник должны быть разными и заполненными'));
+				return;
+			}
+			var sourceItem = null;
+			var targetItem = null;
+			for (var k = 0; k < items.length; k++)
+			{
+				if (items[k].objectId === sourceId)
+				{
+					sourceItem = items[k];
+				}
+				if (items[k].objectId === targetId)
+				{
+					targetItem = items[k];
+				}
+			}
+			if (!sourceItem || !targetItem)
+			{
+				showError(formatCommandError(command.id, 'Не удалось определить исходные объекты для связи'));
+				return;
+			}
+			var styleText = buildLogicalLinkStyleFromDialog(defaults, {
+				strokeColor: colorInput.value,
+				lineType: lineTypeSelect.value,
+				arrowType: arrowTypeSelect.value,
+				linkType: linkTypeSelect.value
+			});
+			createLogicalLinkEdge(graph, sourceItem.cell, targetItem.cell, styleText);
+			graph.refresh();
+			ui.hideDialog();
+			await writeLog('debug', 'Logical link created', {
+				commandId: command.id,
+				sourceOid: sourceItem.oid,
+				targetOid: targetItem.oid,
+				sourceObjectId: sourceItem.objectId,
+				targetObjectId: targetItem.objectId,
+				linkType: normalizeLogicalLinkType(linkTypeSelect.value),
+				style: styleText
+			});
+		});
+		createBtn.className = 'geBtn gePrimaryBtn';
+		createBtn.disabled = true;
+		var syncCreateState = function()
+		{
+			var sourceId = String(sourceSelect.value || '').trim();
+			var targetId = String(targetSelect.value || '').trim();
+			var valid = sourceId.length > 0 &&
+				targetId.length > 0 &&
+				sourceId !== targetId &&
+				String(linkTypeSelect.value || '').trim().length > 0 &&
+				String(colorInput.value || '').trim().length > 0 &&
+				String(lineTypeSelect.value || '').trim().length > 0 &&
+				String(arrowTypeSelect.value || '').trim().length > 0;
+			createBtn.disabled = !valid;
+		};
+		sourceSelect.addEventListener('change', syncCreateState);
+		targetSelect.addEventListener('change', syncCreateState);
+		linkTypeSelect.addEventListener('change', syncCreateState);
+		colorInput.addEventListener('change', syncCreateState);
+		lineTypeSelect.addEventListener('change', syncCreateState);
+		arrowTypeSelect.addEventListener('change', syncCreateState);
+		syncCreateState();
+		footer.appendChild(cancelBtn);
+		footer.appendChild(createBtn);
+		container.appendChild(footer);
+		await writeLog('debug', 'Logical link dialog opened', {
+			commandId: command.id,
+			selection: items.map(function(row){ return {objectId: row.objectId, oid: row.oid, schema: row.schema}; }),
+			defaults: defaults
+		});
+		ui.showDialog(container, 620, 300, true, true);
+	}
+
 	async function executeCommand(command, source, sourceCell)
 	{
 		var preflightAllowed = await runCommandDescriptionPreflight(command);
@@ -9795,6 +10246,23 @@ Draw.loadPlugin(function(ui)
 					error: seafErr && seafErr.message ? seafErr.message : String(seafErr)
 				});
 				showError(formatCommandError(command.id, seafErr && seafErr.message ? seafErr.message : String(seafErr)));
+			}
+			return;
+		}
+		if (command && command.clientAction === 'createLogicalLink')
+		{
+			try
+			{
+				await openCreateLogicalLinkDialog(command);
+			}
+			catch (linkErr)
+			{
+				await writeLog('error', 'Create logical link client action failed', {
+					commandId: command.id,
+					source: source,
+					error: linkErr && linkErr.message ? linkErr.message : String(linkErr)
+				});
+				showError(formatCommandError(command.id, linkErr && linkErr.message ? linkErr.message : String(linkErr)));
 			}
 			return;
 		}
@@ -10046,6 +10514,10 @@ Draw.loadPlugin(function(ui)
 		if (!targetMatched)
 		{
 			return false;
+		}
+		if (command && command.id === 'seafCreateLogicalLink')
+		{
+			return isLogicalLinkContextEligible(graph);
 		}
 
 		var schemaPattern = cfg.schemaPattern;
@@ -10401,7 +10873,20 @@ Draw.loadPlugin(function(ui)
 
 			for (var i = 0; i < contextCommands.length; i++)
 			{
-				if (contextMatches(contextCommands[i], graph, cell))
+				var matchedContextCommand = contextMatches(contextCommands[i], graph, cell);
+				if (contextCommands[i] && contextCommands[i].id === 'seafCreateLogicalLink')
+				{
+					var logicalSelection = graph && typeof graph.getSelectionCells === 'function' ? (graph.getSelectionCells() || []) : [];
+					var logicalItems = collectLogicalLinkSelection(graph);
+					writeLog('debug', 'context menu logical-link eligibility', {
+						cellId: (cell && cell.id) ? String(cell.id) : null,
+						selectionCount: logicalSelection.length,
+						resolvedCount: logicalItems.length,
+						eligible: matchedContextCommand === true,
+						items: logicalItems.map(function(row){ return {objectId: row.objectId, oid: row.oid, schema: row.schema}; })
+					});
+				}
+				if (matchedContextCommand)
 				{
 					var isSeafEditDataCommand = !!(contextCommands[i] && contextCommands[i].clientAction === 'seafEditData');
 					if (contextCommands[i] && contextCommands[i].clientAction === 'seafEditData')

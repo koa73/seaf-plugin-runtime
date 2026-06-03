@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.91
+
+- **Context menu logical link**: добавлена команда `seafCreateLogicalLink` (`clientAction: createLogicalLink`) для multi-select сценария — пункт `Создать логическую связь` показывается только при выборе ровно 2 стенсилов из разрешённого schema allowlist.
+- **Logical link dialog**: реализовано вспомогательное окно параметров связи (`Источник`, `Приемник`, `Тип связи`, `Цвет`, `Тип линии`, `Тип стрелки`) с `Создать/Отмена`, disabled-state кнопки до валидного заполнения и запретом `source == target`.
+- **Draw.io edge creation**: связь создается через стандартный API `graph.insertEdge`, а итоговый стиль всегда строится из текущих значений диалога (стартовые default-поля при открытии + пользовательские изменения).
+- **Debug diagnostics**: добавлены debug-логи eligibility context menu, открытия/отмены диалога, валидации и успешного создания логической связи.
+- **Contracts**: добавлены `test-create-logical-link-menu-contract.mjs` и `test-create-logical-link-ui-contract.mjs`.
+
 ## 0.5.90
 
 - **Managed venv bootstrap branching fix**: `bootstrapPythonRuntimeOnInstallOrUpdate` переведен на 2-веточный алгоритм — при наличии валидного `seaf_plugin/.venv` выполняется health-check (`probe -> ensure pip -> verify imports`) без пересоздания, при отсутствии/битом venv запускается recreate-ветка.
