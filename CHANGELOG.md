@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.92
+
+- **Logical link dialog refinement**: в `seafCreateLogicalLink` добавлены параметры `Геометрия линии` (Прямая/Угловая/Скругленная) и optional `label`; endpoint-списки показывают формат `OID (title)`.
+- **Logical link data contract**: при создании edge через `graph.insertEdge` в value записывается `schema=seaf.company.ta.logical_links`.
+- **Layer routing for links**: после создания связь переносится на слой `Логические связи` с переиспользованием существующих runtime helper-ов `ensureLayer`/`moveObjectsToLayer` (создание слоя при отсутствии).
+- **UI sizing and contracts**: высота вспомогательного окна переведена на контент-ориентированный расчет; обновлен `test-create-logical-link-ui-contract.mjs` под новые поля и слой/схему.
+
 ## 0.5.91
 
 - **Context menu logical link**: добавлена команда `seafCreateLogicalLink` (`clientAction: createLogicalLink`) для multi-select сценария — пункт `Создать логическую связь` показывается только при выборе ровно 2 стенсилов из разрешённого schema allowlist.

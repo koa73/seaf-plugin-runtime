@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.91
+ * Runtime script version: 0.5.92
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -71,6 +71,8 @@ Draw.loadPlugin(function(ui)
 		'seaf.company.ta.services.k8s': true,
 		'seaf.company.ta.components.user_devices': true
 	};
+	var LOGICAL_LINK_SCHEMA_VALUE = 'seaf.company.ta.logical_links';
+	var LOGICAL_LINK_LAYER_NAME = 'Логические связи';
 
 	function requestAsync(msg)
 	{
@@ -2525,11 +2527,13 @@ Draw.loadPlugin(function(ui)
 			}
 			var data = extractEditableDataFromCell(targetCell, graph);
 			var oid = (data && data.OID != null) ? String(data.OID).trim() : '';
+			var title = (data && data.title != null) ? String(data.title).trim() : '';
 			out.push({
 				cell: targetCell,
 				objectId: String(targetCell.id || '').trim(),
 				schema: schema,
 				oid: oid,
+				title: title,
 				label: graph.convertValueToString(targetCell) || ''
 			});
 		}
@@ -9849,6 +9853,13 @@ Draw.loadPlugin(function(ui)
 		return Object.prototype.hasOwnProperty.call(allowed, value) ? value : 'classic';
 	}
 
+	function normalizeLogicalLinkGeometry(raw)
+	{
+		var value = String(raw || '').trim().toLowerCase();
+		var allowed = {straight: true, elbow: true, rounded: true};
+		return Object.prototype.hasOwnProperty.call(allowed, value) ? value : 'straight';
+	}
+
 	function toLogicalLinkStyleString(styleMap)
 	{
 		var parts = [];
@@ -9885,10 +9896,24 @@ Draw.loadPlugin(function(ui)
 		var strokeColor = styleMap.strokeColor != null ? String(styleMap.strokeColor) : '#000000';
 		var lineType = String(styleMap.dashed || '0') === '1' ? 'dashed' : 'solid';
 		var arrowType = styleMap.endArrow != null ? normalizeLogicalLinkArrowType(styleMap.endArrow) : 'classic';
+		var lineGeometry = 'straight';
+		if (String(styleMap.rounded || '0') === '1')
+		{
+			lineGeometry = 'rounded';
+		}
+		else
+		{
+			var edgeStyle = styleMap.edgeStyle != null ? String(styleMap.edgeStyle).trim() : '';
+			if (edgeStyle === 'orthogonalEdgeStyle' || edgeStyle === 'elbowEdgeStyle')
+			{
+				lineGeometry = 'elbow';
+			}
+		}
 		return {
 			strokeColor: strokeColor,
 			lineType: lineType,
-			arrowType: arrowType
+			arrowType: arrowType,
+			lineGeometry: lineGeometry
 		};
 	}
 
@@ -9898,6 +9923,7 @@ Draw.loadPlugin(function(ui)
 		var color = String(settings.strokeColor || style.strokeColor || '#000000').trim();
 		var lineType = normalizeLogicalLinkLineType(settings.lineType || style.lineType || 'solid');
 		var arrowType = normalizeLogicalLinkArrowType(settings.arrowType || style.arrowType || 'classic');
+		var lineGeometry = normalizeLogicalLinkGeometry(settings.lineGeometry || style.lineGeometry || 'straight');
 		var linkType = normalizeLogicalLinkType(settings.linkType || 'uni');
 		var styleMap = {
 			html: 1,
@@ -9909,11 +9935,26 @@ Draw.loadPlugin(function(ui)
 		{
 			styleMap.dashPattern = '8 8';
 		}
+		if (lineGeometry === 'straight')
+		{
+			styleMap.edgeStyle = 'none';
+			styleMap.rounded = 0;
+		}
+		else if (lineGeometry === 'elbow')
+		{
+			styleMap.edgeStyle = 'orthogonalEdgeStyle';
+			styleMap.rounded = 0;
+		}
+		else
+		{
+			styleMap.edgeStyle = 'orthogonalEdgeStyle';
+			styleMap.rounded = 1;
+		}
 		styleMap.startArrow = linkType === 'bi' && arrowType !== 'none' ? arrowType : 'none';
 		return toLogicalLinkStyleString(styleMap);
 	}
 
-	function createLogicalLinkEdge(graph, sourceCell, targetCell, styleText)
+	function createLogicalLinkEdge(graph, sourceCell, targetCell, styleText, labelText)
 	{
 		var parent = null;
 		try
@@ -9931,7 +9972,11 @@ Draw.loadPlugin(function(ui)
 		graph.getModel().beginUpdate();
 		try
 		{
-			var edge = graph.insertEdge(parent, null, '', sourceCell, targetCell, styleText);
+			var doc = mxUtils.createXmlDocument();
+			var valueNode = doc.createElement('object');
+			valueNode.setAttribute('label', String(labelText || ''));
+			valueNode.setAttribute('schema', LOGICAL_LINK_SCHEMA_VALUE);
+			var edge = graph.insertEdge(parent, null, valueNode, sourceCell, targetCell, styleText);
 			graph.setSelectionCell(edge);
 			return edge;
 		}
@@ -10023,10 +10068,10 @@ Draw.loadPlugin(function(ui)
 		for (var j = 0; j < items.length; j++)
 		{
 			var oidText = items[j].oid && items[j].oid.length > 0 ? items[j].oid : '[OID пустой]';
-			var schemaText = items[j].schema || 'schema_missing';
+			var titleText = items[j].title && items[j].title.length > 0 ? items[j].title : (items[j].label || 'title_missing');
 			endpointOptions.push({
 				value: items[j].objectId,
-				label: oidText + ' (' + schemaText + ')'
+				label: oidText + ' (' + titleText + ')'
 			});
 		}
 		var sourceSelect = createSelect(endpointOptions, true);
@@ -10035,6 +10080,17 @@ Draw.loadPlugin(function(ui)
 			{value: 'uni', label: 'Однонаправленная'},
 			{value: 'bi', label: 'Двунаправленная'}
 		], false);
+		var geometrySelect = createSelect([
+			{value: 'straight', label: 'Прямая'},
+			{value: 'elbow', label: 'Угловая'},
+			{value: 'rounded', label: 'Скругленная'}
+		], false);
+		geometrySelect.value = defaults.lineGeometry;
+		var labelInput = document.createElement('input');
+		labelInput.type = 'text';
+		labelInput.className = 'geInput';
+		labelInput.value = '';
+		labelInput.placeholder = 'Описание линии (опционально)';
 		var colorInput = document.createElement('input');
 		colorInput.type = 'color';
 		colorInput.className = 'geInput';
@@ -10055,6 +10111,8 @@ Draw.loadPlugin(function(ui)
 		addField('Источник', sourceSelect);
 		addField('Приемник', targetSelect);
 		addField('Тип связи', linkTypeSelect);
+		addField('Геометрия линии', geometrySelect);
+		addField('Label', labelInput);
 
 		var styleGrid = document.createElement('div');
 		styleGrid.style.display = 'grid';
@@ -10148,9 +10206,37 @@ Draw.loadPlugin(function(ui)
 				strokeColor: colorInput.value,
 				lineType: lineTypeSelect.value,
 				arrowType: arrowTypeSelect.value,
-				linkType: linkTypeSelect.value
+				linkType: linkTypeSelect.value,
+				lineGeometry: geometrySelect.value
 			});
-			createLogicalLinkEdge(graph, sourceItem.cell, targetItem.cell, styleText);
+			var edgeLabel = String(labelInput.value || '').trim();
+			var createdEdge = createLogicalLinkEdge(graph, sourceItem.cell, targetItem.cell, styleText, edgeLabel);
+			var currentPageId = '';
+			try
+			{
+				currentPageId = ui && ui.currentPage && typeof ui.currentPage.getId === 'function' ?
+					String(ui.currentPage.getId() || '').trim() : '';
+			}
+			catch (ePage)
+			{
+				currentPageId = '';
+			}
+			uiCommandHandlers.ensureLayer({
+				pageId: currentPageId,
+				layerName: LOGICAL_LINK_LAYER_NAME,
+				makeVisible: true,
+				suppressStencilEvents: true
+			});
+			if (createdEdge && createdEdge.id)
+			{
+				uiCommandHandlers.moveObjectsToLayer({
+					pageId: currentPageId,
+					objectIds: [createdEdge.id],
+					layerName: LOGICAL_LINK_LAYER_NAME,
+					makeVisible: true,
+					suppressStencilEvents: true
+				});
+			}
 			graph.refresh();
 			ui.hideDialog();
 			await writeLog('debug', 'Logical link created', {
@@ -10160,6 +10246,10 @@ Draw.loadPlugin(function(ui)
 				sourceObjectId: sourceItem.objectId,
 				targetObjectId: targetItem.objectId,
 				linkType: normalizeLogicalLinkType(linkTypeSelect.value),
+				lineGeometry: normalizeLogicalLinkGeometry(geometrySelect.value),
+				label: edgeLabel,
+				targetLayer: LOGICAL_LINK_LAYER_NAME,
+				schema: LOGICAL_LINK_SCHEMA_VALUE,
 				style: styleText
 			});
 		});
@@ -10173,6 +10263,7 @@ Draw.loadPlugin(function(ui)
 				targetId.length > 0 &&
 				sourceId !== targetId &&
 				String(linkTypeSelect.value || '').trim().length > 0 &&
+				String(geometrySelect.value || '').trim().length > 0 &&
 				String(colorInput.value || '').trim().length > 0 &&
 				String(lineTypeSelect.value || '').trim().length > 0 &&
 				String(arrowTypeSelect.value || '').trim().length > 0;
@@ -10181,9 +10272,11 @@ Draw.loadPlugin(function(ui)
 		sourceSelect.addEventListener('change', syncCreateState);
 		targetSelect.addEventListener('change', syncCreateState);
 		linkTypeSelect.addEventListener('change', syncCreateState);
+		geometrySelect.addEventListener('change', syncCreateState);
 		colorInput.addEventListener('change', syncCreateState);
 		lineTypeSelect.addEventListener('change', syncCreateState);
 		arrowTypeSelect.addEventListener('change', syncCreateState);
+		labelInput.addEventListener('input', syncCreateState);
 		syncCreateState();
 		footer.appendChild(cancelBtn);
 		footer.appendChild(createBtn);
@@ -10193,7 +10286,8 @@ Draw.loadPlugin(function(ui)
 			selection: items.map(function(row){ return {objectId: row.objectId, oid: row.oid, schema: row.schema}; }),
 			defaults: defaults
 		});
-		ui.showDialog(container, 620, 300, true, true);
+		var measuredHeight = Math.max(260, Math.min(340, container.scrollHeight + 24));
+		ui.showDialog(container, 620, measuredHeight, true, true);
 	}
 
 	async function executeCommand(command, source, sourceCell)
