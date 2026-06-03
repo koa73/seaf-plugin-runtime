@@ -43,6 +43,7 @@
 - `release/runtime/build-runtime.sh` - сборка full runtime (`release/out/stage` + `seaf-plugin-runtime.tar.gz`).
 - `release/runtime/build-minimal-runtime.sh` - сборка minimal runtime (`release/out/minimal-stage`).
 - `release/runtime/check-version-consistency.sh` - проверка согласованности версий full runtime.
+- Версионирование full runtime фиксировано как `X.Y.Z` с ограничением `Z <= 99`; после `X.Y.99` следующий релиз делается через повышение `Y` (например `0.5.99 -> 0.6.1`).
 - `../drawio-desktop/verify-seaf-minimal-stage.cjs` - fail-fast guard для desktop packaging (наличие minimal-stage и ключевых файлов).
 
 ## Packaging integration (drawio-desktop)
@@ -111,6 +112,7 @@
 - Поток: выбор `schema` по `layer` → сбор объектов на всех страницах → диалог Tabulator → Save → скрытая команда `seafToolsEditDataApply` / [`python/scripts/main_menu/edit_data_apply.py`](python/scripts/main_menu/edit_data_apply.py).
 - **Tabulator** (~450 KB) — часть **сборки draw.io** (`drawio-standalone/.../js/vendor/tabulator/`), не runtime tarball.
 - **Bulk-модуль** — `plugin/seaf-bulk-edit-data-module.js`, в tarball в **корне**; после update должен быть в `plugins/seaf-bulk-edit-data-module.js`.
+- Desktop allowlist (`drawio-desktop/src/main/electron.js`, `isSeafRuntimePath`) обязан явно разрешать root-файл `seaf-bulk-edit-data-module.js`; иначе `getPluginFile` вернёт `null` и bulk-диалог не откроется.
 - Если schema не входит в policy `seafEditData` (из `conf/context_menu.yaml`), bulk недоступен (standard mode).
 - При блокировке bulk по policy plugin пишет `warn` в `seaf-plugin.log` (`Bulk Edit Data denied by schema policy`) с `schema/layer/editMode`.
 
@@ -126,6 +128,7 @@
 
 - Если в команде задан `descriptionFile: main_menu/descriptions/<name>.md`, перед запуском показывается информационный preflight-диалог.
 - Диалог содержит markdown-описание инструмента и кнопки `Продолжить` / `Завершить`; отмена останавливает запуск команды без ошибки.
+- Если `descriptionFile` отсутствует/пустой/не читается, preflight работает в fail-open режиме: команда не блокируется, а runtime пишет warn в `seaf-plugin.log`.
 
 ### Tools → Net_Conf_Parser
 

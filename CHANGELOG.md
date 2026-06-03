@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.1
+
+- Runtime version raised to `0.6.1` (`seaf.plugin.js`, `conf/plugin.yaml`, `runtime/version.json`).
+- Added versioning guard for runtime release: patch segment is capped at `99`; if patch would exceed `99`, release flow requires incrementing minor version.
+
+## 0.5.100
+
+- **Edit Data loader unblock in desktop host**: в `drawio-desktop/src/main/electron.js` расширен SEAF allowlist (`isSeafRuntimePath`) для root-модуля `seaf-bulk-edit-data-module.js`, чтобы `getPluginFile` больше не возвращал `null` при отключённых общих plugins.
+- **NetConf preflight fail-open on missing description**: preflight `descriptionFile` для `interactiveTerminal` больше не блокирует запуск команды при пустом/недоступном markdown — runtime пишет warn и продолжает выполнение.
+- **Regression contracts**: усилены контракты `test-edit-data-bulk-contract.mjs` (allowlist root bulk-модуля) и `test-netconf-parser-menu-contract.mjs` (non-blocking description preflight).
+
 ## 0.5.99
 
 - **Python command preflight hardening**: в renderer добавлен единый gate `ensurePythonRuntimeReady` для Python-зависимых команд (script/interactive/bulk), чтобы команды не падали поздно в обработчиках и сразу возвращали предсказуемый reasoned-error.

@@ -18,6 +18,7 @@ fi
 cp -r "${ROOT_DIR}/conf/." "${STAGE_DIR}/seaf_plugin/conf/"
 cp -r "${ROOT_DIR}/runtime" "${STAGE_DIR}/seaf_plugin/runtime"
 cp -r "${ROOT_DIR}/keys" "${STAGE_DIR}/seaf_plugin/keys"
+"${ROOT_DIR}/release/runtime/check-version-consistency.sh" "${STAGE_DIR}"
 
 # Python runtime: production scripts + python/vendor only (no tests, no yaml_schema_generator_examples)
 cp "${PY_ROOT}/requirements.txt" "${STAGE_PY}/requirements.txt"
