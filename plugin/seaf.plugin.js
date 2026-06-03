@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.6.1
+ * Runtime script version: 0.6.2
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -9836,11 +9836,26 @@ Draw.loadPlugin(function(ui)
 
 	async function executeInteractiveTerminalCommand(command, source)
 	{
+		await writeLog('debug', 'Interactive terminal phase started', {
+			commandId: command && command.id ? command.id : '',
+			source: source,
+			phase: 'script_env_collect'
+		});
 		var scriptEnvOverrides = await collectScriptEnvOverrides(command);
 		if (scriptEnvOverrides == null)
 		{
+			await writeLog('info', 'Interactive terminal command cancelled before start', {
+				commandId: command && command.id ? command.id : '',
+				source: source,
+				phase: 'script_env_collect'
+			});
 			return;
 		}
+		await writeLog('debug', 'Interactive terminal phase completed', {
+			commandId: command && command.id ? command.id : '',
+			source: source,
+			phase: 'script_env_collect'
+		});
 
 		var payload = buildPayload(command);
 		applyScriptEnvToPayload(payload, scriptEnvOverrides);
@@ -9857,11 +9872,21 @@ Draw.loadPlugin(function(ui)
 
 		try
 		{
+			await writeLog('debug', 'Interactive terminal phase started', {
+				commandId: command && command.id ? command.id : '',
+				source: source,
+				phase: 'terminal_start'
+			});
 			var response = await requestAsync({
 				action: 'startSeafInteractiveTerminalSession',
 				configPath: state.configPath,
 				commandId: command.id,
 				payload: payload
+			});
+			await writeLog('debug', 'Interactive terminal phase completed', {
+				commandId: command && command.id ? command.id : '',
+				source: source,
+				phase: 'terminal_start'
 			});
 			var sessionId = response && response.sessionId ? response.sessionId : null;
 
@@ -9917,6 +9942,25 @@ Draw.loadPlugin(function(ui)
 				error: e.message
 			});
 			showError(formatCommandError(command.id, e.message));
+		}
+	}
+
+	async function executeCommandSafe(command, source, sourceCell)
+	{
+		try
+		{
+			await executeCommand(command, source, sourceCell);
+		}
+		catch (e)
+		{
+			var commandId = (command && command.id) ? command.id : 'unknown';
+			var errMsg = e && e.message ? e.message : String(e);
+			await writeLog('error', 'Command execution pipeline failed', {
+				commandId: commandId,
+				source: source || '',
+				error: errMsg
+			});
+			showError(formatCommandError(commandId, errMsg));
 		}
 	}
 
@@ -11309,7 +11353,7 @@ Draw.loadPlugin(function(ui)
 					{
 						var graph = ui && ui.editor ? ui.editor.graph : null;
 						var sourceCell = graph ? (graph.getSelectionCell() || state.contextMenuLastCell || null) : null;
-						executeCommand(command, 'menu', sourceCell);
+						executeCommandSafe(command, 'menu', sourceCell);
 					});
 				}
 			})(commands[i]);

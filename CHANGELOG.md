@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.2
+
+- **NetConf launch recovery**: восстановлены desktop IPC actions для preflight/script-env (`readSeafPluginFile`, `getSeafScriptEnvSchema`, `getSeafScriptEnvDefaults`, `saveSeafScriptEnvDefaults`), чтобы `Net_Conf_Parser` не обрывался до старта terminal session.
+- **Interactive chain hardening**: добавлен защитный `executeCommandSafe` + phase-логи (`script_env_collect`, `terminal_start`) в renderer, чтобы ранние ошибки больше не терялись «молча».
+- **Contracts**: усилен `test-netconf-parser-menu-contract.mjs` проверками обязательного IPC-контракта и новых diagnostic маркеров.
+
 ## 0.6.1
 
 - Runtime version raised to `0.6.1` (`seaf.plugin.js`, `conf/plugin.yaml`, `runtime/version.json`).

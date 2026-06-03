@@ -135,6 +135,7 @@
 - Пункт меню: `seafToolsNetConfParser`, `clientAction: interactiveTerminal`, `execution.mode: interactive_terminal`.
 - Для `seafToolsNetConfParser` включен preflight по `descriptionFile: main_menu/descriptions/seafToolsNetConfParser.md`.
 - Перед запуском — `scriptEnvEditor: scripts/net_conf_parser.script_env.yaml` (каталоги data и output); `patterns/` фиксирован: `python/vendor/netconf_parser/patterns/` в установленном runtime.
+- Для корректного запуска цепочки preflight/scriptEnv desktop IPC должен поддерживать actions: `readSeafPluginFile`, `getSeafScriptEnvSchema`, `getSeafScriptEnvDefaults`, `saveSeafScriptEnvDefaults`.
 - Launcher: `python/scripts/main_menu/net_conf_parser.py` → `python/vendor/netconf_parser/main_entry.py` (без SEAF-конвертации).
 - Обновление upstream: [`scripts/vendor/sync-netconf-parser.sh`](scripts/vendor/sync-netconf-parser.sh) → `python/vendor/netconf_parser/`.
 - Ошибки чтения конфигов (`Permission denied` и др.) — stderr vendored-парсера; tail PTY в `seaf-plugin.log` при failed terminal или `pluginLogLevel: debug` (desktop **a57+**).
