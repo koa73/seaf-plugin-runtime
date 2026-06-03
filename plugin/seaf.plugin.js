@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.92
+ * Runtime script version: 0.5.93
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -10164,6 +10164,7 @@ Draw.loadPlugin(function(ui)
 		footer.style.justifyContent = 'flex-end';
 		footer.style.gap = '8px';
 		footer.style.paddingTop = '6px';
+		footer.style.paddingBottom = '10px';
 		var cancelBtn = mxUtils.button('Отмена', function()
 		{
 			ui.hideDialog();
@@ -10286,7 +10287,7 @@ Draw.loadPlugin(function(ui)
 			selection: items.map(function(row){ return {objectId: row.objectId, oid: row.oid, schema: row.schema}; }),
 			defaults: defaults
 		});
-		var measuredHeight = Math.max(260, Math.min(340, container.scrollHeight + 24));
+		var measuredHeight = Math.max(270, Math.min(350, container.scrollHeight + 28));
 		ui.showDialog(container, 620, measuredHeight, true, true);
 	}
 
