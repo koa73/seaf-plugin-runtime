@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.96
+
+- **Logical link export payload fix**: `seafCreateLogicalLink` теперь заполняет у edge не только `schema`, но и `OID`, `title`, `source`, `target`, `direction`, чтобы Export формировал непустой объект `services.logical_links.yaml`.
+- **Direction/OID generation**: добавлен mapping `linkType -> direction` (`uni => ==>`, `bi => <==>`) и генерация OID для логической связи через существующий runtime OID-алгоритм (`companyPrefix + schemaCode + sequence`) с учетом уже занятых OID на странице.
+- **Contracts**: обновлён `test-create-logical-link-ui-contract.mjs` (проверка установки `OID/source/target/direction/title`) и расширен `test-export-schema.mjs` проверкой, что logical link не экспортируется как `{}` при наличии обязательных полей.
+
 ## 0.5.95
 
 - **Logical links export compatibility**: `seafCreateLogicalLink` теперь записывает schema `seaf.company.ta.services.logical_links`, совпадающую с ключом сущности из `yaml_schema_generator`, поэтому новые связи больше не попадают в `schemas_skipped` на Export.

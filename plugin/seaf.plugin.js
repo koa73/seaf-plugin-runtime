@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.95
+ * Runtime script version: 0.5.96
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -9954,7 +9954,50 @@ Draw.loadPlugin(function(ui)
 		return toLogicalLinkStyleString(styleMap);
 	}
 
-	function createLogicalLinkEdge(graph, sourceCell, targetCell, styleText, labelText)
+	function resolveLogicalLinkDirection(linkType)
+	{
+		return normalizeLogicalLinkType(linkType) === 'bi' ? '<==>' : '==>';
+	}
+
+	function allocateLogicalLinkOid(graph)
+	{
+		var knownOids = {};
+		var reservedOids = {};
+		var byOid = state && state.stencilIndex ? state.stencilIndex.byOid : {};
+		for (var existing in byOid)
+		{
+			if (Object.prototype.hasOwnProperty.call(byOid, existing))
+			{
+				knownOids[existing] = true;
+			}
+		}
+		if (graph && graph.model && typeof graph.model.filterDescendants === 'function')
+		{
+			var model = graph.model;
+			var root = model.getRoot ? model.getRoot() : model.root;
+			var cells = model.filterDescendants(function(cell)
+			{
+				return model.isVertex(cell) || model.isEdge(cell);
+			}, root) || [];
+			for (var i = 0; i < cells.length; i++)
+			{
+				var row = cells[i];
+				if (!row)
+				{
+					continue;
+				}
+				var data = extractEditableDataFromCell(row, graph);
+				var oid = (data && data.OID != null) ? String(data.OID).trim() : '';
+				if (oid.length > 0)
+				{
+					knownOids[oid] = true;
+				}
+			}
+		}
+		return nextOidValue(getCompanyPrefix(), LOGICAL_LINK_SCHEMA_VALUE, knownOids, reservedOids);
+	}
+
+	function createLogicalLinkEdge(graph, sourceCell, targetCell, styleText, labelText, seafPayload)
 	{
 		var parent = null;
 		try
@@ -9972,13 +10015,45 @@ Draw.loadPlugin(function(ui)
 		graph.getModel().beginUpdate();
 		try
 		{
+			var payload = (seafPayload && typeof seafPayload === 'object') ? seafPayload : {};
+			var logicalOid = String(payload.oid || '').trim();
+			if (!logicalOid)
+			{
+				logicalOid = allocateLogicalLinkOid(graph);
+			}
+			var sourceOid = String(payload.sourceOid || '').trim();
+			var targetOid = String(payload.targetOid || '').trim();
+			var direction = String(payload.direction || '').trim();
+			if (!direction)
+			{
+				direction = resolveLogicalLinkDirection(payload.linkType || 'uni');
+			}
+			var title = String(payload.title || '').trim();
+			if (!title)
+			{
+				title = String(labelText || '').trim();
+			}
+			if (!title)
+			{
+				title = 'Связь';
+			}
 			var doc = mxUtils.createXmlDocument();
 			var valueNode = doc.createElement('object');
 			valueNode.setAttribute('label', String(labelText || ''));
 			valueNode.setAttribute('schema', LOGICAL_LINK_SCHEMA_VALUE);
+			valueNode.setAttribute('OID', logicalOid);
+			valueNode.setAttribute('title', title);
+			valueNode.setAttribute('source', sourceOid);
+			valueNode.setAttribute('target', JSON.stringify([targetOid]));
+			valueNode.setAttribute('direction', direction);
 			var edge = graph.insertEdge(parent, null, valueNode, sourceCell, targetCell, styleText);
 			graph.setSelectionCell(edge);
-			return edge;
+			return {
+				edge: edge,
+				oid: logicalOid,
+				title: title,
+				direction: direction
+			};
 		}
 		finally
 		{
@@ -10074,6 +10149,24 @@ Draw.loadPlugin(function(ui)
 				label: oidText + ' (' + titleText + ')'
 			});
 		}
+
+		function findItemByObjectId(objectId)
+		{
+			var targetId = String(objectId || '').trim();
+			if (!targetId)
+			{
+				return null;
+			}
+			for (var ii = 0; ii < items.length; ii++)
+			{
+				if (String(items[ii].objectId || '').trim() === targetId)
+				{
+					return items[ii];
+				}
+			}
+			return null;
+		}
+
 		var sourceSelect = createSelect(endpointOptions, true);
 		var targetSelect = createSelect(endpointOptions, true);
 		var linkTypeSelect = createSelect([
@@ -10185,33 +10278,46 @@ Draw.loadPlugin(function(ui)
 				showError(formatCommandError(command.id, 'Источник и приемник должны быть разными и заполненными'));
 				return;
 			}
-			var sourceItem = null;
-			var targetItem = null;
-			for (var k = 0; k < items.length; k++)
-			{
-				if (items[k].objectId === sourceId)
-				{
-					sourceItem = items[k];
-				}
-				if (items[k].objectId === targetId)
-				{
-					targetItem = items[k];
-				}
-			}
+			var sourceItem = findItemByObjectId(sourceId);
+			var targetItem = findItemByObjectId(targetId);
 			if (!sourceItem || !targetItem)
 			{
 				showError(formatCommandError(command.id, 'Не удалось определить исходные объекты для связи'));
 				return;
 			}
+			var sourceOid = String(sourceItem.oid || '').trim();
+			var targetOid = String(targetItem.oid || '').trim();
+			if (!sourceOid || !targetOid)
+			{
+				showError(formatCommandError(command.id, 'У источника и приемника должны быть заполнены OID'));
+				return;
+			}
+			var normalizedLinkType = normalizeLogicalLinkType(linkTypeSelect.value);
+			var logicalDirection = resolveLogicalLinkDirection(normalizedLinkType);
 			var styleText = buildLogicalLinkStyleFromDialog(defaults, {
 				strokeColor: colorInput.value,
 				lineType: lineTypeSelect.value,
 				arrowType: arrowTypeSelect.value,
-				linkType: linkTypeSelect.value,
+				linkType: normalizedLinkType,
 				lineGeometry: geometrySelect.value
 			});
 			var edgeLabel = String(labelInput.value || '').trim();
-			var createdEdge = createLogicalLinkEdge(graph, sourceItem.cell, targetItem.cell, styleText, edgeLabel);
+			var logicalTitle = edgeLabel.length > 0 ? edgeLabel : 'Связь';
+			var createResult = createLogicalLinkEdge(
+				graph,
+				sourceItem.cell,
+				targetItem.cell,
+				styleText,
+				edgeLabel,
+				{
+					sourceOid: sourceOid,
+					targetOid: targetOid,
+					direction: logicalDirection,
+					linkType: normalizedLinkType,
+					title: logicalTitle
+				}
+			);
+			var createdEdge = createResult && createResult.edge ? createResult.edge : null;
 			var currentPageId = '';
 			try
 			{
@@ -10244,9 +10350,12 @@ Draw.loadPlugin(function(ui)
 				commandId: command.id,
 				sourceOid: sourceItem.oid,
 				targetOid: targetItem.oid,
+				createdOid: createResult && createResult.oid ? createResult.oid : null,
+				direction: createResult && createResult.direction ? createResult.direction : logicalDirection,
+				title: createResult && createResult.title ? createResult.title : logicalTitle,
 				sourceObjectId: sourceItem.objectId,
 				targetObjectId: targetItem.objectId,
-				linkType: normalizeLogicalLinkType(linkTypeSelect.value),
+				linkType: normalizedLinkType,
 				lineGeometry: normalizeLogicalLinkGeometry(geometrySelect.value),
 				label: edgeLabel,
 				targetLayer: LOGICAL_LINK_LAYER_NAME,
@@ -10260,8 +10369,14 @@ Draw.loadPlugin(function(ui)
 		{
 			var sourceId = String(sourceSelect.value || '').trim();
 			var targetId = String(targetSelect.value || '').trim();
+			var sourceItem = findItemByObjectId(sourceId);
+			var targetItem = findItemByObjectId(targetId);
 			var valid = sourceId.length > 0 &&
 				targetId.length > 0 &&
+				sourceItem != null &&
+				targetItem != null &&
+				String(sourceItem.oid || '').trim().length > 0 &&
+				String(targetItem.oid || '').trim().length > 0 &&
 				sourceId !== targetId &&
 				String(linkTypeSelect.value || '').trim().length > 0 &&
 				String(geometrySelect.value || '').trim().length > 0 &&
