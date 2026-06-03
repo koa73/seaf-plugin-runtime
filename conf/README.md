@@ -252,6 +252,7 @@ descriptionFile: main_menu/descriptions/<command-id>.md
 - endpoint-пункты в окне отображаются как `OID (title)`;
 - у линии выставляется служебное поле `schema=seaf.company.ta.services.logical_links`;
 - при создании автоматически заполняются export-совместимые атрибуты `OID`, `title`, `source`, `target`, `direction`;
+- поле `Описание` в диалоге опционально и при заполнении записывается как `description` в data edge;
 - связь переносится на слой `Логические связи` (слой создается автоматически при отсутствии).
 
 Для `seafAddPage` (`context_menu/add_page.py`) после `createPage + setCellLinkToPage`

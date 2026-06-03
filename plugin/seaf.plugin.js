@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.96
+ * Runtime script version: 0.5.97
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -10037,12 +10037,17 @@ Draw.loadPlugin(function(ui)
 			{
 				title = 'Связь';
 			}
+			var description = String(payload.description || '').trim();
 			var doc = mxUtils.createXmlDocument();
 			var valueNode = doc.createElement('object');
 			valueNode.setAttribute('label', String(labelText || ''));
 			valueNode.setAttribute('schema', LOGICAL_LINK_SCHEMA_VALUE);
 			valueNode.setAttribute('OID', logicalOid);
 			valueNode.setAttribute('title', title);
+			if (description.length > 0)
+			{
+				valueNode.setAttribute('description', description);
+			}
 			valueNode.setAttribute('source', sourceOid);
 			valueNode.setAttribute('target', JSON.stringify([targetOid]));
 			valueNode.setAttribute('direction', direction);
@@ -10052,7 +10057,8 @@ Draw.loadPlugin(function(ui)
 				edge: edge,
 				oid: logicalOid,
 				title: title,
-				direction: direction
+				direction: direction,
+				description: description
 			};
 		}
 		finally
@@ -10183,7 +10189,12 @@ Draw.loadPlugin(function(ui)
 		labelInput.type = 'text';
 		labelInput.className = 'geInput';
 		labelInput.value = '';
-		labelInput.placeholder = 'Описание линии (опционально)';
+		labelInput.placeholder = 'Заголовок связи (опционально)';
+		var descriptionInput = document.createElement('input');
+		descriptionInput.type = 'text';
+		descriptionInput.className = 'geInput';
+		descriptionInput.value = '';
+		descriptionInput.placeholder = 'Описание связи (опционально)';
 		var colorInput = document.createElement('input');
 		colorInput.type = 'color';
 		colorInput.className = 'geInput';
@@ -10206,6 +10217,7 @@ Draw.loadPlugin(function(ui)
 		addField('Тип связи', linkTypeSelect);
 		addField('Геометрия линии', geometrySelect);
 		addField('Label', labelInput);
+		addField('Описание', descriptionInput);
 
 		var styleGrid = document.createElement('div');
 		styleGrid.style.display = 'grid';
@@ -10302,6 +10314,7 @@ Draw.loadPlugin(function(ui)
 				lineGeometry: geometrySelect.value
 			});
 			var edgeLabel = String(labelInput.value || '').trim();
+			var edgeDescription = String(descriptionInput.value || '').trim();
 			var logicalTitle = edgeLabel.length > 0 ? edgeLabel : 'Связь';
 			var createResult = createLogicalLinkEdge(
 				graph,
@@ -10314,7 +10327,8 @@ Draw.loadPlugin(function(ui)
 					targetOid: targetOid,
 					direction: logicalDirection,
 					linkType: normalizedLinkType,
-					title: logicalTitle
+					title: logicalTitle,
+					description: edgeDescription
 				}
 			);
 			var createdEdge = createResult && createResult.edge ? createResult.edge : null;
@@ -10353,6 +10367,7 @@ Draw.loadPlugin(function(ui)
 				createdOid: createResult && createResult.oid ? createResult.oid : null,
 				direction: createResult && createResult.direction ? createResult.direction : logicalDirection,
 				title: createResult && createResult.title ? createResult.title : logicalTitle,
+				description: createResult && createResult.description ? createResult.description : edgeDescription,
 				sourceObjectId: sourceItem.objectId,
 				targetObjectId: targetItem.objectId,
 				linkType: normalizedLinkType,
@@ -10393,6 +10408,7 @@ Draw.loadPlugin(function(ui)
 		lineTypeSelect.addEventListener('change', syncCreateState);
 		arrowTypeSelect.addEventListener('change', syncCreateState);
 		labelInput.addEventListener('input', syncCreateState);
+		descriptionInput.addEventListener('input', syncCreateState);
 		syncCreateState();
 		footer.appendChild(cancelBtn);
 		footer.appendChild(createBtn);

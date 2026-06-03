@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.97
+
+- **Logical link description field**: во вспомогательное окно `Создать логическую связь` добавлено опциональное поле `Описание`; значение сохраняется в атрибут `description` у edge только при непустом вводе.
+- **Payload tracing**: debug-лог `Logical link created` теперь включает `description`, чтобы упростить диагностику данных созданной связи.
+- **UI contract update**: `test-create-logical-link-ui-contract.mjs` расширен проверками `descriptionInput`, установки `description` в value и гарантией, что `Описание` не является обязательным полем для кнопки `Создать`.
+
 ## 0.5.96
 
 - **Logical link export payload fix**: `seafCreateLogicalLink` теперь заполняет у edge не только `schema`, но и `OID`, `title`, `source`, `target`, `direction`, чтобы Export формировал непустой объект `services.logical_links.yaml`.
