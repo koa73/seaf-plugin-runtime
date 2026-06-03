@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.90
+
+- **Managed venv bootstrap branching fix**: `bootstrapPythonRuntimeOnInstallOrUpdate` переведен на 2-веточный алгоритм — при наличии валидного `seaf_plugin/.venv` выполняется health-check (`probe -> ensure pip -> verify imports`) без пересоздания, при отсутствии/битом venv запускается recreate-ветка.
+- **ENOENT loop protection**: при выборе `basePython` для recreate исключаются кандидаты внутри managed `.venv`, чтобы update не пытался запускать интерпретатор из каталога, который сам же удаляет перед `python -m venv`.
+- **Diagnostics hardening**: в bootstrap-лог добавлены поля `branch`, `venvDirExists`, `selectedBasePython`, `selectedVenvPython`, `triedCandidates`, `filteredCandidates` для детального разбора update-сбоев.
+- **Contract update**: обновлен `test-python-bootstrap-update-contract.mjs` под новый 2-веточный bootstrap и защиту от self-referential `.venv` кандидатов.
+
 ## 0.5.89
 
 - **Add-page full-page layer routing**: в pipeline `context_menu/add_page.py` после `assignEmptyOidOnPage` и `autoLinkParentsOnPage` добавлен обязательный шаг `routePageStencilsToLayers`, который выполняется для всех сценариев (mirror и non-mirror).

@@ -86,6 +86,8 @@
 15. При runtime update сервис сначала пытается мигрировать `seaf_plugin/.venv` из backup в новый runtime; это сохраняет рабочий интерпретатор между обновлениями.
 16. После применения runtime запускается `bootstrapPythonRuntimeOnInstallOrUpdate`: создание managed `.venv` (с fallback `virtualenv`), установка `python/requirements.txt`, preflight-import и возврат статуса в `payload.pythonBootstrap`.
 17. Если `pythonExecutable` из `env.yaml` больше не существует, `resolvePythonExecutable` автоматически пытается fallback (`python3`, `python`) и может перезаписать `env.yaml` рабочим путем.
+18. Bootstrap работает по 2 веткам: при валидном `seaf_plugin/.venv` используется health-check (`probe -> ensure pip -> verify imports`) без пересоздания; при отсутствии/повреждении `.venv` запускается recreate managed окружения.
+19. В recreate-ветке кандидаты `basePython` внутри managed `.venv` отфильтровываются, чтобы исключить `ENOENT` цикл при удалении `.venv` перед `python -m venv`.
 15. Tarball собирается через `cp conf/.` → merge в `seaf_plugin/conf/` (без вложенного `conf/conf/`). См. `release/runtime/build-runtime.sh`.
 
 ## Menu order contract
