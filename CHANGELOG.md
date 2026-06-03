@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.95
+
+- **Logical links export compatibility**: `seafCreateLogicalLink` теперь записывает schema `seaf.company.ta.services.logical_links`, совпадающую с ключом сущности из `yaml_schema_generator`, поэтому новые связи больше не попадают в `schemas_skipped` на Export.
+- **Contract hardening**: UI-контракт `test-create-logical-link-ui-contract.mjs` дополнен проверкой актуального `LOGICAL_LINK_SCHEMA_VALUE`, чтобы исключить регрессию schema key.
+
 ## 0.5.94
 
 - **Logical link dialog spacing patch**: увеличен нижний отступ кнопочного блока до `25px` для окна `Создать логическую связь`, чтобы кнопки не были визуально прижаты к нижней границе.

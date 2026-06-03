@@ -1,6 +1,6 @@
 /**
  * SEAF plugin for draw.io desktop runtime.
- * Runtime script version: 0.5.94
+ * Runtime script version: 0.5.95
  * Uses main-process IPC for config, command execution and logs.
  */
 Draw.loadPlugin(function(ui)
@@ -71,7 +71,7 @@ Draw.loadPlugin(function(ui)
 		'seaf.company.ta.services.k8s': true,
 		'seaf.company.ta.components.user_devices': true
 	};
-	var LOGICAL_LINK_SCHEMA_VALUE = 'seaf.company.ta.logical_links';
+	var LOGICAL_LINK_SCHEMA_VALUE = 'seaf.company.ta.services.logical_links';
 	var LOGICAL_LINK_LAYER_NAME = 'Логические связи';
 
 	function requestAsync(msg)

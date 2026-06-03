@@ -250,7 +250,7 @@ descriptionFile: main_menu/descriptions/<command-id>.md
 - schema обоих выбранных объектов должны входить в allowlist (`seaf.company.ta.components.networks`, `seaf.company.ta.services.kbs`, `...`, `seaf.company.ta.components.user_devices`);
 - запуск открывает вспомогательное окно параметров связи и создает edge через standard draw.io API (`graph.insertEdge`);
 - endpoint-пункты в окне отображаются как `OID (title)`;
-- у линии выставляется служебное поле `schema=seaf.company.ta.logical_links`;
+- у линии выставляется служебное поле `schema=seaf.company.ta.services.logical_links`;
 - связь переносится на слой `Логические связи` (слой создается автоматически при отсутствии).
 
 Для `seafAddPage` (`context_menu/add_page.py`) после `createPage + setCellLinkToPage`
