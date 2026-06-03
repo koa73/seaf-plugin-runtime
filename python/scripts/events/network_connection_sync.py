@@ -6,10 +6,17 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, List
 
-from lib.events import build_update_stencil_data_bulk_command, log_event_items
+from lib.events import (
+    build_move_objects_to_layer_command,
+    build_update_stencil_data_bulk_command,
+    log_event_items,
+)
 from lib.io import build_error_policy_payload, read_request, write_response
 from lib.logging import build_script_logger
 from lib.main_menu.seaf_data_map import denormalize_for_stencil
+
+
+NETWORK_CONNECTION_LAYER_NAME = "Сетевые соединения"
 
 
 def _parse_list_value(raw: Any) -> List[str]:
@@ -78,15 +85,43 @@ def _build_updates(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return updates
 
 
+def _collect_connect_edge_ids(items: List[Dict[str, Any]]) -> List[str]:
+    edge_ids: List[str] = []
+    seen: set[str] = set()
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        operation = str(item.get("operation") or "").strip().lower()
+        if operation != "connect":
+            continue
+        edge_id = str(item.get("edgeId") or "").strip()
+        if not edge_id or edge_id in seen:
+            continue
+        seen.add(edge_id)
+        edge_ids.append(edge_id)
+    return edge_ids
+
+
 def build_commands(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
     event = payload.get("event") if isinstance(payload.get("event"), dict) else {}
     page = event.get("page") if isinstance(event.get("page"), dict) else {}
     page_id = page.get("id")
     items = event.get("items") if isinstance(event.get("items"), list) else []
     updates = _build_updates(items)
-    if not updates:
-        return []
-    return [build_update_stencil_data_bulk_command(page_id, updates, suppress_stencil_events=True)]
+    edge_ids = _collect_connect_edge_ids(items)
+    commands: List[Dict[str, Any]] = []
+    if updates:
+        commands.append(build_update_stencil_data_bulk_command(page_id, updates, suppress_stencil_events=True))
+    if edge_ids:
+        commands.append(
+            build_move_objects_to_layer_command(
+                page_id,
+                NETWORK_CONNECTION_LAYER_NAME,
+                edge_ids,
+                suppress_stencil_events=True,
+            )
+        )
+    return commands
 
 
 def main() -> int:

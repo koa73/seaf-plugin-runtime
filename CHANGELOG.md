@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.4
+
+- **Network connection layer routing**: в `seafStencilNetworkConnectionSync` добавлен финальный шаг `moveObjectsToLayer` для операции `connect` — созданные edge теперь переносятся на слой `Сетевые соединения`.
+- **Layer auto-create reuse**: используется существующий контракт `moveObjectsToLayer` (создание слоя при отсутствии выполняется runtime UI handler-ом без новых IPC/API).
+- **Disconnect invariant**: для `disconnect` layer-move не выполняется.
+- **Contracts**: `test-network-connection-sync-script.mjs` дополнен проверками порядка команд (`updateStencilDataBulk` -> `moveObjectsToLayer`) и целевого `layerName`.
+
 ## 0.6.3
 
 - **Bulk Edit Data visibility fix**: в `seaf-bulk-edit-data-module.js` скрытые поля (`data_hidden`) больше не вырезаются на этапе `collectFieldNames`, поэтому чекбокс `Показать скрытые` реально переключает видимость hidden-колонок.

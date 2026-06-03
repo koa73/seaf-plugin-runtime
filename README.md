@@ -190,6 +190,7 @@
 - Event payload для Python handlers обогащен полями `objectId`, `geometry(x,y,width,height)` и `data` (атрибуты объекта по модели `Edit Data`).
 - Для modify дополнительно передаются `valueBefore/valueAfter` и `dataBefore/dataAfter`.
 - Для connect/disconnect дополнительно передаются `edgeId`, `sourceObjectId`, `targetObjectId`, `sourceSchema`, `targetSchema`, `sourceData`, `targetData`, `networkObjectId`, `networkOid`, `receiverObjectId`, `receiverData`.
+- Для handler `seafStencilNetworkConnectionSync` операция `connect` в конце текущей логики дополнительно переносит созданные edge на слой `Сетевые соединения` через `moveObjectsToLayer` (auto-create слоя при отсутствии); для `disconnect` перенос не выполняется.
 - Решение «есть ли реальный modify» в `collectStencilEventsFromModelChange` принимается по изменению карты редактируемых атрибутов (`dataBefore` vs `dataAfter`, стабильная сортировка ключей) и при необходимости по прежнему снимку `sanitizeForIpc(value)`; в лог пишется `Stencil modify candidate evaluated` (`emitModify`, `diffKeys`). Перед вызовом Python пишется `Stencil event handler started` (`commandId`, `ruleId`, `txId`).
 - В payload команд контекстного меню (`selection[]`) передаются те же ключевые поля: `objectId`, `geometry`, `data`.
 - Контекстное меню поддерживает 2 scope-режима: `canvas` (клик по полю) и `stencil` (клик по стенсилу).
