@@ -52,7 +52,7 @@
 - Перед `release-*` в `drawio-desktop/package.json` выполняется `verify-seaf-minimal-stage.cjs`; при неполном stage сборка останавливается.
 - При первом старте drawio `ensureSeafRuntimeInstalled` копирует `seaf-runtime-default` в пользовательский каталог плагинов.
 - Bootstrap пишет диагностические логи `[SEAF bootstrap] ...` с причинами раннего выхода (`defaults_plugin_missing`, `defaults_runtime_missing`) и итоговой верификацией.
-- Ключи из `seaf_plugin/keys` копируются idempotent, для приватного ключа применяется `chmod 600` (best effort).
+- SSH-ключи больше не используются: минимальный stage и runtime-архив не содержат `seaf_plugin/keys`.
 
 ## Runtime location in draw.io desktop
 
@@ -63,7 +63,6 @@
 - `~/.config/draw.io/plugins/seaf_plugin/conf/*`
 - `~/.config/draw.io/plugins/seaf_plugin/python/*` (для full runtime)
 - `~/.config/draw.io/plugins/seaf_plugin/runtime/*`
-- `~/.config/draw.io/plugins/seaf_plugin/keys/*`
 
 Ручная распаковка tarball в `plugins/` **не требуется** и **не является** штатным способом обновления.
 
@@ -72,8 +71,14 @@
 1. Собрать full runtime:
    - `release/runtime/build-runtime.sh`
 2. Опубликовать артефакт `seaf-plugin-runtime.tar.gz` в репозитории обновления.
+   - Пример:
+     ```bash
+     gh release create v0.6.5 release/out/seaf-plugin-runtime.tar.gz \
+       --repo koa73/seaf-plugin-runtime \
+       --title "SEAF runtime 0.6.5"
+     ```
 3. В draw.io вызвать системный пункт меню `SEAF -> Обновить плагин`.
-4. Main-process выполняет native update (`ssh_git`) как async-job с `pollSeafPluginJob` и фазами прогресса.
+4. Main-process выполняет native update (`github_release`, HTTPS) как async-job с `pollSeafPluginJob` и фазами прогресса.
 5. В UI показывается процентный индикатор выполнения update.
 6. После успеха показывается финальное сообщение с требованием полного перезапуска приложения draw.io; автоматический `reload` отключен.
 7. Для `seaf.plugin.js` используется cache-busting загрузка (`?v=<mtime>`), чтобы после перезапуска гарантированно подхватывался новый plugin entry.

@@ -53,6 +53,15 @@
 | `includes.menus.context` | `string` | Include для context menu overrides | `context_menu.yaml` |
 | `includes.events.commands` | `string` | Include для скрытых event commands | `events.yaml` |
 
+### Контракт `update.*` (HTTPS)
+
+- `update.mode` должен быть `github_release`.
+- `update.repo` должен быть в формате `owner/repo` и указывать на публичный GitHub repository.
+- `update.assetName` должен совпадать с именем артефакта release (обычно `seaf-plugin-runtime.tar.gz`).
+- `update.tag` рекомендуется `latest` (или фиксированный тег для pin-version сценариев).
+- `update.apiBaseUrl` по умолчанию `https://api.github.com`.
+- Поля legacy SSH-конфига (`gitRepoSsh`, `gitRef`, `assetPath`, `ssh.*`) больше не используются.
+
 ---
 
 ## 2) `env.yaml` (user config)
